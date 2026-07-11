@@ -1,0 +1,23 @@
+# .NET build output
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+*.user
+
+# Runtime SQLite database (seed data lives in migrations, not the file)
+*.db
+*.db-shm
+*.db-wal
+
+# Node / Vite
+node_modules/
+dist/
+.vite/
+*.local
+
+# Editor / OS
+.vs/
+.idea/
+.DS_Store
+*.swp
