@@ -4,8 +4,9 @@ Per-release checklist tracker for Zion Music Group. Turns the repeatable
 pre/release/post checklist into a per-release progress tracker across artists,
 for both singles and albums. See [build-plan.md](build-plan.md) for the full brief.
 
-**Status:** Milestones M0 + M1 complete (skeleton, artists + releases CRUD, seeded
-checklist templates, release-detail checklist screens and template management are M2+).
+**Status:** v1 complete (M0–M5). Skeleton, artists + releases CRUD, seeded checklist
+templates, the release-detail checklist engine, template management, album track lists,
+and the polish pass (mobile, filters, empty states, Dockerfile) are all in.
 
 ## Stack
 
@@ -54,6 +55,18 @@ cd ../.. && dotnet run --project src/Zmg.Api
 ```
 
 Open http://localhost:5274.
+
+## Run (Docker)
+
+One image builds the SPA, publishes the API, and serves both. The SQLite file lives in a
+mounted volume so data survives container restarts.
+
+```bash
+docker build -t zmg-tracker .
+docker run -p 8080:8080 -v zmg-data:/data zmg-tracker
+```
+
+Open http://localhost:8080.
 
 ## Test
 

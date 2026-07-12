@@ -257,11 +257,11 @@ export default function ReleaseDetail() {
               feat. {release.featuredArtists.map((f) => f.name).join(', ')}
             </p>
           )}
-          <div className="mt-1 flex items-center gap-2 text-xs text-slate-400">
+          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-400">
             <TypeBadge type={release.type} />
-            <span>{release.releaseDate}</span>
-            <span>· {done}/{total} done</span>
-            {countdown && <span className="text-accent">· {countdown}</span>}
+            <span className="whitespace-nowrap">{release.releaseDate}</span>
+            <span className="whitespace-nowrap">· {done}/{total} done</span>
+            {countdown && <span className="whitespace-nowrap text-accent">· {countdown}</span>}
           </div>
           <div className="mt-3">
             <ProgressBar done={done} total={total} />

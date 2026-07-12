@@ -1,0 +1,20 @@
+# Build outputs — regenerated inside the image
+**/bin/
+**/obj/
+src/Zmg.Api/wwwroot/
+src/Zmg.Web/node_modules/
+src/Zmg.Web/dist/
+
+# Runtime SQLite (seed data lives in migrations)
+*.db
+*.db-shm
+*.db-wal
+
+# Not needed in the image
+tests/
+.git/
+.github/
+.vs/
+.idea/
+.DS_Store
+*.md

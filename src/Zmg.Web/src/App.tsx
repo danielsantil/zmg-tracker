@@ -15,7 +15,7 @@ function Nav() {
       <div className="mx-auto flex max-w-5xl items-center gap-2 px-4 py-3">
         <NavLink to="/" className="mr-2 flex items-center gap-2 font-semibold text-white">
           <span className="grid h-7 w-7 place-items-center rounded-lg bg-accent text-sm">Z</span>
-          ZMG Tracker
+          <span className="hidden sm:inline">ZMG Tracker</span>
         </NavLink>
         <NavLink to="/" end className={link}>
           Releases

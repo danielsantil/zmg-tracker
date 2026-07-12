@@ -5,11 +5,12 @@ do next. Pairs with [build-plan.md](build-plan.md) (the full brief) — this doc
 "current state" the plan can't carry. Read the plan for scope/rationale; read this for
 where things actually stand.
 
-**As of:** M0 + M1 + M2 + M3 + M4 complete and verified end-to-end. Next up: **M5 (polish)**.
+**As of:** M0 + M1 + M2 + M3 + M4 + M5 complete and verified end-to-end. **v1 is done** —
+every milestone in build-plan.md §10 is built.
 
 ---
 
-## What's built (M0 + M1 + M2 + M3 + M4)
+## What's built (M0 + M1 + M2 + M3 + M4 + M5)
 
 **Backend — `src/Zmg.Domain` (pure, no I/O):**
 - Entities + enums (`ReleaseType`, `Phase`, `ArtistRole`) — [Entities.cs](src/Zmg.Domain/Entities.cs), [Enums.cs](src/Zmg.Domain/Enums.cs)
@@ -36,6 +37,11 @@ where things actually stand.
 - Templates (M3, §8 screen 5): tabs Single/Album, "future releases only" banner, per-phase sections with add / rename (inline) / delete / move-phase / move up-down; flat task array recomputed client-side per mutation, no re-fetch; `/templates` route + nav link ([pages/Templates.tsx](src/Zmg.Web/src/pages/Templates.tsx))
 - Tracklist (M4): album-only section on the release detail (renders when `type === Album`) — numbered rows, focus-track star (optimistic toggle, gold ★ + "focus" label), inline rename, `[⋮]` menu (rename / set-unset focus / move up-down / delete), add track; local track array renumbered client-side on reorder/delete to mirror the server ([pages/ReleaseDetail.tsx](src/Zmg.Web/src/pages/ReleaseDetail.tsx))
 - Typed API client that maps §6 validation errors ([api.ts](src/Zmg.Web/src/api.ts))
+
+**Polish — M5 (§10):**
+- **Mobile pass** verified at 375px on every screen: nav wordmark collapses to the badge below `sm` so the links never overflow ([App.tsx](src/Zmg.Web/src/App.tsx)); Artists rows stack (name over count+actions) instead of cramping four items on one line ([Artists.tsx](src/Zmg.Web/src/pages/Artists.tsx)); the release-detail header meta row wraps cleanly (`flex-wrap` + `whitespace-nowrap`) so the date no longer breaks mid-value ([ReleaseDetail.tsx](src/Zmg.Web/src/pages/ReleaseDetail.tsx)); dashboard filters and cards already reflowed to one column. Release detail (the daily-driver screen) keeps big tap targets, cover hidden on phones, optimistic toggles.
+- **Filters** (dashboard: artist / type / status + clear) and **empty states** (no releases, no artists, empty phases, empty tracklist, "need an artist first" on the release form) were in from earlier milestones — confirmed present in the mobile pass.
+- **Dockerfile** ([Dockerfile](Dockerfile)) + [.dockerignore](.dockerignore): one multi-stage image — `node:22-alpine` builds the SPA (outDir overridden to a local `dist`), `dotnet/sdk:8.0` publishes the API and copies the SPA into `wwwroot`, `dotnet/aspnet:8.0` runs it on `:8080`. SQLite path points at `/data/zmg.db` (`ConnectionStrings__Zmg`) for a mounted volume. Not docker-built locally (daemon wasn't running) — but both wrapped steps (`npm run build`, `dotnet publish`) are verified green, and README documents `docker build`/`docker run`.
 
 **Tests — 60 passing (`dotnet test`):**
 - Domain unit (25): template copy (counts, phase/order, IsDone=false, lineage, fresh ids), progress, status, one per validation rule (incl. track-title), seed-data counts
@@ -86,19 +92,20 @@ tests/Zmg.Api.Tests      integration tests (WebApplicationFactory + in-memory SQ
 
 ---
 
-## Next steps (M5 — polish)
+## Next steps (v1 is complete — this is post-v1)
 
-M4 is done (track CRUD backend + album-only tracklist on the release detail + tests). The Album
-template flow is now visible end to end: create an Album → 40-task checklist copied → add/manage
-its tracklist. Next and last per the plan's milestones:
+All of build-plan.md §10 (M0–M5) is built, tested, and verified. There is no remaining
+in-scope work. What follows is the deferred/next-phase backlog, not gaps in v1:
 
-- **M5 — Polish.** Mobile pass on all screens (release detail is the priority — big tap targets,
-  the tracklist and checklist both need to feel good on a phone), filters, empty states, Dockerfile.
 - The tracklist lives on the **release detail** screen, not the release form (the form is create/edit
   of release metadata; tracks are managed after create, like tasks). If a "tracks on the create form"
   flow is wanted later, that's an addition, not a gap.
-- Still deferred (§12 open question): **per-track task fan-out** on albums (registrations repeat per
-  track) — v1 keeps them as single "per track" tasks. Decide after the first real album.
+- **Per-track task fan-out** on albums (§12 open question): registrations repeat per track — v1 keeps
+  them as single "per track" tasks. Decide after the first real album.
+- **Phase 2 — DSP stats.** The reason this was built instead of using Notion/Trello (§2). Artist /
+  Release / Track ids and UPC/ISRC-ready columns are kept stable to hang streaming/revenue data off.
+- **Verify the Docker image** on a machine with the daemon running (`docker build -t zmg-tracker .`)
+  — it was written and reviewed but not built here (daemon was down).
 
 Reminder that still holds: **editing a template never touches existing releases** (releases own
 a snapshot copy) — covered by `TemplateApiTests.Editing_a_template_does_not_touch_existing_releases`.
