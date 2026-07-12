@@ -53,6 +53,11 @@ public record ReleaseTaskDto(
     Guid Id, string Title, Phase Phase, int SortOrder,
     bool IsDone, DateTime? CompletedAt, string? Notes);
 
+// ---- Release task mutations (M2 checklist engine) ----
+public record AddTaskInput(string Title, Phase Phase);
+public record UpdateTaskInput(string Title, Phase Phase, string? Notes);
+public record ReorderTasksInput(Phase Phase, List<Guid> OrderedTaskIds);
+
 // ---- Validation envelope ----
 public record ValidationErrorResponse(string[] Errors);
 public record CreatedWithWarnings<T>(T Data, string[] Warnings);

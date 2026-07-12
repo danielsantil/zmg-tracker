@@ -31,6 +31,7 @@ if (app.Environment.IsDevelopment())
 app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
 app.MapArtistEndpoints();
 app.MapReleaseEndpoints();
+app.MapTaskEndpoints();
 
 // Serve the built SPA (wwwroot) in production; SPA fallback for client-side routing.
 app.UseDefaultFiles();

@@ -107,7 +107,13 @@ export default function Dashboard() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {releases.map((r) => (
-            <ReleaseCard key={r.id} r={r} onEdit={() => navigate(`/releases/${r.id}/edit`)} onDelete={() => remove(r)} />
+            <ReleaseCard
+              key={r.id}
+              r={r}
+              onOpen={() => navigate(`/releases/${r.id}`)}
+              onEdit={() => navigate(`/releases/${r.id}/edit`)}
+              onDelete={() => remove(r)}
+            />
           ))}
         </div>
       )}
@@ -117,10 +123,12 @@ export default function Dashboard() {
 
 function ReleaseCard({
   r,
+  onOpen,
   onEdit,
   onDelete,
 }: {
   r: ReleaseListItem;
+  onOpen: () => void;
   onEdit: () => void;
   onDelete: () => void;
 }) {
@@ -130,7 +138,7 @@ function ReleaseCard({
 
   return (
     <div className="flex flex-col overflow-hidden rounded-xl border border-edge bg-panel">
-      <div className="aspect-[16/9] w-full bg-edge">
+      <button onClick={onOpen} className="block aspect-[16/9] w-full bg-edge text-left">
         {r.coverUrl ? (
           <img src={r.coverUrl} alt="" className="h-full w-full object-cover" />
         ) : (
@@ -138,11 +146,13 @@ function ReleaseCard({
             {r.title.slice(0, 1).toUpperCase()}
           </div>
         )}
-      </div>
+      </button>
       <div className="flex flex-1 flex-col gap-3 p-4">
         <div>
           <div className="flex items-start justify-between gap-2">
-            <h3 className="font-semibold text-white">{r.title}</h3>
+            <button onClick={onOpen} className="text-left font-semibold text-white hover:text-accent">
+              {r.title}
+            </button>
             <StatusBadge status={r.status} />
           </div>
           <p className="text-sm text-slate-400">{r.mainArtistName}</p>

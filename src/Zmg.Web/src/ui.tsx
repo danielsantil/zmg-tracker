@@ -1,5 +1,11 @@
 import type { ReactNode } from 'react';
-import { ReleaseType } from './types';
+import { Phase, ReleaseType } from './types';
+
+export const phaseLabels: Record<Phase, string> = {
+  [Phase.Pre]: 'Pre',
+  [Phase.Release]: 'Release',
+  [Phase.Post]: 'Post',
+};
 
 export function ProgressBar({ done, total }: { done: number; total: number }) {
   const pct = total === 0 ? 0 : Math.round((done / total) * 100);

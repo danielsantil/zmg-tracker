@@ -2,9 +2,11 @@ import type {
   Artist,
   ArtistInput,
   CreatedWithWarnings,
+  Phase,
   ReleaseDetail,
   ReleaseInput,
   ReleaseListItem,
+  ReleaseTaskDto,
   ReleaseType,
 } from './types';
 
@@ -71,4 +73,25 @@ export const api = {
     }),
   deleteRelease: (id: string) =>
     request<void>(`/api/releases/${id}`, { method: 'DELETE' }),
+
+  // Release tasks (checklist engine)
+  addTask: (releaseId: string, input: { title: string; phase: Phase }) =>
+    request<ReleaseTaskDto>(`/api/releases/${releaseId}/tasks`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+  updateTask: (id: string, input: { title: string; phase: Phase; notes: string | null }) =>
+    request<ReleaseTaskDto>(`/api/tasks/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    }),
+  toggleTask: (id: string) =>
+    request<ReleaseTaskDto>(`/api/tasks/${id}/toggle`, { method: 'PATCH' }),
+  reorderTasks: (releaseId: string, input: { phase: Phase; orderedTaskIds: string[] }) =>
+    request<void>(`/api/releases/${releaseId}/tasks/order`, {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    }),
+  deleteTask: (id: string) =>
+    request<void>(`/api/tasks/${id}`, { method: 'DELETE' }),
 };

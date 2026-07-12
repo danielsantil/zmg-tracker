@@ -2,6 +2,7 @@ import { NavLink, Route, Routes } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
 import Artists from './pages/Artists';
 import ReleaseForm from './pages/ReleaseForm';
+import ReleaseDetail from './pages/ReleaseDetail';
 
 function Nav() {
   const link = ({ isActive }: { isActive: boolean }) =>
@@ -35,6 +36,7 @@ export default function App() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/artists" element={<Artists />} />
           <Route path="/releases/new" element={<ReleaseForm />} />
+          <Route path="/releases/:id" element={<ReleaseDetail />} />
           <Route path="/releases/:id/edit" element={<ReleaseForm />} />
         </Routes>
       </main>
