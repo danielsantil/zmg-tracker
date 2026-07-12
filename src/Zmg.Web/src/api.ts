@@ -55,11 +55,19 @@ export const api = {
     request<void>(`/api/artists/${id}`, { method: 'DELETE' }),
 
   // Releases
-  listReleases: (filters?: { artistId?: string; type?: ReleaseType; status?: string }) => {
+  listReleases: (filters?: {
+    artistId?: string;
+    type?: ReleaseType;
+    status?: string;
+    scope?: 'home' | 'all';
+    q?: string;
+  }) => {
     const qs = new URLSearchParams();
     if (filters?.artistId) qs.set('artistId', filters.artistId);
     if (filters?.type !== undefined) qs.set('type', String(filters.type));
     if (filters?.status) qs.set('status', filters.status);
+    if (filters?.scope) qs.set('scope', filters.scope);
+    if (filters?.q) qs.set('q', filters.q);
     const suffix = qs.toString() ? `?${qs}` : '';
     return request<ReleaseListItem[]>(`/api/releases${suffix}`);
   },

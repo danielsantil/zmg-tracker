@@ -12,16 +12,26 @@ public static class ReleaseEndpoints
         var group = app.MapGroup("/api/releases");
 
         // List with progress counts (done/total) and derived status. Filterable.
-        group.MapGet("", async (Guid? artistId, ReleaseType? type, string? status, ZmgDbContext db) =>
+        // scope=home returns only forward-looking releases (releaseDate >= today) ordered nearest-first;
+        // scope=all (default) returns everything ordered releaseDate desc. q is a case-insensitive title search.
+        group.MapGet("", async (Guid? artistId, ReleaseType? type, string? status, string? scope, string? q, ZmgDbContext db) =>
         {
             var today = DateOnly.FromDateTime(DateTime.UtcNow);
+            var isHome = string.Equals(scope, "home", StringComparison.OrdinalIgnoreCase);
 
             var query = db.Releases.AsQueryable();
             if (artistId is { } aid) query = query.Where(r => r.MainArtistId == aid);
             if (type is { } t) query = query.Where(r => r.Type == t);
+            if (isHome) query = query.Where(r => r.ReleaseDate >= today);
+            if (!string.IsNullOrWhiteSpace(q))
+            {
+                var term = q.Trim();
+                query = query.Where(r => EF.Functions.Like(r.Title, $"%{term}%"));
+            }
+
+            query = isHome ? query.OrderBy(r => r.ReleaseDate) : query.OrderByDescending(r => r.ReleaseDate);
 
             var rows = await query
-                .OrderBy(r => r.ReleaseDate)
                 .Select(r => new
                 {
                     r.Id, r.Title, r.Type, r.ReleaseDate, r.MainArtistId,

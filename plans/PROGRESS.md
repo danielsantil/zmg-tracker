@@ -6,13 +6,13 @@ can't carry. Read the plans for scope/rationale; read this for where things stan
 
 **Plan versions:**
 - [build-plan-1.0.md](build-plan-1.0.md) — frozen v1 brief (M0–M5). Shipped.
-- [build-plan-1.1.md](build-plan-1.1.md) — singles improvements (M6–M10). M6 built; M7–M10 next.
+- [build-plan-1.1.md](build-plan-1.1.md) — singles improvements (M6–M10). M6–M9 built; M10 next.
 
 Newer plan versions live in new `build-plan-N.N.md` files; older ones stay frozen.
 
-**As of:** v1 (M0–M5) done and verified. **v1.1 in progress:** **M6 + M7 + M8 built** (schema/seed
-foundation; UPC/ISRC + soft warnings; task timeframes & notes). **M9–M10 not yet built** — see
-[Next: v1.1](#next-v11-m9m10--not-built-yet) at the bottom and build-plan-1.1.md for the full spec.
+**As of:** v1 (M0–M5) done and verified. **v1.1 in progress:** **M6 + M7 + M8 + M9 built** (schema/seed
+foundation; UPC/ISRC + soft warnings; task timeframes & notes; Home vs All Releases navigation). **M10 not
+yet built** — see [Next: v1.1](#next-v11-m10--not-built-yet) at the bottom and build-plan-1.1.md for the full spec.
 
 ---
 
@@ -153,27 +153,33 @@ tests/Zmg.Api.Tests      integration tests (WebApplicationFactory + in-memory SQ
   add/update. Verified in the running app: seeded Distribute/Pitch tasks copy their 7–14 window onto a new release
   and render the hint; an added task with 3–5 shows "· 3–5 days before".
 
+**M9 — Navigation: Home vs All Releases. ✅ Built.**
+- API: the releases list gained `scope` and `q` ([ReleaseEndpoints.cs](src/Zmg.Api/Endpoints/ReleaseEndpoints.cs)).
+  `scope=home` filters `releaseDate >= today` and orders **ascending** (nearest-first, forward-looking);
+  `scope=all` (default) orders `releaseDate desc`; `q` is a case-insensitive title substring (`EF.Functions.Like`).
+- Frontend: the single v1 dashboard split into two pages. **Home** (`/`, [Home.tsx](src/Zmg.Web/src/pages/Home.tsx))
+  — forward-looking cards via `scope=home`, artist/type/status filters, New Release, and a slot for the M10
+  Pending Tasks section. **All Releases** (`/releases`, [AllReleases.tsx](src/Zmg.Web/src/pages/AllReleases.tsx))
+  — a **table** (Name · Type · Released Date · Status) sorted desc, with a debounced title search + artist/type
+  filters + New Release; rows link to the detail and carry the M7 soft warning icon. `Dashboard.tsx` removed.
+- Nav ([App.tsx](src/Zmg.Web/src/App.tsx)) gained both entries (Home / All Releases) and the `/releases` route.
+- Tests (**+3 → 78**): `scope=home` returns only today-or-later; `scope=all` orders desc; title search is a
+  case-insensitive substring ([ReleaseListScopeApiTests.cs](tests/Zmg.Api.Tests/ReleaseListScopeApiTests.cs)).
+- Verified against a running API: `scope=home` excluded a past-dated release; `scope=all` returned desc; `q`
+  matched a single title; the SPA served with both nav entries.
+
 ---
 
-## Next: v1.1 (M9–M10) — NOT built yet
+## Next: v1.1 (M10) — NOT built yet
 
-The remaining block, singles only. Full spec in [build-plan-1.1.md](build-plan-1.1.md);
-per-milestone kickoff prompts are in its §VI. Build in order — M9 creates Home which M10 plugs into.
-M6–M8 are done; nothing below is implemented yet.
+The final v1.1 milestone, singles only. Full spec in [build-plan-1.1.md](build-plan-1.1.md);
+the per-milestone kickoff prompt is in its §VI. M6–M9 are done; M9 left the Home "Pending Tasks" slot for this.
 
 Shared schema landed in M6, and its fields are now surfaced end-to-end (M7 identifiers, M8 timeframes).
 Recap: Release has `Upc` / `Isrc`; TemplateTask + ReleaseTask have `MinDaysBefore` / `MaxDaysBefore`;
 `ReleaseTask.Notes` already existed. Timeframe is a range, both nullable, mostly null — Pre = "days before
 release" (max drives all calc, min display-only), Release/Post = "days to complete" (stored, not acted on yet).
 The `IdentifierState` domain helper (M7) already exposes `IsDistributed` / `MissingLabel` for M10 to reuse.
-
-**M9 — Navigation: Home vs All Releases.**
-- Home (`/`): cards for `releaseDate >= today` only (`GET /api/releases?scope=home`) + slot for the pending
-  section + artist/type/status filters + New Release button.
-- All Releases (`/releases`): **table** Name · Type · Released Date, sorted `releaseDate desc`, with
-  artist / type / search(title) filters + New Release button. No cards. Rows link to detail.
-- API: `scope` + `q` on the releases list.
-- Tests: `scope=home` filter; All Releases sort + search.
 
 **M10 — Pending-actions engine.**
 - Pure `PendingActions.Compute(release, tasks, today)` in Zmg.Domain, reused by the aggregate endpoint and detail.

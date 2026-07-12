@@ -1,5 +1,6 @@
 import { NavLink, Route, Routes } from 'react-router-dom';
-import Dashboard from './pages/Dashboard';
+import Home from './pages/Home';
+import AllReleases from './pages/AllReleases';
 import Artists from './pages/Artists';
 import ReleaseForm from './pages/ReleaseForm';
 import ReleaseDetail from './pages/ReleaseDetail';
@@ -18,7 +19,10 @@ function Nav() {
           <span className="hidden sm:inline">ZMG Tracker</span>
         </NavLink>
         <NavLink to="/" end className={link}>
-          Releases
+          Home
+        </NavLink>
+        <NavLink to="/releases" className={link}>
+          All Releases
         </NavLink>
         <NavLink to="/artists" className={link}>
           Artists
@@ -37,7 +41,8 @@ export default function App() {
       <Nav />
       <main className="mx-auto max-w-5xl px-4 py-6">
         <Routes>
-          <Route path="/" element={<Dashboard />} />
+          <Route path="/" element={<Home />} />
+          <Route path="/releases" element={<AllReleases />} />
           <Route path="/artists" element={<Artists />} />
           <Route path="/templates" element={<Templates />} />
           <Route path="/releases/new" element={<ReleaseForm />} />

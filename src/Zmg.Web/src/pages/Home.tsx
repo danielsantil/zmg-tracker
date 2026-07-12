@@ -5,7 +5,7 @@ import type { Artist, ReleaseListItem } from '../types';
 import { ReleaseType } from '../types';
 import { Button, IdentifierWarning, ProgressBar, StatusBadge, TypeBadge, daysToRelease, inputClass } from '../ui';
 
-export default function Dashboard() {
+export default function Home() {
   const navigate = useNavigate();
   const [releases, setReleases] = useState<ReleaseListItem[]>([]);
   const [artists, setArtists] = useState<Artist[]>([]);
@@ -22,6 +22,7 @@ export default function Dashboard() {
     try {
       const [rels, arts] = await Promise.all([
         api.listReleases({
+          scope: 'home',
           artistId: artistId || undefined,
           type: type === '' ? undefined : (Number(type) as ReleaseType),
           status: status || undefined,
@@ -31,7 +32,7 @@ export default function Dashboard() {
       setReleases(rels);
       setArtists(arts);
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Failed to load releases.');
+      setError(e instanceof ApiError ? e.message : 'Failed to load home.');
     } finally {
       setLoading(false);
     }
@@ -58,11 +59,13 @@ export default function Dashboard() {
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold text-white">Releases</h1>
-          <p className="text-sm text-slate-400">Every campaign and its checklist progress.</p>
+          <h1 className="text-2xl font-semibold text-white">Home</h1>
+          <p className="text-sm text-slate-400">Upcoming releases and what needs your attention.</p>
         </div>
         <Button onClick={() => navigate('/releases/new')}>+ New release</Button>
       </div>
+
+      {/* Pending Tasks section slot — filled in M10. */}
 
       <div className="mb-5 flex flex-wrap gap-3">
         <select className={`${inputClass} max-w-[12rem]`} value={artistId} onChange={(e) => setArtistId(e.target.value)}>
@@ -184,15 +187,19 @@ function ReleaseCard({
 function EmptyState({ hasArtists }: { hasArtists: boolean }) {
   return (
     <div className="rounded-xl border border-dashed border-edge bg-panel/50 p-10 text-center">
-      <p className="text-slate-300">No releases yet.</p>
+      <p className="text-slate-300">No upcoming releases.</p>
       <p className="mt-1 text-sm text-slate-500">
         {hasArtists ? (
           <>
-            Create your first release from the{' '}
+            Create one from the{' '}
             <Link to="/releases/new" className="text-accent underline">
               New release
             </Link>{' '}
-            form.
+            form, or browse{' '}
+            <Link to="/releases" className="text-accent underline">
+              All Releases
+            </Link>
+            .
           </>
         ) : (
           <>
