@@ -43,7 +43,7 @@ where things actually stand.
 
 - **Template-copy-on-create is already wired** (backend). The plan slots it under M2, but it's pure, tested, and needed for the golden-path test, so releases are created with a full checklist now. **M2 is the checklist UI, not the copy logic.**
 - **Vite pinned to 7.x**, not latest. Vite 8's rolldown native binding (`@rolldown/binding-darwin-x64`) fails to install on this machine ([npm/cli#4828](https://github.com/npm/cli/issues/4828)). If you upgrade Node/npm and want Vite 8, retry a clean `npm install` and confirm the binding resolves.
-- **Dev ports:** the SPA proxies `/api` → `http://localhost:5274`, which is the API's default launch-profile port. So in dev, run the API with its default profile (`dotnet run --project src/Zmg.Api`) — **not** `--no-launch-profile --urls 5218`. (The README still shows 5218; update it or just use 5274.)
+- **Dev ports:** the SPA proxies `/api` → `http://localhost:5274`, which is the API's default launch-profile port. So in dev, run the API with its default profile (`dotnet run --project src/Zmg.Api`). README and this doc both reflect 5274.
 - **Enums serialize as integers** (System.Text.Json default). The TS layer mirrors this (`ReleaseType.Single = 0`, etc.). Keep that contract or switch both sides to string enums together.
 - **`erasableSyntaxOnly` disabled** in `tsconfig.app.json` so TS `enum`s compile.
 - **Status is derived, never stored** — recomputed from tasks + date on every read (§9). No status column.

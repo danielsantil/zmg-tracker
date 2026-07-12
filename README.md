@@ -33,14 +33,16 @@ tests/Zmg.Api.Tests      Integration tests (WebApplicationFactory + SQLite in-me
 Two terminals. The API applies migrations and seeds templates on startup.
 
 ```bash
-# 1) API on http://localhost:5218
-dotnet run --project src/Zmg.Api --no-launch-profile --urls http://localhost:5218
+# 1) API on http://localhost:5274 (default launch profile)
+dotnet run --project src/Zmg.Api
 
-# 2) SPA on http://localhost:5173 (proxies /api to the API)
+# 2) SPA on http://localhost:5173 (proxies /api to the API on :5274)
 cd src/Zmg.Web && npm install && npm run dev
 ```
 
-Open http://localhost:5173.
+Open http://localhost:5173. The SPA's dev proxy targets `:5274`, so run the API on
+that port (its default profile). To use a different port, update the `server.proxy`
+target in `src/Zmg.Web/vite.config.ts` to match.
 
 ## Run (production-style, one process)
 
@@ -48,10 +50,10 @@ Build the SPA into the API's `wwwroot`, then run the API — it serves the app a
 
 ```bash
 cd src/Zmg.Web && npm install && npm run build   # outputs to ../Zmg.Api/wwwroot
-cd ../.. && dotnet run --project src/Zmg.Api --urls http://localhost:5218
+cd ../.. && dotnet run --project src/Zmg.Api
 ```
 
-Open http://localhost:5218.
+Open http://localhost:5274.
 
 ## Test
 
