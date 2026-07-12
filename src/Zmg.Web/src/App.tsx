@@ -3,6 +3,7 @@ import Dashboard from './pages/Dashboard';
 import Artists from './pages/Artists';
 import ReleaseForm from './pages/ReleaseForm';
 import ReleaseDetail from './pages/ReleaseDetail';
+import Templates from './pages/Templates';
 
 function Nav() {
   const link = ({ isActive }: { isActive: boolean }) =>
@@ -22,6 +23,9 @@ function Nav() {
         <NavLink to="/artists" className={link}>
           Artists
         </NavLink>
+        <NavLink to="/templates" className={link}>
+          Templates
+        </NavLink>
       </div>
     </header>
   );
@@ -35,6 +39,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/artists" element={<Artists />} />
+          <Route path="/templates" element={<Templates />} />
           <Route path="/releases/new" element={<ReleaseForm />} />
           <Route path="/releases/:id" element={<ReleaseDetail />} />
           <Route path="/releases/:id/edit" element={<ReleaseForm />} />

@@ -5,11 +5,11 @@ do next. Pairs with [build-plan.md](build-plan.md) (the full brief) — this doc
 "current state" the plan can't carry. Read the plan for scope/rationale; read this for
 where things actually stand.
 
-**As of:** M0 + M1 + M2 complete and verified end-to-end. Next up: **M3 (template management)**.
+**As of:** M0 + M1 + M2 + M3 complete and verified end-to-end. Next up: **M4 (album track list)**.
 
 ---
 
-## What's built (M0 + M1 + M2)
+## What's built (M0 + M1 + M2 + M3)
 
 **Backend — `src/Zmg.Domain` (pure, no I/O):**
 - Entities + enums (`ReleaseType`, `Phase`, `ArtistRole`) — [Entities.cs](src/Zmg.Domain/Entities.cs), [Enums.cs](src/Zmg.Domain/Enums.cs)
@@ -24,6 +24,7 @@ where things actually stand.
 - Migrations applied automatically on startup
 - Artists CRUD, Releases CRUD (create copies the type's template) ([Endpoints/](src/Zmg.Api/Endpoints))
 - Release-task mutations (M2): add / update / toggle / reorder / delete ([Endpoints/TaskEndpoints.cs](src/Zmg.Api/Endpoints/TaskEndpoints.cs))
+- Template management (M3): `GET /api/templates`, add / update (rename+move phase) / reorder / delete template tasks; delete blocked on a template's last task (409) ([Endpoints/TemplateEndpoints.cs](src/Zmg.Api/Endpoints/TemplateEndpoints.cs))
 - `GET /api/health`; serves the SPA from `wwwroot` with SPA fallback
 
 **Frontend — `src/Zmg.Web` (React + Vite + Tailwind SPA):**
@@ -31,13 +32,14 @@ where things actually stand.
 - Artists: list + create/edit/delete ([pages/Artists.tsx](src/Zmg.Web/src/pages/Artists.tsx))
 - Release form: create/edit per §7.1, template-size hint, inline warnings ([pages/ReleaseForm.tsx](src/Zmg.Web/src/pages/ReleaseForm.tsx))
 - Release detail (M2, §8.2): checklist grouped Pre/Release/Post, per-phase progress, done-phases collapsed, one-tap toggle with optimistic update + revert-on-failure toast, `[⋮]` menu (rename / notes / move phase / move up-down / delete), add task; header progress recomputed from the loaded task list, no extra fetch ([pages/ReleaseDetail.tsx](src/Zmg.Web/src/pages/ReleaseDetail.tsx)). Dashboard cards (cover + title) now open the detail.
+- Templates (M3, §8 screen 5): tabs Single/Album, "future releases only" banner, per-phase sections with add / rename (inline) / delete / move-phase / move up-down; flat task array recomputed client-side per mutation, no re-fetch; `/templates` route + nav link ([pages/Templates.tsx](src/Zmg.Web/src/pages/Templates.tsx))
 - Typed API client that maps §6 validation errors ([api.ts](src/Zmg.Web/src/api.ts))
 
-**Tests — 41 passing (`dotnet test`):**
+**Tests — 50 passing (`dotnet test`):**
 - Domain unit (24): template copy (counts, phase/order, IsDone=false, lineage, fresh ids), progress, status, one per validation rule, seed-data counts
-- API integration (17): `WebApplicationFactory` + SQLite in-memory — golden path (artist → release → checklist matches template), artist-delete 409, duplicate-name 400, past-date warning, type filter; **M2 task endpoints (8)**: toggle done/undone + CompletedAt stamp, add appends to phase (+ blank-title 400), update rename/move-phase, reorder persists (+ missing-ids 400), delete lowers total, toggle-missing 404 ([ReleaseTaskApiTests.cs](tests/Zmg.Api.Tests/ReleaseTaskApiTests.cs))
+- API integration (26): `WebApplicationFactory` + SQLite in-memory — golden path (artist → release → checklist matches template), artist-delete 409, duplicate-name 400, past-date warning, type filter; **M2 task endpoints (8)**: toggle done/undone + CompletedAt stamp, add appends to phase (+ blank-title 400), update rename/move-phase, reorder persists (+ missing-ids 400), delete lowers total, toggle-missing 404 ([ReleaseTaskApiTests.cs](tests/Zmg.Api.Tests/ReleaseTaskApiTests.cs)); **M3 template endpoints (9)**: list returns both templates with seeded counts, add appends (+ blank-title 400), rename/move-phase, reorder persists (+ missing-ids 400), delete lowers count, delete-missing 404, and **editing a template (add/rename/delete) leaves an existing release's checklist untouched** ([TemplateApiTests.cs](tests/Zmg.Api.Tests/TemplateApiTests.cs)). Template tests use a fresh factory per test (they mutate shared seed data).
 
-**Verified working:** ran the app (API serving the built SPA on :5274), created "Karen Santana" → "Luz", opened the detail screen, toggled tasks (header recomputed `2/31 · 6%`, phase counts updated live), added an ad-hoc Pre task, opened the `[⋮]` menu (all actions present). Single template = 30 tasks (5 Pre / 18 Release / 7 Post), Album = 40.
+**Verified working:** ran the app (API serving the built SPA on :5274), created "Karen Santana" → "Luz", opened the detail screen, toggled tasks (header recomputed `2/31 · 6%`, phase counts updated live), added an ad-hoc Pre task, opened the `[⋮]` menu (all actions present). Single template = 30 tasks (5 Pre / 18 Release / 7 Post), Album = 40. M3: `/templates` renders both tabs (Single 30, Album 40 with 12 Pre), banner + phase sections present; live add returned the task at the next `sortOrder`, delete returned 204 and counts returned to 30/40.
 
 ---
 
@@ -81,24 +83,21 @@ tests/Zmg.Api.Tests      integration tests (WebApplicationFactory + in-memory SQ
 
 ---
 
-## Next steps (M3 — template management)
+## Next steps (M4 — album support)
 
-Backend endpoints **not yet built** (add under `Endpoints/`, mirror existing style, cover with tests):
-- `GET /api/templates` — both templates with their tasks, grouped by phase
-- `POST /api/templates/{id}/tasks` — add a template task (title, phase)
-- `PUT /api/template-tasks/{id}` — rename / move phase
-- `PUT /api/templates/{id}/tasks/order` — reorder within a phase
-- `DELETE /api/template-tasks/{id}` — delete, blocked if it's the template's last task (§6: `Validation.ValidateTemplateTaskDelete` already exists, unused so far)
+M3 is done (backend + Templates screen + tests, incl. the "template edit doesn't touch
+existing releases" invariant). Next per the plan's milestones:
 
-Frontend:
-- **Templates screen** (§8 screen 5): tabs Single/Album, add/rename/delete/reorder tasks, move between phases. Banner: "changes apply to future releases only". Add a `/templates` route + nav link.
-- Reuse the M2 task-row/phase-section patterns from [ReleaseDetail.tsx](src/Zmg.Web/src/pages/ReleaseDetail.tsx) where sensible (no checkbox/toggle on template tasks).
+- **M4 — Album track list.** `Track` entity + DbContext mapping already exist (unused so far).
+  Add track CRUD endpoints (add / rename / reorder / focus-track flag / delete), scoped to
+  album releases in practice. Surface a track list on the release detail/form for albums, and
+  make the Album template flow visible end to end. Mirror the M2/M3 endpoint + UI patterns.
+  Watch the §12 open question: per-track task fan-out (registrations repeat per track) is still
+  deferred — v1 keeps them as single "per track" tasks.
+- **M5 — Polish.** Mobile pass on all screens, filters, empty states, Dockerfile.
 
-Reminder that must hold: **editing a template never touches existing releases** (releases own a snapshot copy). There's an integration test asserting this for the copy path; add one for template edits if not covered.
-
-Then, per the plan's milestones:
-- **M4** — Album track list (add/reorder, focus-track flag), album template surfaced end to end
-- **M5** — mobile polish pass, Dockerfile
+Reminder that still holds: **editing a template never touches existing releases** (releases own
+a snapshot copy) — covered by `TemplateApiTests.Editing_a_template_does_not_touch_existing_releases`.
 
 Env note (unchanged): `npm run lint` currently fails on this machine — oxlint's native binding (`oxlint.darwin-universal.node`) is missing, same class of issue as the Vite 8 rolldown binding. `tsc --noEmit` and `npm run build` both pass, so typecheck through those until the binding resolves.
 

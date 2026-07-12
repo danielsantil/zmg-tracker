@@ -8,6 +8,8 @@ import type {
   ReleaseListItem,
   ReleaseTaskDto,
   ReleaseType,
+  Template,
+  TemplateTaskDto,
 } from './types';
 
 /** Thrown for 4xx/409 responses; carries the server's validation error messages. */
@@ -94,4 +96,24 @@ export const api = {
     }),
   deleteTask: (id: string) =>
     request<void>(`/api/tasks/${id}`, { method: 'DELETE' }),
+
+  // Templates (template management)
+  listTemplates: () => request<Template[]>('/api/templates'),
+  addTemplateTask: (templateId: string, input: { title: string; phase: Phase }) =>
+    request<TemplateTaskDto>(`/api/templates/${templateId}/tasks`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+  updateTemplateTask: (id: string, input: { title: string; phase: Phase }) =>
+    request<TemplateTaskDto>(`/api/template-tasks/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    }),
+  reorderTemplateTasks: (templateId: string, input: { phase: Phase; orderedTaskIds: string[] }) =>
+    request<void>(`/api/templates/${templateId}/tasks/order`, {
+      method: 'PUT',
+      body: JSON.stringify(input),
+    }),
+  deleteTemplateTask: (id: string) =>
+    request<void>(`/api/template-tasks/${id}`, { method: 'DELETE' }),
 };

@@ -58,6 +58,15 @@ public record AddTaskInput(string Title, Phase Phase);
 public record UpdateTaskInput(string Title, Phase Phase, string? Notes);
 public record ReorderTasksInput(Phase Phase, List<Guid> OrderedTaskIds);
 
+// ---- Templates (M3 template management) ----
+public record TemplateDto(Guid Id, ReleaseType Type, List<TemplatePhaseGroupDto> Phases);
+public record TemplatePhaseGroupDto(Phase Phase, List<TemplateTaskDto> Tasks);
+public record TemplateTaskDto(Guid Id, string Title, Phase Phase, int SortOrder);
+
+public record AddTemplateTaskInput(string Title, Phase Phase);
+public record UpdateTemplateTaskInput(string Title, Phase Phase);
+public record ReorderTemplateTasksInput(Phase Phase, List<Guid> OrderedTaskIds);
+
 // ---- Validation envelope ----
 public record ValidationErrorResponse(string[] Errors);
 public record CreatedWithWarnings<T>(T Data, string[] Warnings);

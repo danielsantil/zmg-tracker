@@ -98,3 +98,22 @@ export interface CreatedWithWarnings<T> {
   data: T;
   warnings: string[];
 }
+
+// Templates (M3 template management)
+export interface TemplateTaskDto {
+  id: string;
+  title: string;
+  phase: Phase;
+  sortOrder: number;
+}
+
+export interface TemplatePhaseGroup {
+  phase: Phase;
+  tasks: TemplateTaskDto[];
+}
+
+export interface Template {
+  id: string;
+  type: ReleaseType;
+  phases: TemplatePhaseGroup[];
+}
