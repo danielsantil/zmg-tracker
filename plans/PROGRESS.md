@@ -1,12 +1,19 @@
 # Progress / Handoff
 
 Snapshot of what's built so far, decisions made during implementation, and what to
-do next. Pairs with [build-plan.md](build-plan.md) (the full brief) — this doc is the
-"current state" the plan can't carry. Read the plan for scope/rationale; read this for
-where things actually stand.
+do next. Pairs with the versioned build plans — this doc is the "current state" they
+can't carry. Read the plans for scope/rationale; read this for where things stand.
+
+**Plan versions:**
+- [build-plan-1.0.md](build-plan-1.0.md) — frozen v1 brief (M0–M5). Shipped.
+- [build-plan-1.1.md](build-plan-1.1.md) — singles improvements (M6–M10). Specced, not yet built.
+
+Newer plan versions live in new `build-plan-N.N.md` files; older ones stay frozen.
 
 **As of:** M0 + M1 + M2 + M3 + M4 + M5 complete and verified end-to-end. **v1 is done** —
-every milestone in build-plan.md §10 is built.
+every milestone in build-plan-1.0.md §10 is built. **v1.1 (M6–M10) is specced but NOT yet
+built** — it's the next work; see [Next: v1.1](#next-v11-m6m10--not-built-yet) at the bottom
+and build-plan-1.1.md for the full spec.
 
 ---
 
@@ -92,10 +99,65 @@ tests/Zmg.Api.Tests      integration tests (WebApplicationFactory + in-memory SQ
 
 ---
 
-## Next steps (v1 is complete — this is post-v1)
+## Next: v1.1 (M6–M10) — NOT built yet
 
-All of build-plan.md §10 (M0–M5) is built, tested, and verified. There is no remaining
-in-scope work. What follows is the deferred/next-phase backlog, not gaps in v1:
+The next block of work, singles only. Full spec in [build-plan-1.1.md](build-plan-1.1.md);
+per-milestone kickoff prompts are in its §VI. Build in order — M6 is the foundation, M9
+creates Home which M10 plugs into. Nothing below is implemented yet.
+
+Shared schema (one new EF migration, defined in build-plan-1.1.md §I): Release gets `Upc string?` /
+`Isrc string?`; TemplateTask + ReleaseTask get `MinDaysBefore int?` / `MaxDaysBefore int?`;
+`ReleaseTask.Notes` already exists (surface only). Timeframe is a range, both nullable, mostly null —
+Pre = "days before release" (max drives all calc, min display-only), Release/Post = "days to complete"
+(stored, not acted on yet).
+
+**M6 — Schema & seed foundation.**
+- Add the columns above + the migration; template-copy (`TemplateCopy.CopyToRelease`) carries the timeframe fields.
+- Single template seed (single only): insert "Distribute to DSPs" as the **3rd** Pre task (7–14), set
+  "Pitch to Spotify" to 7–14. Single 30 → **31** (6 Pre / 18 Release / 7 Post); album unchanged at **40**.
+  Existing releases are snapshots — do not retro-modify.
+- Tests: copy carries timeframe; seed counts (single 31, the two 7/14 tasks, album 40).
+
+**M7 — Release identifiers (UPC/ISRC) & soft warnings.**
+- UPC/ISRC on the release form + create/update API; list + detail DTOs return them.
+- Soft warning (advisory amber icon, never a red error, never blocks save) on empty UPC or ISRC,
+  **only once "Distribute to DSPs" is checked**. `needsIdentifierWarning` list flag; shows on Home cards,
+  All Releases rows, detail header.
+- Past-date backfill: creating a release with a past date auto-checks "Distribute to DSPs" (only that task);
+  a blank id then surfaces as a data pending action (M10).
+- Tests: UPC/ISRC round-trip; `needsIdentifierWarning` toggles only after distribution; past-date auto-check.
+
+**M8 — Task timeframes & notes.**
+- Release detail: timeframe hint next to the title ("7–14 days before"), `[⋮]` gains "set timeframe",
+  editable inline notes + note indicator. Template editor: set a Pre task's days-before timeframe.
+- Task + template-task endpoints accept `minDaysBefore`/`maxDaysBefore`.
+
+**M9 — Navigation: Home vs All Releases.**
+- Home (`/`): cards for `releaseDate >= today` only (`GET /api/releases?scope=home`) + slot for the pending
+  section + artist/type/status filters + New Release button.
+- All Releases (`/releases`): **table** Name · Type · Released Date, sorted `releaseDate desc`, with
+  artist / type / search(title) filters + New Release button. No cards. Rows link to detail.
+- API: `scope` + `q` on the releases list.
+- Tests: `scope=home` filter; All Releases sort + search.
+
+**M10 — Pending-actions engine.**
+- Pure `PendingActions.Compute(release, tasks, today)` in Zmg.Domain, reused by the aggregate endpoint and detail.
+  *Task due:* incomplete task with a timeframe where `today >= releaseDate - MaxDaysBefore` and `releaseDate >= today`
+  (keyed off "has a timeframe," generic — only the two seeded tasks surface today). *Missing identifier:*
+  "Distribute to DSPs" done **and** UPC or ISRC empty → one action per release. *Ordering:* task-due first, nearest
+  release on top; data (missing-id) items always last.
+- Surfaces: Home Pending Tasks section (`GET /api/pending`, rows link to detail); "Needs attention" block atop
+  release detail (from the loaded payload). Detail DTO adds `pendingActions`.
+- Tests: `Compute` cases (window open/closed, missing-id only after distribution, ordering, empty);
+  `GET /api/pending` ordering.
+
+**When done:** update this file (mark milestones built as they land, move residual items to the backlog below).
+
+---
+
+## Backlog (deferred / next-phase, not gaps in v1 or v1.1)
+
+What follows is the deferred/next-phase backlog beyond M6–M10:
 
 - The tracklist lives on the **release detail** screen, not the release form (the form is create/edit
   of release metadata; tracks are managed after create, like tasks). If a "tracks on the create form"
@@ -112,4 +174,7 @@ a snapshot copy) — covered by `TemplateApiTests.Editing_a_template_does_not_to
 
 Env note (unchanged): `npm run lint` currently fails on this machine — oxlint's native binding (`oxlint.darwin-universal.node`) is missing, same class of issue as the Vite 8 rolldown binding. `tsc --noEmit` and `npm run build` both pass, so typecheck through those until the binding resolves.
 
-Known deferrals still open (§12): per-track task fan-out on albums, task due dates (`dueOffsetDays`), auth for hosted deploys, and the phase-2 DSP-stats schema (Artist/Release/Track ids kept stable for it).
+Known deferrals still open (§12): per-track task fan-out on albums, auth for hosted deploys, and the
+phase-2 DSP-stats schema (Artist/Release/Track ids kept stable for it). Task due dates are now partly
+addressed by M6's `MinDaysBefore`/`MaxDaysBefore` (a range, Pre-only for pending calc); absolute per-task
+due dates remain deferred.
