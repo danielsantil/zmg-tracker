@@ -5,7 +5,9 @@ import type { ReleaseDetail as ReleaseDetailModel, ReleaseTaskDto } from '../typ
 import { Phase } from '../types';
 import {
   Button,
+  MenuItem,
   ProgressBar,
+  RowMenu,
   StatusBadge,
   TypeBadge,
   daysToRelease,
@@ -352,14 +354,12 @@ function TaskRow({
   onDelete: (t: ReleaseTaskDto) => void;
   onMove: (t: ReleaseTaskDto, dir: -1 | 1) => void;
 }) {
-  const [menuOpen, setMenuOpen] = useState(false);
   const [editing, setEditing] = useState<'title' | 'notes' | null>(null);
   const [draft, setDraft] = useState('');
 
   function startEdit(field: 'title' | 'notes') {
     setDraft(field === 'title' ? task.title : task.notes ?? '');
     setEditing(field);
-    setMenuOpen(false);
   }
 
   function saveEdit() {
@@ -411,36 +411,26 @@ function TaskRow({
           </button>
         )}
 
-        <div className="relative">
-          <button
-            aria-label="Task actions"
-            className="grid h-8 w-8 place-items-center rounded-lg text-slate-400 hover:bg-edge hover:text-slate-200"
-            onClick={() => setMenuOpen((o) => !o)}
-          >
-            ⋮
-          </button>
-          {menuOpen && (
+        <RowMenu>
+          {(close) => (
             <>
-              <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
-              <div className="absolute right-0 z-20 mt-1 w-44 overflow-hidden rounded-lg border border-edge bg-panel py-1 text-sm shadow-lg">
-                <MenuItem onClick={() => startEdit('title')}>Rename</MenuItem>
-                <MenuItem onClick={() => startEdit('notes')}>
-                  {task.notes ? 'Edit notes' : 'Add notes'}
-                </MenuItem>
-                <MovePhaseItems task={task} onUpdate={onUpdate} close={() => setMenuOpen(false)} />
-                {!isFirst && (
-                  <MenuItem onClick={() => { onMove(task, -1); setMenuOpen(false); }}>Move up</MenuItem>
-                )}
-                {!isLast && (
-                  <MenuItem onClick={() => { onMove(task, 1); setMenuOpen(false); }}>Move down</MenuItem>
-                )}
-                <MenuItem danger onClick={() => { setMenuOpen(false); onDelete(task); }}>
-                  Delete
-                </MenuItem>
-              </div>
+              <MenuItem onClick={() => { close(); startEdit('title'); }}>Rename</MenuItem>
+              <MenuItem onClick={() => { close(); startEdit('notes'); }}>
+                {task.notes ? 'Edit notes' : 'Add notes'}
+              </MenuItem>
+              <MovePhaseItems task={task} onUpdate={onUpdate} close={close} />
+              {!isFirst && (
+                <MenuItem onClick={() => { close(); onMove(task, -1); }}>Move up</MenuItem>
+              )}
+              {!isLast && (
+                <MenuItem onClick={() => { close(); onMove(task, 1); }}>Move down</MenuItem>
+              )}
+              <MenuItem danger onClick={() => { close(); onDelete(task); }}>
+                Delete
+              </MenuItem>
             </>
           )}
-        </div>
+        </RowMenu>
       </div>
 
       {editing === 'notes' && (
@@ -490,24 +480,5 @@ function MovePhaseItems({
         </MenuItem>
       ))}
     </>
-  );
-}
-
-function MenuItem({
-  children,
-  onClick,
-  danger,
-}: {
-  children: React.ReactNode;
-  onClick: () => void;
-  danger?: boolean;
-}) {
-  return (
-    <button
-      className={`block w-full px-3 py-2 text-left hover:bg-edge ${danger ? 'text-red-300' : 'text-slate-200'}`}
-      onClick={onClick}
-    >
-      {children}
-    </button>
   );
 }
