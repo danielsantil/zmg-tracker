@@ -90,6 +90,15 @@ public class ValidationTests
         Assert.True(Validation.ValidateTaskTitle("Pitch to Spotify").IsValid);
     }
 
+    // ---- Track title required (albums) ----
+
+    [Fact]
+    public void Track_title_required()
+    {
+        Assert.False(Validation.ValidateTrackTitle(" ").IsValid);
+        Assert.True(Validation.ValidateTrackTitle("Intro").IsValid);
+    }
+
     // ---- Template must keep at least one task ----
 
     [Fact]

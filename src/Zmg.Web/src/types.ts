@@ -78,6 +78,13 @@ export interface PhaseGroup {
   tasks: ReleaseTaskDto[];
 }
 
+export interface TrackDto {
+  id: string;
+  trackNumber: number;
+  title: string;
+  isFocusTrack: boolean;
+}
+
 export interface ReleaseDetail {
   id: string;
   title: string;
@@ -92,6 +99,7 @@ export interface ReleaseDetail {
   doneTasks: number;
   totalTasks: number;
   phases: PhaseGroup[];
+  tracks: TrackDto[];
 }
 
 export interface CreatedWithWarnings<T> {

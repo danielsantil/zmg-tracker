@@ -107,6 +107,15 @@ public static class Validation
         return result;
     }
 
+    /// <summary>A track title must be non-empty (albums only in practice).</summary>
+    public static ValidationResult ValidateTrackTitle(string? title)
+    {
+        var result = new ValidationResult();
+        if (string.IsNullOrWhiteSpace(title))
+            result.Error("Track title is required.");
+        return result;
+    }
+
     /// <summary>A template must always keep at least one task.</summary>
     public static ValidationResult ValidateTemplateTaskDelete(int remainingTaskCount)
     {

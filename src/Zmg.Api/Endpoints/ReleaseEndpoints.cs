@@ -53,6 +53,7 @@ public static class ReleaseEndpoints
                 .Include(r => r.MainArtist)
                 .Include(r => r.FeaturedArtists).ThenInclude(fa => fa.Artist)
                 .Include(r => r.Tasks)
+                .Include(r => r.Tracks)
                 .FirstOrDefaultAsync(r => r.Id == id);
             if (release is null) return Results.NotFound();
 
@@ -101,6 +102,7 @@ public static class ReleaseEndpoints
                 .Include(r => r.MainArtist)
                 .Include(r => r.FeaturedArtists).ThenInclude(fa => fa.Artist)
                 .Include(r => r.Tasks)
+                .Include(r => r.Tracks)
                 .FirstAsync(r => r.Id == release.Id);
 
             var detail = ToDetail(created);
@@ -145,6 +147,7 @@ public static class ReleaseEndpoints
                 .Include(r => r.MainArtist)
                 .Include(r => r.FeaturedArtists).ThenInclude(fa => fa.Artist)
                 .Include(r => r.Tasks)
+                .Include(r => r.Tracks)
                 .FirstAsync(r => r.Id == id);
 
             return Results.Ok(new CreatedWithWarnings<ReleaseDetailDto>(ToDetail(updated), validation.Warnings.ToArray()));
@@ -202,11 +205,16 @@ public static class ReleaseEndpoints
             .Select(fa => new FeaturedArtistDto(fa.ArtistId, fa.Artist?.Name ?? string.Empty, fa.Role))
             .ToList();
 
+        var tracks = release.Tracks
+            .OrderBy(t => t.TrackNumber)
+            .Select(t => new TrackDto(t.Id, t.TrackNumber, t.Title, t.IsFocusTrack))
+            .ToList();
+
         return new ReleaseDetailDto(
             release.Id, release.Title, release.Type, release.ReleaseDate,
             release.MainArtistId, release.MainArtist?.Name ?? string.Empty,
             release.CoverUrl, release.Notes,
             ReleaseStatus.Derive(release.ReleaseDate, today, progress.Overall),
-            featured, progress.Overall.Done, progress.Overall.Total, phases);
+            featured, progress.Overall.Done, progress.Overall.Total, phases, tracks);
     }
 }

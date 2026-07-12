@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api, ApiError } from '../api';
-import type { ReleaseDetail as ReleaseDetailModel, ReleaseTaskDto } from '../types';
-import { Phase } from '../types';
+import type { ReleaseDetail as ReleaseDetailModel, ReleaseTaskDto, TrackDto } from '../types';
+import { Phase, ReleaseType } from '../types';
 import {
   Button,
   MenuItem,
@@ -23,6 +23,7 @@ export default function ReleaseDetail() {
 
   const [release, setRelease] = useState<ReleaseDetailModel | null>(null);
   const [tasks, setTasks] = useState<ReleaseTaskDto[]>([]);
+  const [tracks, setTracks] = useState<TrackDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -42,6 +43,7 @@ export default function ReleaseDetail() {
       const detail = await api.getRelease(id);
       setRelease(detail);
       setTasks(detail.phases.flatMap((p) => p.tasks));
+      setTracks(detail.tracks);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Failed to load release.');
     } finally {
@@ -137,6 +139,79 @@ export default function ReleaseDetail() {
     }
   }
 
+  const orderedTracks = useMemo(
+    () => [...tracks].sort((a, b) => a.trackNumber - b.trackNumber),
+    [tracks],
+  );
+
+  async function addTrack(title: string) {
+    try {
+      const created = await api.addTrack(id!, { title });
+      setTracks((ts) => [...ts, created]);
+    } catch (e) {
+      showToast(e instanceof ApiError ? e.message : 'Could not add track.');
+    }
+  }
+
+  async function renameTrack(track: TrackDto, title: string) {
+    try {
+      const saved = await api.updateTrack(track.id, { title, isFocusTrack: track.isFocusTrack });
+      setTracks((ts) => ts.map((t) => (t.id === saved.id ? saved : t)));
+    } catch (e) {
+      showToast(e instanceof ApiError ? e.message : 'Could not save track.');
+    }
+  }
+
+  // Optimistic focus toggle: flip locally, revert + toast on failure.
+  async function toggleFocus(track: TrackDto) {
+    const optimistic = { ...track, isFocusTrack: !track.isFocusTrack };
+    setTracks((ts) => ts.map((t) => (t.id === track.id ? optimistic : t)));
+    try {
+      const saved = await api.toggleTrackFocus(track.id);
+      setTracks((ts) => ts.map((t) => (t.id === saved.id ? saved : t)));
+    } catch (e) {
+      setTracks((ts) => ts.map((t) => (t.id === track.id ? track : t)));
+      showToast(e instanceof ApiError ? e.message : 'Could not save — reverted.');
+    }
+  }
+
+  async function removeTrack(track: TrackDto) {
+    if (!confirm(`Delete track "${track.title}"?`)) return;
+    const prev = tracks;
+    // Drop it and renumber locally to mirror the server's contiguous numbering.
+    setTracks((ts) =>
+      ts
+        .filter((t) => t.id !== track.id)
+        .sort((a, b) => a.trackNumber - b.trackNumber)
+        .map((t, i) => ({ ...t, trackNumber: i + 1 })),
+    );
+    try {
+      await api.deleteTrack(track.id);
+    } catch (e) {
+      setTracks(prev);
+      showToast(e instanceof ApiError ? e.message : 'Could not delete track.');
+    }
+  }
+
+  // Move a track up/down; persist the release's new track order.
+  async function moveTrack(track: TrackDto, dir: -1 | 1) {
+    const list = [...orderedTracks];
+    const i = list.findIndex((t) => t.id === track.id);
+    const j = i + dir;
+    if (j < 0 || j >= list.length) return;
+    [list[i], list[j]] = [list[j], list[i]];
+
+    const renumbered = list.map((t, idx) => ({ ...t, trackNumber: idx + 1 }));
+    const prev = tracks;
+    setTracks(renumbered);
+    try {
+      await api.reorderTracks(id!, { orderedTrackIds: list.map((t) => t.id) });
+    } catch (e) {
+      setTracks(prev);
+      showToast(e instanceof ApiError ? e.message : 'Could not reorder.');
+    }
+  }
+
   if (loading) return <p className="text-slate-400">Loading…</p>;
   if (error) return <p className="rounded-lg bg-red-500/10 px-4 py-3 text-sm text-red-300">{error}</p>;
   if (!release) return null;
@@ -198,6 +273,19 @@ export default function ReleaseDetail() {
         <p className="mb-6 whitespace-pre-wrap rounded-lg border border-edge bg-panel/50 px-4 py-3 text-sm text-slate-300">
           {release.notes}
         </p>
+      )}
+
+      {release.type === ReleaseType.Album && (
+        <div className="mb-6">
+          <TrackList
+            tracks={orderedTracks}
+            onAdd={addTrack}
+            onRename={renameTrack}
+            onToggleFocus={toggleFocus}
+            onDelete={removeTrack}
+            onMove={moveTrack}
+          />
+        </div>
       )}
 
       <div className="space-y-3">
@@ -452,6 +540,194 @@ function TaskRow({
       {editing !== 'notes' && task.notes && (
         <p className="px-4 pb-2.5 pl-12 text-xs text-slate-400">{task.notes}</p>
       )}
+    </li>
+  );
+}
+
+function TrackList({
+  tracks,
+  onAdd,
+  onRename,
+  onToggleFocus,
+  onDelete,
+  onMove,
+}: {
+  tracks: TrackDto[];
+  onAdd: (title: string) => void;
+  onRename: (t: TrackDto, title: string) => void;
+  onToggleFocus: (t: TrackDto) => void;
+  onDelete: (t: TrackDto) => void;
+  onMove: (t: TrackDto, dir: -1 | 1) => void;
+}) {
+  const [adding, setAdding] = useState(false);
+  const [newTitle, setNewTitle] = useState('');
+
+  function submitAdd() {
+    const title = newTitle.trim();
+    if (!title) return;
+    onAdd(title);
+    setNewTitle('');
+    setAdding(false);
+  }
+
+  return (
+    <section className="overflow-hidden rounded-xl border border-edge bg-panel">
+      <div className="px-4 py-3 font-semibold text-white">
+        Tracklist <span className="text-sm font-normal text-slate-400">({tracks.length})</span>
+      </div>
+
+      <div className="border-t border-edge">
+        {tracks.length === 0 ? (
+          <p className="px-4 py-3 text-sm text-slate-500">No tracks yet.</p>
+        ) : (
+          <ul>
+            {tracks.map((t, i) => (
+              <TrackRow
+                key={t.id}
+                track={t}
+                isFirst={i === 0}
+                isLast={i === tracks.length - 1}
+                onRename={onRename}
+                onToggleFocus={onToggleFocus}
+                onDelete={onDelete}
+                onMove={onMove}
+              />
+            ))}
+          </ul>
+        )}
+
+        <div className="border-t border-edge px-3 py-2">
+          {adding ? (
+            <div className="flex gap-2">
+              <input
+                autoFocus
+                className={inputClass}
+                placeholder="New track title"
+                value={newTitle}
+                onChange={(e) => setNewTitle(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') submitAdd();
+                  if (e.key === 'Escape') {
+                    setAdding(false);
+                    setNewTitle('');
+                  }
+                }}
+              />
+              <Button onClick={submitAdd}>Add</Button>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setAdding(false);
+                  setNewTitle('');
+                }}
+              >
+                Cancel
+              </Button>
+            </div>
+          ) : (
+            <button
+              className="rounded-lg px-2 py-1.5 text-sm text-slate-400 hover:text-accent"
+              onClick={() => setAdding(true)}
+            >
+              + Add track
+            </button>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function TrackRow({
+  track,
+  isFirst,
+  isLast,
+  onRename,
+  onToggleFocus,
+  onDelete,
+  onMove,
+}: {
+  track: TrackDto;
+  isFirst: boolean;
+  isLast: boolean;
+  onRename: (t: TrackDto, title: string) => void;
+  onToggleFocus: (t: TrackDto) => void;
+  onDelete: (t: TrackDto) => void;
+  onMove: (t: TrackDto, dir: -1 | 1) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
+
+  function startEdit() {
+    setDraft(track.title);
+    setEditing(true);
+  }
+
+  function saveEdit() {
+    const title = draft.trim();
+    if (title && title !== track.title) onRename(track, title);
+    setEditing(false);
+  }
+
+  return (
+    <li className="border-b border-edge/50 last:border-b-0">
+      <div className="flex items-center gap-3 px-4 py-2.5">
+        <span className="w-6 shrink-0 text-right text-sm tabular-nums text-slate-500">
+          {track.trackNumber}
+        </span>
+
+        <button
+          aria-label={track.isFocusTrack ? 'Unset focus track' : 'Set focus track'}
+          aria-pressed={track.isFocusTrack}
+          onClick={() => onToggleFocus(track)}
+          className={`shrink-0 text-lg leading-none transition ${
+            track.isFocusTrack ? 'text-amber-400' : 'text-slate-600 hover:text-slate-400'
+          }`}
+        >
+          {track.isFocusTrack ? '★' : '☆'}
+        </button>
+
+        {editing ? (
+          <input
+            autoFocus
+            className={inputClass}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={saveEdit}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') saveEdit();
+              if (e.key === 'Escape') setEditing(false);
+            }}
+          />
+        ) : (
+          <button className="flex-1 text-left text-sm text-slate-100" onClick={startEdit}>
+            {track.title}
+            {track.isFocusTrack && (
+              <span className="ml-2 text-xs text-amber-400/80">focus</span>
+            )}
+          </button>
+        )}
+
+        <RowMenu label="Track actions">
+          {(close) => (
+            <>
+              <MenuItem onClick={() => { close(); startEdit(); }}>Rename</MenuItem>
+              <MenuItem onClick={() => { close(); onToggleFocus(track); }}>
+                {track.isFocusTrack ? 'Unset focus track' : 'Set focus track'}
+              </MenuItem>
+              {!isFirst && (
+                <MenuItem onClick={() => { close(); onMove(track, -1); }}>Move up</MenuItem>
+              )}
+              {!isLast && (
+                <MenuItem onClick={() => { close(); onMove(track, 1); }}>Move down</MenuItem>
+              )}
+              <MenuItem danger onClick={() => { close(); onDelete(track); }}>
+                Delete
+              </MenuItem>
+            </>
+          )}
+        </RowMenu>
+      </div>
     </li>
   );
 }

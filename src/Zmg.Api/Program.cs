@@ -33,6 +33,7 @@ app.MapArtistEndpoints();
 app.MapReleaseEndpoints();
 app.MapTaskEndpoints();
 app.MapTemplateEndpoints();
+app.MapTrackEndpoints();
 
 // Serve the built SPA (wwwroot) in production; SPA fallback for client-side routing.
 app.UseDefaultFiles();

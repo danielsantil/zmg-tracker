@@ -45,7 +45,8 @@ public record ReleaseDetailDto(
     List<FeaturedArtistDto> FeaturedArtists,
     int DoneTasks,
     int TotalTasks,
-    List<PhaseGroupDto> Phases);
+    List<PhaseGroupDto> Phases,
+    List<TrackDto> Tracks);
 
 public record PhaseGroupDto(Phase Phase, int Done, int Total, List<ReleaseTaskDto> Tasks);
 
@@ -57,6 +58,12 @@ public record ReleaseTaskDto(
 public record AddTaskInput(string Title, Phase Phase);
 public record UpdateTaskInput(string Title, Phase Phase, string? Notes);
 public record ReorderTasksInput(Phase Phase, List<Guid> OrderedTaskIds);
+
+// ---- Tracks (M4 album support) ----
+public record TrackDto(Guid Id, int TrackNumber, string Title, bool IsFocusTrack);
+public record AddTrackInput(string Title);
+public record UpdateTrackInput(string Title, bool IsFocusTrack);
+public record ReorderTracksInput(List<Guid> OrderedTrackIds);
 
 // ---- Templates (M3 template management) ----
 public record TemplateDto(Guid Id, ReleaseType Type, List<TemplatePhaseGroupDto> Phases);
