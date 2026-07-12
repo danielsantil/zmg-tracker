@@ -54,7 +54,8 @@ public record ReleaseDetailDto(
     List<TrackDto> Tracks,
     string? Upc,
     string? Isrc,
-    bool NeedsIdentifierWarning);
+    bool NeedsIdentifierWarning,
+    List<PendingAction> PendingActions);
 
 public record PhaseGroupDto(Phase Phase, int Done, int Total, List<ReleaseTaskDto> Tasks);
 

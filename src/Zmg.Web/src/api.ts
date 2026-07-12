@@ -4,6 +4,7 @@ import type {
   CreatedWithWarnings,
   Phase,
   ReleaseDetail,
+  PendingAction,
   ReleaseInput,
   ReleaseListItem,
   ReleaseTaskDto,
@@ -71,6 +72,7 @@ export const api = {
     const suffix = qs.toString() ? `?${qs}` : '';
     return request<ReleaseListItem[]>(`/api/releases${suffix}`);
   },
+  listPending: () => request<PendingAction[]>('/api/pending'),
   getRelease: (id: string) => request<ReleaseDetail>(`/api/releases/${id}`),
   createRelease: (input: ReleaseInput) =>
     request<CreatedWithWarnings<ReleaseDetail>>('/api/releases', {

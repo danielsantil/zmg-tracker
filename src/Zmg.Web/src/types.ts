@@ -110,11 +110,28 @@ export interface ReleaseDetail {
   upc: string | null;
   isrc: string | null;
   needsIdentifierWarning: boolean;
+  pendingActions: PendingAction[];
 }
 
 export interface CreatedWithWarnings<T> {
   data: T;
   warnings: string[];
+}
+
+// Pending-actions engine (M10). Enum serialized as int by the API.
+export enum PendingKind {
+  TaskDue = 0,
+  MissingIdentifier = 1,
+}
+
+export interface PendingAction {
+  releaseId: string;
+  releaseTitle: string;
+  artistName: string;
+  kind: PendingKind;
+  taskId: string | null;
+  label: string;
+  daysToRelease: number | null;
 }
 
 // Templates (M3 template management)

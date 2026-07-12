@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api, ApiError } from '../api';
-import type { Artist, ReleaseListItem } from '../types';
-import { ReleaseType } from '../types';
+import type { Artist, PendingAction, ReleaseListItem } from '../types';
+import { PendingKind, ReleaseType } from '../types';
 import { Button, IdentifierWarning, ProgressBar, StatusBadge, TypeBadge, daysToRelease, inputClass } from '../ui';
 
 export default function Home() {
   const navigate = useNavigate();
   const [releases, setReleases] = useState<ReleaseListItem[]>([]);
   const [artists, setArtists] = useState<Artist[]>([]);
+  const [pending, setPending] = useState<PendingAction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -20,7 +21,7 @@ export default function Home() {
     setLoading(true);
     setError(null);
     try {
-      const [rels, arts] = await Promise.all([
+      const [rels, arts, pend] = await Promise.all([
         api.listReleases({
           scope: 'home',
           artistId: artistId || undefined,
@@ -28,9 +29,11 @@ export default function Home() {
           status: status || undefined,
         }),
         api.listArtists(),
+        api.listPending(),
       ]);
       setReleases(rels);
       setArtists(arts);
+      setPending(pend);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Failed to load home.');
     } finally {
@@ -65,7 +68,7 @@ export default function Home() {
         <Button onClick={() => navigate('/releases/new')}>+ New release</Button>
       </div>
 
-      {/* Pending Tasks section slot — filled in M10. */}
+      <PendingSection pending={pending} />
 
       <div className="mb-5 flex flex-wrap gap-3">
         <select className={`${inputClass} max-w-[12rem]`} value={artistId} onChange={(e) => setArtistId(e.target.value)}>
@@ -121,6 +124,44 @@ export default function Home() {
         </div>
       )}
     </div>
+  );
+}
+
+/** Aggregate pending actions across all releases (M10), task-due nearest-first then data items. */
+function PendingSection({ pending }: { pending: PendingAction[] }) {
+  if (pending.length === 0) return null;
+  return (
+    <section className="mb-6 overflow-hidden rounded-xl border border-amber-500/25 bg-amber-500/[0.06]">
+      <div className="border-b border-amber-500/20 px-4 py-3 font-semibold text-amber-200">
+        Pending Tasks <span className="text-sm font-normal text-amber-200/70">({pending.length})</span>
+      </div>
+      <ul>
+        {pending.map((p, i) => (
+          <li key={`${p.releaseId}-${p.taskId ?? p.kind}-${i}`} className="border-b border-amber-500/10 last:border-b-0">
+            <Link
+              to={`/releases/${p.releaseId}`}
+              className="flex items-center justify-between gap-3 px-4 py-2.5 hover:bg-amber-500/[0.06]"
+            >
+              <span className="min-w-0">
+                <span className="text-sm text-slate-100">{p.label}</span>
+                <span className="ml-2 text-xs text-slate-400">
+                  {p.releaseTitle} · {p.artistName}
+                </span>
+              </span>
+              <span className="shrink-0 text-xs">
+                {p.kind === PendingKind.TaskDue && p.daysToRelease != null ? (
+                  <span className="whitespace-nowrap text-accent">
+                    {p.daysToRelease === 0 ? 'Releases today' : `${p.daysToRelease} days to release`}
+                  </span>
+                ) : (
+                  <span className="whitespace-nowrap text-amber-300">Data</span>
+                )}
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

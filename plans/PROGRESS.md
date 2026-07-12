@@ -6,13 +6,13 @@ can't carry. Read the plans for scope/rationale; read this for where things stan
 
 **Plan versions:**
 - [build-plan-1.0.md](build-plan-1.0.md) — frozen v1 brief (M0–M5). Shipped.
-- [build-plan-1.1.md](build-plan-1.1.md) — singles improvements (M6–M10). M6–M9 built; M10 next.
+- [build-plan-1.1.md](build-plan-1.1.md) — singles improvements (M6–M10). **All built (M6–M10).**
 
 Newer plan versions live in new `build-plan-N.N.md` files; older ones stay frozen.
 
-**As of:** v1 (M0–M5) done and verified. **v1.1 in progress:** **M6 + M7 + M8 + M9 built** (schema/seed
-foundation; UPC/ISRC + soft warnings; task timeframes & notes; Home vs All Releases navigation). **M10 not
-yet built** — see [Next: v1.1](#next-v11-m10--not-built-yet) at the bottom and build-plan-1.1.md for the full spec.
+**As of:** v1 (M0–M5) done and verified. **v1.1 (M6–M10) complete and verified:** schema/seed foundation;
+UPC/ISRC + soft warnings; task timeframes & notes; Home vs All Releases navigation; and the pending-actions
+engine. Deferred/next-phase items are in the [Backlog](#backlog-deferred--next-phase-not-gaps-in-v1-or-v11).
 
 ---
 
@@ -168,31 +168,31 @@ tests/Zmg.Api.Tests      integration tests (WebApplicationFactory + in-memory SQ
 - Verified against a running API: `scope=home` excluded a past-dated release; `scope=all` returned desc; `q`
   matched a single title; the SPA served with both nav entries.
 
----
+**M10 — Pending-actions engine. ✅ Built.**
+- Domain: pure `PendingActions.Compute(release, tasks, today)` in Zmg.Domain
+  ([PendingActions.cs](src/Zmg.Domain/PendingActions.cs)), reused by the aggregate endpoint and the detail.
+  A `PendingAction` record carries `{ releaseId, releaseTitle, artistName, kind, taskId?, label, daysToRelease? }`
+  and a `PendingKind` enum (`TaskDue` / `MissingIdentifier`). *Task due:* an incomplete task with a timeframe
+  (keyed off `MaxDaysBefore`, so max drives — generic, not tied to task titles) where the window has opened
+  (`today >= releaseDate − MaxDaysBefore`) and it hasn't released yet (`releaseDate >= today`). *Missing
+  identifier:* one action per release once "Distribute to DSPs" is done and UPC or ISRC is blank
+  (reuses `IdentifierState`). `Order(...)` applies the global ordering: task-due first, nearest release on top;
+  data (missing-id) items always last.
+- API: `GET /api/pending` ([PendingEndpoints.cs](src/Zmg.Api/Endpoints/PendingEndpoints.cs)) aggregates + orders
+  across all releases; the detail DTO gained `pendingActions` (computed in `ToDetail` for that one release).
+- Frontend: Home renders the aggregate list as a **Pending Tasks** section (rows link to the release detail),
+  filling the M9 slot ([Home.tsx](src/Zmg.Web/src/pages/Home.tsx)); the release detail shows a **Needs attention**
+  block at the top from its own `pendingActions`, hidden when empty ([ReleaseDetail.tsx](src/Zmg.Web/src/pages/ReleaseDetail.tsx)).
+  Task-due rows show days-to-release; data rows don't.
+- Tests (**+8 → 86**): domain `PendingActions` (7 — no-timeframe never pends, window open/closed, completed
+  excluded, stops once released, missing-id only after distribution, ordering, empty)
+  ([PendingActionsTests.cs](tests/Zmg.Domain.Tests/PendingActionsTests.cs)); API `GET /api/pending` ordering
+  across releases (task-due nearest-first, data last) ([PendingApiTests.cs](tests/Zmg.Api.Tests/PendingApiTests.cs)).
+- Verified against a running API: a release 3 days out surfaced its Distribute + Pitch-to-Spotify tasks as
+  task-due (daysToRelease=3) ahead of a past release's "Missing UPC, ISRC" data action; a release 40 days out
+  (window not open) contributed nothing; the detail DTO carried the same `pendingActions`.
 
-## Next: v1.1 (M10) — NOT built yet
-
-The final v1.1 milestone, singles only. Full spec in [build-plan-1.1.md](build-plan-1.1.md);
-the per-milestone kickoff prompt is in its §VI. M6–M9 are done; M9 left the Home "Pending Tasks" slot for this.
-
-Shared schema landed in M6, and its fields are now surfaced end-to-end (M7 identifiers, M8 timeframes).
-Recap: Release has `Upc` / `Isrc`; TemplateTask + ReleaseTask have `MinDaysBefore` / `MaxDaysBefore`;
-`ReleaseTask.Notes` already existed. Timeframe is a range, both nullable, mostly null — Pre = "days before
-release" (max drives all calc, min display-only), Release/Post = "days to complete" (stored, not acted on yet).
-The `IdentifierState` domain helper (M7) already exposes `IsDistributed` / `MissingLabel` for M10 to reuse.
-
-**M10 — Pending-actions engine.**
-- Pure `PendingActions.Compute(release, tasks, today)` in Zmg.Domain, reused by the aggregate endpoint and detail.
-  *Task due:* incomplete task with a timeframe where `today >= releaseDate - MaxDaysBefore` and `releaseDate >= today`
-  (keyed off "has a timeframe," generic — only the two seeded tasks surface today). *Missing identifier:*
-  "Distribute to DSPs" done **and** UPC or ISRC empty → one action per release. *Ordering:* task-due first, nearest
-  release on top; data (missing-id) items always last.
-- Surfaces: Home Pending Tasks section (`GET /api/pending`, rows link to detail); "Needs attention" block atop
-  release detail (from the loaded payload). Detail DTO adds `pendingActions`.
-- Tests: `Compute` cases (window open/closed, missing-id only after distribution, ordering, empty);
-  `GET /api/pending` ordering.
-
-**When done:** update this file (mark milestones built as they land, move residual items to the backlog below).
+**v1.1 (M6–M10) is complete.** Residual/next-phase items are in the backlog below.
 
 ---
 

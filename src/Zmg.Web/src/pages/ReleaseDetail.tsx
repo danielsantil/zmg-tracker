@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api, ApiError } from '../api';
-import type { ReleaseDetail as ReleaseDetailModel, ReleaseTaskDto, TrackDto } from '../types';
-import { Phase, ReleaseType } from '../types';
+import type { PendingAction, ReleaseDetail as ReleaseDetailModel, ReleaseTaskDto, TrackDto } from '../types';
+import { PendingKind, Phase, ReleaseType } from '../types';
 import {
   Button,
   IdentifierWarning,
@@ -280,6 +280,8 @@ export default function ReleaseDetail() {
         </div>
       </div>
 
+      {release.pendingActions.length > 0 && <NeedsAttention actions={release.pendingActions} />}
+
       {release.notes && (
         <p className="mb-6 whitespace-pre-wrap rounded-lg border border-edge bg-panel/50 px-4 py-3 text-sm text-slate-300">
           {release.notes}
@@ -319,6 +321,33 @@ export default function ReleaseDetail() {
           {toast}
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * "Needs attention" block (M10) — this release's pending actions, computed server-side from the
+ * loaded detail payload. Task-due items show days-to-release; data items (missing ids) don't.
+ */
+function NeedsAttention({ actions }: { actions: PendingAction[] }) {
+  return (
+    <div className="mb-6 overflow-hidden rounded-xl border border-amber-500/25 bg-amber-500/[0.06]">
+      <div className="border-b border-amber-500/20 px-4 py-2.5 text-sm font-semibold text-amber-200">
+        Needs attention
+      </div>
+      <ul className="px-4 py-2">
+        {actions.map((a, i) => (
+          <li key={`${a.taskId ?? a.kind}-${i}`} className="flex items-baseline gap-2 py-1 text-sm text-slate-200">
+            <span className="text-amber-300">•</span>
+            <span>{a.label}</span>
+            {a.kind === PendingKind.TaskDue && a.daysToRelease != null && (
+              <span className="text-xs text-accent">
+                — {a.daysToRelease === 0 ? 'releases today' : `${a.daysToRelease} days to release`}
+              </span>
+            )}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
