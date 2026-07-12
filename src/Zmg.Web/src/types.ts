@@ -40,6 +40,8 @@ export interface ReleaseInput {
   coverUrl: string | null;
   notes: string | null;
   featuredArtists: ReleaseArtistInput[];
+  upc: string | null;
+  isrc: string | null;
 }
 
 export interface ReleaseListItem {
@@ -53,6 +55,9 @@ export interface ReleaseListItem {
   doneTasks: number;
   totalTasks: number;
   status: string;
+  upc: string | null;
+  isrc: string | null;
+  needsIdentifierWarning: boolean;
 }
 
 export interface FeaturedArtist {
@@ -100,6 +105,9 @@ export interface ReleaseDetail {
   totalTasks: number;
   phases: PhaseGroup[];
   tracks: TrackDto[];
+  upc: string | null;
+  isrc: string | null;
+  needsIdentifierWarning: boolean;
 }
 
 export interface CreatedWithWarnings<T> {

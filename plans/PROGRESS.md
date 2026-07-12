@@ -10,8 +10,8 @@ can't carry. Read the plans for scope/rationale; read this for where things stan
 
 Newer plan versions live in new `build-plan-N.N.md` files; older ones stay frozen.
 
-**As of:** v1 (M0–M5) done and verified. **v1.1 in progress:** **M6 built** (schema, migration,
-seed foundation). **M7–M10 not yet built** — see [Next: v1.1](#next-v11-m7m10--not-built-yet)
+**As of:** v1 (M0–M5) done and verified. **v1.1 in progress:** **M6 + M7 built** (schema/seed
+foundation; UPC/ISRC + soft warnings). **M8–M10 not yet built** — see [Next: v1.1](#next-v11-m8m10--not-built-yet)
 at the bottom and build-plan-1.1.md for the full spec.
 
 ---
@@ -118,27 +118,37 @@ tests/Zmg.Api.Tests      integration tests (WebApplicationFactory + in-memory SQ
   Pre task at 7/14, Pitch to Spotify at 7/14, album untouched at 40 with all-null timeframes. Updated the
   older count assertions (single 30→31 / delete 29→30) across domain + API tests. Frontend template-size hint 30→31.
 
+**M7 — Release identifiers (UPC/ISRC) & soft warnings. ✅ Built.**
+- Domain: `IdentifierState` ([IdentifierState.cs](src/Zmg.Domain/IdentifierState.cs)) — pure, reused by the
+  list flag, the detail header, and (later) M10. `IsDistributed(tasks)` keys off the `Distribute to DSPs` task
+  being done; `NeedsWarning(distributed, upc, isrc)` fires only once distributed with a blank id; `MissingLabel`
+  builds "Missing UPC, ISRC" for M10.
+- API: `ReleaseInput` gained optional `Upc`/`Isrc` (trimmed, blank→null, no format check). The list DTO exposes
+  `Upc`/`Isrc` + a `NeedsIdentifierWarning` bool (computed in the projection, no extra fetch); the detail DTO
+  returns the same three ([ReleaseEndpoints.cs](src/Zmg.Api/Endpoints/ReleaseEndpoints.cs)).
+- Past-date backfill: creating a release dated before today auto-checks **only** its "Distribute to DSPs" task
+  (stamps `CompletedAt`), so a blank id immediately surfaces the warning (and, later, an M10 pending action).
+- Frontend: UPC/ISRC fields on the release form ([ReleaseForm.tsx](src/Zmg.Web/src/pages/ReleaseForm.tsx)); a soft
+  amber `IdentifierWarning` glyph ([ui.tsx](src/Zmg.Web/src/ui.tsx)) with a "Missing UPC/ISRC" tooltip, shown on
+  dashboard cards and the release-detail header when `needsIdentifierWarning`. (Home/All-Releases split is M9;
+  the warning is wired into today's dashboard card until then.)
+- Tests (**+8 → 71**): domain `IdentifierState` (5); API UPC/ISRC round-trip on create+update, warning silent
+  until distributed / true with blank id / clears when both filled (list flag agrees), past-date auto-check (3).
+- Verified against a running API: past-date create → `doneTasks=1`, Distribute checked, warning true; future
+  create with ids → round-trips, no warning, total 31.
+
 ---
 
-## Next: v1.1 (M7–M10) — NOT built yet
+## Next: v1.1 (M8–M10) — NOT built yet
 
 The remaining block, singles only. Full spec in [build-plan-1.1.md](build-plan-1.1.md);
 per-milestone kickoff prompts are in its §VI. Build in order — M9 creates Home which M10 plugs into.
-M6 (the foundation) is done; nothing below is implemented yet.
+M6–M7 are done; nothing below is implemented yet.
 
 Shared schema already landed in M6: Release has `Upc` / `Isrc`; TemplateTask + ReleaseTask have
 `MinDaysBefore` / `MaxDaysBefore`; `ReleaseTask.Notes` already existed (surface only). Timeframe is a range,
 both nullable, mostly null — Pre = "days before release" (max drives all calc, min display-only),
 Release/Post = "days to complete" (stored, not acted on yet).
-
-**M7 — Release identifiers (UPC/ISRC) & soft warnings.**
-- UPC/ISRC on the release form + create/update API; list + detail DTOs return them.
-- Soft warning (advisory amber icon, never a red error, never blocks save) on empty UPC or ISRC,
-  **only once "Distribute to DSPs" is checked**. `needsIdentifierWarning` list flag; shows on Home cards,
-  All Releases rows, detail header.
-- Past-date backfill: creating a release with a past date auto-checks "Distribute to DSPs" (only that task);
-  a blank id then surfaces as a data pending action (M10).
-- Tests: UPC/ISRC round-trip; `needsIdentifierWarning` toggles only after distribution; past-date auto-check.
 
 **M8 — Task timeframes & notes.**
 - Release detail: timeframe hint next to the title ("7–14 days before"), `[⋮]` gains "set timeframe",

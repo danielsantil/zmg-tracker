@@ -16,7 +16,9 @@ public record ReleaseInput(
     Guid MainArtistId,
     string? CoverUrl,
     string? Notes,
-    List<ReleaseArtistInput>? FeaturedArtists);
+    List<ReleaseArtistInput>? FeaturedArtists,
+    string? Upc = null,
+    string? Isrc = null);
 
 public record FeaturedArtistDto(Guid ArtistId, string Name, ArtistRole Role);
 
@@ -30,7 +32,10 @@ public record ReleaseListItemDto(
     string? CoverUrl,
     int DoneTasks,
     int TotalTasks,
-    string Status);
+    string Status,
+    string? Upc,
+    string? Isrc,
+    bool NeedsIdentifierWarning);
 
 public record ReleaseDetailDto(
     Guid Id,
@@ -46,7 +51,10 @@ public record ReleaseDetailDto(
     int DoneTasks,
     int TotalTasks,
     List<PhaseGroupDto> Phases,
-    List<TrackDto> Tracks);
+    List<TrackDto> Tracks,
+    string? Upc,
+    string? Isrc,
+    bool NeedsIdentifierWarning);
 
 public record PhaseGroupDto(Phase Phase, int Done, int Total, List<ReleaseTaskDto> Tasks);
 

@@ -5,6 +5,7 @@ import type { ReleaseDetail as ReleaseDetailModel, ReleaseTaskDto, TrackDto } fr
 import { Phase, ReleaseType } from '../types';
 import {
   Button,
+  IdentifierWarning,
   MenuItem,
   ProgressBar,
   RowMenu,
@@ -250,7 +251,10 @@ export default function ReleaseDetail() {
             <h1 className="text-xl font-semibold text-white">
               {release.title} <span className="text-slate-400">— {release.mainArtistName}</span>
             </h1>
-            <StatusBadge status={release.status} />
+            <div className="flex items-center gap-1.5">
+              {release.needsIdentifierWarning && <IdentifierWarning upc={release.upc} isrc={release.isrc} />}
+              <StatusBadge status={release.status} />
+            </div>
           </div>
           {release.featuredArtists.length > 0 && (
             <p className="mt-0.5 text-sm text-slate-400">

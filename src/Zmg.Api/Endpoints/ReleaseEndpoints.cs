@@ -25,9 +25,10 @@ public static class ReleaseEndpoints
                 .Select(r => new
                 {
                     r.Id, r.Title, r.Type, r.ReleaseDate, r.MainArtistId,
-                    MainArtistName = r.MainArtist!.Name, r.CoverUrl,
+                    MainArtistName = r.MainArtist!.Name, r.CoverUrl, r.Upc, r.Isrc,
                     Done = r.Tasks.Count(x => x.IsDone),
                     Total = r.Tasks.Count,
+                    Distributed = r.Tasks.Any(x => x.IsDone && x.Title == SeedData.DistributeToDspsTitle),
                 })
                 .ToListAsync();
 
@@ -38,7 +39,9 @@ public static class ReleaseEndpoints
                     return new ReleaseListItemDto(
                         r.Id, r.Title, r.Type, r.ReleaseDate, r.MainArtistId, r.MainArtistName,
                         r.CoverUrl, r.Done, r.Total,
-                        ReleaseStatus.Derive(r.ReleaseDate, today, progress));
+                        ReleaseStatus.Derive(r.ReleaseDate, today, progress),
+                        r.Upc, r.Isrc,
+                        IdentifierState.NeedsWarning(r.Distributed, r.Upc, r.Isrc));
                 })
                 .Where(r => status is null || string.Equals(r.Status, status, StringComparison.OrdinalIgnoreCase))
                 .ToList();
@@ -89,9 +92,23 @@ public static class ReleaseEndpoints
                 MainArtistId = input.MainArtistId,
                 CoverUrl = string.IsNullOrWhiteSpace(input.CoverUrl) ? null : input.CoverUrl.Trim(),
                 Notes = input.Notes,
+                Upc = Clean(input.Upc),
+                Isrc = Clean(input.Isrc),
                 Tasks = TemplateCopy.CopyToRelease(template, Guid.Empty), // ReleaseId set below
             };
             foreach (var task in release.Tasks) task.ReleaseId = release.Id;
+
+            // Backfill (1.0 §9): a release dated in the past was, by definition, already distributed —
+            // auto-check its "Distribute to DSPs" task so a blank UPC/ISRC surfaces as a pending action (M10).
+            if (release.ReleaseDate < today)
+            {
+                var distribute = release.Tasks.FirstOrDefault(t => t.Title == SeedData.DistributeToDspsTitle);
+                if (distribute is not null)
+                {
+                    distribute.IsDone = true;
+                    distribute.CompletedAt = DateTime.UtcNow;
+                }
+            }
 
             AddFeaturedArtists(release, input.FeaturedArtists);
 
@@ -137,6 +154,8 @@ public static class ReleaseEndpoints
             release.MainArtistId = input.MainArtistId;
             release.CoverUrl = string.IsNullOrWhiteSpace(input.CoverUrl) ? null : input.CoverUrl.Trim();
             release.Notes = input.Notes;
+            release.Upc = Clean(input.Upc);
+            release.Isrc = Clean(input.Isrc);
 
             release.FeaturedArtists.Clear();
             AddFeaturedArtists(release, input.FeaturedArtists);
@@ -162,6 +181,10 @@ public static class ReleaseEndpoints
             return Results.NoContent();
         });
     }
+
+    // Optional free-text identifiers: trim, and store blank as null (no format validation, §6).
+    private static string? Clean(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     private static async Task<ChecklistTemplate?> LoadTemplate(ZmgDbContext db, ReleaseType type) =>
         await db.ChecklistTemplates
@@ -210,11 +233,15 @@ public static class ReleaseEndpoints
             .Select(t => new TrackDto(t.Id, t.TrackNumber, t.Title, t.IsFocusTrack))
             .ToList();
 
+        var distributed = IdentifierState.IsDistributed(release.Tasks);
+
         return new ReleaseDetailDto(
             release.Id, release.Title, release.Type, release.ReleaseDate,
             release.MainArtistId, release.MainArtist?.Name ?? string.Empty,
             release.CoverUrl, release.Notes,
             ReleaseStatus.Derive(release.ReleaseDate, today, progress.Overall),
-            featured, progress.Overall.Done, progress.Overall.Total, phases, tracks);
+            featured, progress.Overall.Done, progress.Overall.Total, phases, tracks,
+            release.Upc, release.Isrc,
+            IdentifierState.NeedsWarning(distributed, release.Upc, release.Isrc));
     }
 }

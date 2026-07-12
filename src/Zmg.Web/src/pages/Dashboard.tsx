@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { api, ApiError } from '../api';
 import type { Artist, ReleaseListItem } from '../types';
 import { ReleaseType } from '../types';
-import { Button, ProgressBar, StatusBadge, TypeBadge, daysToRelease, inputClass } from '../ui';
+import { Button, IdentifierWarning, ProgressBar, StatusBadge, TypeBadge, daysToRelease, inputClass } from '../ui';
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -153,7 +153,10 @@ function ReleaseCard({
             <button onClick={onOpen} className="text-left font-semibold text-white hover:text-accent">
               {r.title}
             </button>
-            <StatusBadge status={r.status} />
+            <div className="flex items-center gap-1.5">
+              {r.needsIdentifierWarning && <IdentifierWarning upc={r.upc} isrc={r.isrc} />}
+              <StatusBadge status={r.status} />
+            </div>
           </div>
           <p className="text-sm text-slate-400">{r.mainArtistName}</p>
         </div>

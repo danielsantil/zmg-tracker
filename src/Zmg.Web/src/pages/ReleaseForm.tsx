@@ -29,6 +29,8 @@ export default function ReleaseForm() {
   const [mainArtistId, setMainArtistId] = useState('');
   const [coverUrl, setCoverUrl] = useState('');
   const [notes, setNotes] = useState('');
+  const [upc, setUpc] = useState('');
+  const [isrc, setIsrc] = useState('');
   const [featured, setFeatured] = useState<ReleaseArtistInput[]>([]);
 
   useEffect(() => {
@@ -44,6 +46,8 @@ export default function ReleaseForm() {
           setMainArtistId(r.mainArtistId);
           setCoverUrl(r.coverUrl ?? '');
           setNotes(r.notes ?? '');
+          setUpc(r.upc ?? '');
+          setIsrc(r.isrc ?? '');
           setFeatured(r.featuredArtists.map((f) => ({ artistId: f.artistId, role: f.role })));
         } else if (arts.length > 0) {
           setMainArtistId(arts[0].id);
@@ -79,6 +83,8 @@ export default function ReleaseForm() {
         mainArtistId,
         coverUrl: coverUrl || null,
         notes: notes || null,
+        upc: upc || null,
+        isrc: isrc || null,
         featuredArtists: featured.filter((f) => f.artistId !== mainArtistId),
       };
       const result = isEdit && id ? await api.updateRelease(id, input) : await api.createRelease(input);
@@ -210,6 +216,15 @@ export default function ReleaseForm() {
         <Field label="Cover URL" hint="Optional — shown on release cards">
           <input className={inputClass} value={coverUrl} onChange={(e) => setCoverUrl(e.target.value)} placeholder="https://…" />
         </Field>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="UPC" hint="Optional — blank until DSP distribution">
+            <input className={inputClass} value={upc} onChange={(e) => setUpc(e.target.value)} placeholder="e.g. 0123456789012" />
+          </Field>
+          <Field label="ISRC" hint="Optional — blank until DSP distribution">
+            <input className={inputClass} value={isrc} onChange={(e) => setIsrc(e.target.value)} placeholder="e.g. US-XXX-YY-NNNNN" />
+          </Field>
+        </div>
 
         <Field label="Notes" hint="Optional">
           <textarea className={inputClass} rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />
