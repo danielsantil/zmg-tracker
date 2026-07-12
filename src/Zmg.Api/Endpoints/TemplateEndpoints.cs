@@ -46,6 +46,8 @@ public static class TemplateEndpoints
                 Title = input.Title.Trim(),
                 Phase = input.Phase,
                 SortOrder = nextOrder + 1,
+                MinDaysBefore = input.MinDaysBefore,
+                MaxDaysBefore = input.MaxDaysBefore,
             };
             db.TemplateTasks.Add(task);
             await db.SaveChangesAsync();
@@ -75,6 +77,8 @@ public static class TemplateEndpoints
             }
 
             task.Title = input.Title.Trim();
+            task.MinDaysBefore = input.MinDaysBefore;
+            task.MaxDaysBefore = input.MaxDaysBefore;
             await db.SaveChangesAsync();
 
             return Results.Ok(ToDto(task));
@@ -133,5 +137,5 @@ public static class TemplateEndpoints
     }
 
     private static TemplateTaskDto ToDto(TemplateTask t) =>
-        new(t.Id, t.Title, t.Phase, t.SortOrder);
+        new(t.Id, t.Title, t.Phase, t.SortOrder, t.MinDaysBefore, t.MaxDaysBefore);
 }

@@ -36,6 +36,8 @@ public static class TaskEndpoints
                 Phase = input.Phase,
                 SortOrder = nextOrder + 1,
                 IsDone = false,
+                MinDaysBefore = input.MinDaysBefore,
+                MaxDaysBefore = input.MaxDaysBefore,
             };
             db.ReleaseTasks.Add(task);
             await db.SaveChangesAsync();
@@ -66,6 +68,8 @@ public static class TaskEndpoints
 
             task.Title = input.Title.Trim();
             task.Notes = string.IsNullOrWhiteSpace(input.Notes) ? null : input.Notes.Trim();
+            task.MinDaysBefore = input.MinDaysBefore;
+            task.MaxDaysBefore = input.MaxDaysBefore;
             await db.SaveChangesAsync();
 
             return Results.Ok(ToDto(task));
@@ -116,5 +120,5 @@ public static class TaskEndpoints
     }
 
     private static ReleaseTaskDto ToDto(ReleaseTask t) =>
-        new(t.Id, t.Title, t.Phase, t.SortOrder, t.IsDone, t.CompletedAt, t.Notes);
+        new(t.Id, t.Title, t.Phase, t.SortOrder, t.IsDone, t.CompletedAt, t.Notes, t.MinDaysBefore, t.MaxDaysBefore);
 }

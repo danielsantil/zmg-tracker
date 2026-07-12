@@ -10,9 +10,9 @@ can't carry. Read the plans for scope/rationale; read this for where things stan
 
 Newer plan versions live in new `build-plan-N.N.md` files; older ones stay frozen.
 
-**As of:** v1 (M0–M5) done and verified. **v1.1 in progress:** **M6 + M7 built** (schema/seed
-foundation; UPC/ISRC + soft warnings). **M8–M10 not yet built** — see [Next: v1.1](#next-v11-m8m10--not-built-yet)
-at the bottom and build-plan-1.1.md for the full spec.
+**As of:** v1 (M0–M5) done and verified. **v1.1 in progress:** **M6 + M7 + M8 built** (schema/seed
+foundation; UPC/ISRC + soft warnings; task timeframes & notes). **M9–M10 not yet built** — see
+[Next: v1.1](#next-v11-m9m10--not-built-yet) at the bottom and build-plan-1.1.md for the full spec.
 
 ---
 
@@ -137,23 +137,35 @@ tests/Zmg.Api.Tests      integration tests (WebApplicationFactory + in-memory SQ
 - Verified against a running API: past-date create → `doneTasks=1`, Distribute checked, warning true; future
   create with ids → round-trips, no warning, total 31.
 
+**M8 — Task timeframes & notes. ✅ Built.**
+- API: `AddTaskInput` / `UpdateTaskInput` and `AddTemplateTaskInput` / `UpdateTemplateTaskInput` gained optional
+  `MinDaysBefore` / `MaxDaysBefore`; `ReleaseTaskDto` and `TemplateTaskDto` return them. Update is a **full replace**
+  of editable fields, so the UI always re-sends the current timeframe (a bare rename won't wipe it) — mirrors how
+  Notes already worked ([TaskEndpoints.cs](src/Zmg.Api/Endpoints/TaskEndpoints.cs), [TemplateEndpoints.cs](src/Zmg.Api/Endpoints/TemplateEndpoints.cs)).
+- Frontend: `formatTimeframe(min, max)` → "7–14 days before" hint ([ui.tsx](src/Zmg.Web/src/ui.tsx)), shown next to
+  Pre-task titles on both the release detail and the template editor. The `[⋮]` menu gains "Set timeframe"
+  (Pre-only) opening an inline min–max `TimeframeEditor` (Save / Clear / Cancel). A task with notes shows a "✎"
+  indicator next to the title; inline notes editing was already present from M2
+  ([ReleaseDetail.tsx](src/Zmg.Web/src/pages/ReleaseDetail.tsx), [Templates.tsx](src/Zmg.Web/src/pages/Templates.tsx)).
+- Timeframe is Pre-only in the UI (the "set timeframe" item hides for Release/Post, whose two columns are the
+  reserved "days to complete" and drive no logic yet).
+- Tests (**+4 → 75**): API round-trip of the timeframe on task add/update (incl. clear-on-omit) and template-task
+  add/update. Verified in the running app: seeded Distribute/Pitch tasks copy their 7–14 window onto a new release
+  and render the hint; an added task with 3–5 shows "· 3–5 days before".
+
 ---
 
-## Next: v1.1 (M8–M10) — NOT built yet
+## Next: v1.1 (M9–M10) — NOT built yet
 
 The remaining block, singles only. Full spec in [build-plan-1.1.md](build-plan-1.1.md);
 per-milestone kickoff prompts are in its §VI. Build in order — M9 creates Home which M10 plugs into.
-M6–M7 are done; nothing below is implemented yet.
+M6–M8 are done; nothing below is implemented yet.
 
-Shared schema already landed in M6: Release has `Upc` / `Isrc`; TemplateTask + ReleaseTask have
-`MinDaysBefore` / `MaxDaysBefore`; `ReleaseTask.Notes` already existed (surface only). Timeframe is a range,
-both nullable, mostly null — Pre = "days before release" (max drives all calc, min display-only),
-Release/Post = "days to complete" (stored, not acted on yet).
-
-**M8 — Task timeframes & notes.**
-- Release detail: timeframe hint next to the title ("7–14 days before"), `[⋮]` gains "set timeframe",
-  editable inline notes + note indicator. Template editor: set a Pre task's days-before timeframe.
-- Task + template-task endpoints accept `minDaysBefore`/`maxDaysBefore`.
+Shared schema landed in M6, and its fields are now surfaced end-to-end (M7 identifiers, M8 timeframes).
+Recap: Release has `Upc` / `Isrc`; TemplateTask + ReleaseTask have `MinDaysBefore` / `MaxDaysBefore`;
+`ReleaseTask.Notes` already existed. Timeframe is a range, both nullable, mostly null — Pre = "days before
+release" (max drives all calc, min display-only), Release/Post = "days to complete" (stored, not acted on yet).
+The `IdentifierState` domain helper (M7) already exposes `IsDistributed` / `MissingLabel` for M10 to reuse.
 
 **M9 — Navigation: Home vs All Releases.**
 - Home (`/`): cards for `releaseDate >= today` only (`GET /api/releases?scope=home`) + slot for the pending

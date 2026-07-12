@@ -2,9 +2,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api, ApiError } from '../api';
 import type { Template, TemplateTaskDto } from '../types';
 import { Phase, ReleaseType } from '../types';
-import { Button, MenuItem, RowMenu, inputClass, phaseLabels } from '../ui';
+import { Button, MenuItem, RowMenu, formatTimeframe, inputClass, phaseLabels } from '../ui';
 
 const PHASE_ORDER: Phase[] = [Phase.Pre, Phase.Release, Phase.Post];
+
+type TemplatePatch = Partial<Pick<TemplateTaskDto, 'title' | 'phase' | 'minDaysBefore' | 'maxDaysBefore'>>;
 const TYPE_TABS: { type: ReleaseType; label: string }[] = [
   { type: ReleaseType.Single, label: 'Single' },
   { type: ReleaseType.Album, label: 'Album' },
@@ -75,11 +77,14 @@ export default function Templates() {
     }
   }
 
-  async function updateTask(task: TemplateTaskDto, patch: Partial<Pick<TemplateTaskDto, 'title' | 'phase'>>) {
+  async function updateTask(task: TemplateTaskDto, patch: TemplatePatch) {
     try {
+      // Full replace of editable fields — carry the current timeframe unless the patch overrides it.
       const saved = await api.updateTemplateTask(task.id, {
         title: patch.title ?? task.title,
         phase: patch.phase ?? task.phase,
+        minDaysBefore: patch.minDaysBefore !== undefined ? patch.minDaysBefore : task.minDaysBefore,
+        maxDaysBefore: patch.maxDaysBefore !== undefined ? patch.maxDaysBefore : task.maxDaysBefore,
       });
       setTasks((ts) => ts.map((t) => (t.id === saved.id ? saved : t)));
     } catch (e) {
@@ -191,7 +196,7 @@ function PhaseSection({
   phase: Phase;
   tasks: TemplateTaskDto[];
   onAdd: (title: string) => void;
-  onUpdate: (t: TemplateTaskDto, patch: Partial<Pick<TemplateTaskDto, 'title' | 'phase'>>) => void;
+  onUpdate: (t: TemplateTaskDto, patch: TemplatePatch) => void;
   onDelete: (t: TemplateTaskDto) => void;
   onMove: (t: TemplateTaskDto, dir: -1 | 1) => void;
 }) {
@@ -287,28 +292,35 @@ function TaskRow({
   task: TemplateTaskDto;
   isFirst: boolean;
   isLast: boolean;
-  onUpdate: (t: TemplateTaskDto, patch: Partial<Pick<TemplateTaskDto, 'title' | 'phase'>>) => void;
+  onUpdate: (t: TemplateTaskDto, patch: TemplatePatch) => void;
   onDelete: (t: TemplateTaskDto) => void;
   onMove: (t: TemplateTaskDto, dir: -1 | 1) => void;
 }) {
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState<'title' | 'timeframe' | null>(null);
   const [draft, setDraft] = useState('');
+
+  const timeframe = formatTimeframe(task.minDaysBefore, task.maxDaysBefore);
 
   function startEdit() {
     setDraft(task.title);
-    setEditing(true);
+    setEditing('title');
   }
 
   function saveEdit() {
     const title = draft.trim();
     if (title && title !== task.title) onUpdate(task, { title });
-    setEditing(false);
+    setEditing(null);
+  }
+
+  function parse(v: string): number | null {
+    const n = parseInt(v, 10);
+    return Number.isFinite(n) && n >= 0 ? n : null;
   }
 
   return (
     <li className="border-b border-edge/50 last:border-b-0">
       <div className="flex items-center gap-3 px-4 py-2.5">
-        {editing ? (
+        {editing === 'title' ? (
           <input
             autoFocus
             className={inputClass}
@@ -317,12 +329,15 @@ function TaskRow({
             onBlur={saveEdit}
             onKeyDown={(e) => {
               if (e.key === 'Enter') saveEdit();
-              if (e.key === 'Escape') setEditing(false);
+              if (e.key === 'Escape') setEditing(null);
             }}
           />
         ) : (
           <button className="flex-1 text-left text-sm text-slate-100" onClick={startEdit}>
             {task.title}
+            {timeframe && (
+              <span className="ml-2 whitespace-nowrap text-xs text-accent/80">· {timeframe}</span>
+            )}
           </button>
         )}
 
@@ -330,6 +345,11 @@ function TaskRow({
           {(close) => (
             <>
               <MenuItem onClick={() => { close(); startEdit(); }}>Rename</MenuItem>
+              {task.phase === Phase.Pre && (
+                <MenuItem onClick={() => { close(); setEditing('timeframe'); }}>
+                  {timeframe ? 'Edit timeframe' : 'Set timeframe'}
+                </MenuItem>
+              )}
               <MovePhaseItems task={task} onUpdate={onUpdate} close={close} />
               {!isFirst && (
                 <MenuItem onClick={() => { close(); onMove(task, -1); }}>Move up</MenuItem>
@@ -344,7 +364,59 @@ function TaskRow({
           )}
         </RowMenu>
       </div>
+
+      {editing === 'timeframe' && (
+        <TimeframeEditor
+          task={task}
+          parse={parse}
+          onSave={(min, max) => { onUpdate(task, { minDaysBefore: min, maxDaysBefore: max }); setEditing(null); }}
+          onCancel={() => setEditing(null)}
+        />
+      )}
     </li>
+  );
+}
+
+/** Inline "days before release" editor for a Pre template task (v1.1 M8). */
+function TimeframeEditor({
+  task,
+  parse,
+  onSave,
+  onCancel,
+}: {
+  task: TemplateTaskDto;
+  parse: (v: string) => number | null;
+  onSave: (min: number | null, max: number | null) => void;
+  onCancel: () => void;
+}) {
+  const [min, setMin] = useState(task.minDaysBefore?.toString() ?? '');
+  const [max, setMax] = useState(task.maxDaysBefore?.toString() ?? '');
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 px-4 pb-3 text-sm text-slate-300">
+      <span className="text-xs text-slate-500">Days before release:</span>
+      <input
+        autoFocus
+        type="number"
+        min={0}
+        className={`${inputClass} w-20`}
+        placeholder="min"
+        value={min}
+        onChange={(e) => setMin(e.target.value)}
+      />
+      <span className="text-slate-500">–</span>
+      <input
+        type="number"
+        min={0}
+        className={`${inputClass} w-20`}
+        placeholder="max"
+        value={max}
+        onChange={(e) => setMax(e.target.value)}
+      />
+      <Button onClick={() => onSave(parse(min), parse(max))}>Save</Button>
+      <Button variant="ghost" onClick={() => onSave(null, null)}>Clear</Button>
+      <Button variant="ghost" onClick={onCancel}>Cancel</Button>
+    </div>
   );
 }
 

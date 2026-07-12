@@ -78,12 +78,24 @@ export const api = {
     request<void>(`/api/releases/${id}`, { method: 'DELETE' }),
 
   // Release tasks (checklist engine)
-  addTask: (releaseId: string, input: { title: string; phase: Phase }) =>
+  addTask: (
+    releaseId: string,
+    input: { title: string; phase: Phase; minDaysBefore?: number | null; maxDaysBefore?: number | null },
+  ) =>
     request<ReleaseTaskDto>(`/api/releases/${releaseId}/tasks`, {
       method: 'POST',
       body: JSON.stringify(input),
     }),
-  updateTask: (id: string, input: { title: string; phase: Phase; notes: string | null }) =>
+  updateTask: (
+    id: string,
+    input: {
+      title: string;
+      phase: Phase;
+      notes: string | null;
+      minDaysBefore: number | null;
+      maxDaysBefore: number | null;
+    },
+  ) =>
     request<ReleaseTaskDto>(`/api/tasks/${id}`, {
       method: 'PUT',
       body: JSON.stringify(input),
@@ -100,12 +112,23 @@ export const api = {
 
   // Templates (template management)
   listTemplates: () => request<Template[]>('/api/templates'),
-  addTemplateTask: (templateId: string, input: { title: string; phase: Phase }) =>
+  addTemplateTask: (
+    templateId: string,
+    input: { title: string; phase: Phase; minDaysBefore?: number | null; maxDaysBefore?: number | null },
+  ) =>
     request<TemplateTaskDto>(`/api/templates/${templateId}/tasks`, {
       method: 'POST',
       body: JSON.stringify(input),
     }),
-  updateTemplateTask: (id: string, input: { title: string; phase: Phase }) =>
+  updateTemplateTask: (
+    id: string,
+    input: {
+      title: string;
+      phase: Phase;
+      minDaysBefore: number | null;
+      maxDaysBefore: number | null;
+    },
+  ) =>
     request<TemplateTaskDto>(`/api/template-tasks/${id}`, {
       method: 'PUT',
       body: JSON.stringify(input),

@@ -60,11 +60,12 @@ public record PhaseGroupDto(Phase Phase, int Done, int Total, List<ReleaseTaskDt
 
 public record ReleaseTaskDto(
     Guid Id, string Title, Phase Phase, int SortOrder,
-    bool IsDone, DateTime? CompletedAt, string? Notes);
+    bool IsDone, DateTime? CompletedAt, string? Notes,
+    int? MinDaysBefore, int? MaxDaysBefore);
 
-// ---- Release task mutations (M2 checklist engine) ----
-public record AddTaskInput(string Title, Phase Phase);
-public record UpdateTaskInput(string Title, Phase Phase, string? Notes);
+// ---- Release task mutations (M2 checklist engine; timeframe fields added in M8) ----
+public record AddTaskInput(string Title, Phase Phase, int? MinDaysBefore = null, int? MaxDaysBefore = null);
+public record UpdateTaskInput(string Title, Phase Phase, string? Notes, int? MinDaysBefore = null, int? MaxDaysBefore = null);
 public record ReorderTasksInput(Phase Phase, List<Guid> OrderedTaskIds);
 
 // ---- Tracks (M4 album support) ----
@@ -76,10 +77,10 @@ public record ReorderTracksInput(List<Guid> OrderedTrackIds);
 // ---- Templates (M3 template management) ----
 public record TemplateDto(Guid Id, ReleaseType Type, List<TemplatePhaseGroupDto> Phases);
 public record TemplatePhaseGroupDto(Phase Phase, List<TemplateTaskDto> Tasks);
-public record TemplateTaskDto(Guid Id, string Title, Phase Phase, int SortOrder);
+public record TemplateTaskDto(Guid Id, string Title, Phase Phase, int SortOrder, int? MinDaysBefore, int? MaxDaysBefore);
 
-public record AddTemplateTaskInput(string Title, Phase Phase);
-public record UpdateTemplateTaskInput(string Title, Phase Phase);
+public record AddTemplateTaskInput(string Title, Phase Phase, int? MinDaysBefore = null, int? MaxDaysBefore = null);
+public record UpdateTemplateTaskInput(string Title, Phase Phase, int? MinDaysBefore = null, int? MaxDaysBefore = null);
 public record ReorderTemplateTasksInput(Phase Phase, List<Guid> OrderedTaskIds);
 
 // ---- Validation envelope ----

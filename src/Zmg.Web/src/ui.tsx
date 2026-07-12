@@ -188,6 +188,18 @@ export function MenuItem({
   );
 }
 
+/**
+ * Human timeframe hint for a Pre task ("7–14 days before"), or null when no timeframe is set.
+ * Max drives calculations; the range is display-only (v1.1 M8).
+ */
+export function formatTimeframe(min: number | null, max: number | null): string | null {
+  if (min == null && max == null) return null;
+  if (min != null && max != null) {
+    return min === max ? `${max} days before` : `${min}–${max} days before`;
+  }
+  return `${max ?? min} days before`;
+}
+
 export function daysToRelease(date: string): number {
   const d = new Date(date + 'T00:00:00');
   const now = new Date();

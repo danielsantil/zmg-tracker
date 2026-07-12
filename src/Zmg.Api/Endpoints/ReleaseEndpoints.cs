@@ -218,7 +218,8 @@ public static class ReleaseEndpoints
                     .Where(t => t.Phase == phase)
                     .OrderBy(t => t.SortOrder)
                     .Select(t => new ReleaseTaskDto(
-                        t.Id, t.Title, t.Phase, t.SortOrder, t.IsDone, t.CompletedAt, t.Notes))
+                        t.Id, t.Title, t.Phase, t.SortOrder, t.IsDone, t.CompletedAt, t.Notes,
+                        t.MinDaysBefore, t.MaxDaysBefore))
                     .ToList();
                 return new PhaseGroupDto(phase, count.Done, count.Total, tasks);
             })

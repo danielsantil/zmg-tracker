@@ -12,11 +12,14 @@ import {
   StatusBadge,
   TypeBadge,
   daysToRelease,
+  formatTimeframe,
   inputClass,
   phaseLabels,
 } from '../ui';
 
 const PHASE_ORDER: Phase[] = [Phase.Pre, Phase.Release, Phase.Post];
+
+type TaskPatch = Partial<Pick<ReleaseTaskDto, 'title' | 'phase' | 'notes' | 'minDaysBefore' | 'maxDaysBefore'>>;
 
 export default function ReleaseDetail() {
   const { id } = useParams<{ id: string }>();
@@ -96,12 +99,16 @@ export default function ReleaseDetail() {
     }
   }
 
-  async function updateTask(task: ReleaseTaskDto, patch: Partial<Pick<ReleaseTaskDto, 'title' | 'phase' | 'notes'>>) {
+  async function updateTask(task: ReleaseTaskDto, patch: TaskPatch) {
     try {
+      // Update is a full replace of editable fields, so always send the task's current
+      // timeframe/notes unless the patch overrides them (else a rename would wipe them).
       const saved = await api.updateTask(task.id, {
         title: patch.title ?? task.title,
         phase: patch.phase ?? task.phase,
         notes: patch.notes !== undefined ? patch.notes : task.notes,
+        minDaysBefore: patch.minDaysBefore !== undefined ? patch.minDaysBefore : task.minDaysBefore,
+        maxDaysBefore: patch.maxDaysBefore !== undefined ? patch.maxDaysBefore : task.maxDaysBefore,
       });
       setTasks((ts) => ts.map((t) => (t.id === saved.id ? saved : t)));
     } catch (e) {
@@ -329,7 +336,7 @@ function PhaseSection({
   tasks: ReleaseTaskDto[];
   onToggle: (t: ReleaseTaskDto) => void;
   onAdd: (title: string) => void;
-  onUpdate: (t: ReleaseTaskDto, patch: Partial<Pick<ReleaseTaskDto, 'title' | 'phase' | 'notes'>>) => void;
+  onUpdate: (t: ReleaseTaskDto, patch: TaskPatch) => void;
   onDelete: (t: ReleaseTaskDto) => void;
   onMove: (t: ReleaseTaskDto, dir: -1 | 1) => void;
 }) {
@@ -442,12 +449,14 @@ function TaskRow({
   isFirst: boolean;
   isLast: boolean;
   onToggle: (t: ReleaseTaskDto) => void;
-  onUpdate: (t: ReleaseTaskDto, patch: Partial<Pick<ReleaseTaskDto, 'title' | 'phase' | 'notes'>>) => void;
+  onUpdate: (t: ReleaseTaskDto, patch: TaskPatch) => void;
   onDelete: (t: ReleaseTaskDto) => void;
   onMove: (t: ReleaseTaskDto, dir: -1 | 1) => void;
 }) {
-  const [editing, setEditing] = useState<'title' | 'notes' | null>(null);
+  const [editing, setEditing] = useState<'title' | 'notes' | 'timeframe' | null>(null);
   const [draft, setDraft] = useState('');
+
+  const timeframe = formatTimeframe(task.minDaysBefore, task.maxDaysBefore);
 
   function startEdit(field: 'title' | 'notes') {
     setDraft(field === 'title' ? task.title : task.notes ?? '');
@@ -500,6 +509,14 @@ function TaskRow({
             onClick={() => onToggle(task)}
           >
             {task.title}
+            {timeframe && (
+              <span className="ml-2 whitespace-nowrap text-xs text-accent/80">· {timeframe}</span>
+            )}
+            {task.notes && (
+              <span className="ml-1.5 text-xs text-slate-500" title="Has notes" aria-label="Has notes">
+                ✎
+              </span>
+            )}
           </button>
         )}
 
@@ -510,6 +527,11 @@ function TaskRow({
               <MenuItem onClick={() => { close(); startEdit('notes'); }}>
                 {task.notes ? 'Edit notes' : 'Add notes'}
               </MenuItem>
+              {task.phase === Phase.Pre && (
+                <MenuItem onClick={() => { close(); setEditing('timeframe'); }}>
+                  {timeframe ? 'Edit timeframe' : 'Set timeframe'}
+                </MenuItem>
+              )}
               <MovePhaseItems task={task} onUpdate={onUpdate} close={close} />
               {!isFirst && (
                 <MenuItem onClick={() => { close(); onMove(task, -1); }}>Move up</MenuItem>
@@ -541,10 +563,66 @@ function TaskRow({
           />
         </div>
       )}
+      {editing === 'timeframe' && (
+        <TimeframeEditor
+          task={task}
+          onSave={(min, max) => { onUpdate(task, { minDaysBefore: min, maxDaysBefore: max }); setEditing(null); }}
+          onCancel={() => setEditing(null)}
+        />
+      )}
       {editing !== 'notes' && task.notes && (
         <p className="px-4 pb-2.5 pl-12 text-xs text-slate-400">{task.notes}</p>
       )}
     </li>
+  );
+}
+
+/**
+ * Inline "days before release" editor for a Pre task (v1.1 M8). Min is display-only in the
+ * hint; the max drives pending calculations. Leaving both blank clears the timeframe.
+ */
+function TimeframeEditor({
+  task,
+  onSave,
+  onCancel,
+}: {
+  task: ReleaseTaskDto;
+  onSave: (min: number | null, max: number | null) => void;
+  onCancel: () => void;
+}) {
+  const [min, setMin] = useState(task.minDaysBefore?.toString() ?? '');
+  const [max, setMax] = useState(task.maxDaysBefore?.toString() ?? '');
+
+  function parse(v: string): number | null {
+    const n = parseInt(v, 10);
+    return Number.isFinite(n) && n >= 0 ? n : null;
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 px-4 pb-3 pl-12 text-sm text-slate-300">
+      <span className="text-xs text-slate-500">Days before release:</span>
+      <input
+        autoFocus
+        type="number"
+        min={0}
+        className={`${inputClass} w-20`}
+        placeholder="min"
+        value={min}
+        onChange={(e) => setMin(e.target.value)}
+      />
+      <span className="text-slate-500">–</span>
+      <input
+        type="number"
+        min={0}
+        className={`${inputClass} w-20`}
+        placeholder="max"
+        value={max}
+        onChange={(e) => setMax(e.target.value)}
+      />
+      <Button onClick={() => onSave(parse(min), parse(max))}>Save</Button>
+      <Button variant="ghost" onClick={() => onSave(null, null)}>Clear</Button>
+      <Button variant="ghost" onClick={onCancel}>Cancel</Button>
+    </div>
   );
 }
 

@@ -74,6 +74,8 @@ export interface ReleaseTaskDto {
   isDone: boolean;
   completedAt: string | null;
   notes: string | null;
+  minDaysBefore: number | null;
+  maxDaysBefore: number | null;
 }
 
 export interface PhaseGroup {
@@ -121,6 +123,8 @@ export interface TemplateTaskDto {
   title: string;
   phase: Phase;
   sortOrder: number;
+  minDaysBefore: number | null;
+  maxDaysBefore: number | null;
 }
 
 export interface TemplatePhaseGroup {
