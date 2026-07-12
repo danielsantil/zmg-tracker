@@ -8,7 +8,7 @@ import { Button, Field, inputClass } from '../ui';
 // Known seeded template sizes (build-plan.md §5.4). A template endpoint arrives in M3;
 // until then these drive the "checklist will start from N tasks" hint.
 const TEMPLATE_TASK_COUNT: Record<ReleaseType, number> = {
-  [ReleaseType.Single]: 30,
+  [ReleaseType.Single]: 31,
   [ReleaseType.Album]: 40,
 };
 

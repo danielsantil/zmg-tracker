@@ -6,14 +6,13 @@ can't carry. Read the plans for scope/rationale; read this for where things stan
 
 **Plan versions:**
 - [build-plan-1.0.md](build-plan-1.0.md) — frozen v1 brief (M0–M5). Shipped.
-- [build-plan-1.1.md](build-plan-1.1.md) — singles improvements (M6–M10). Specced, not yet built.
+- [build-plan-1.1.md](build-plan-1.1.md) — singles improvements (M6–M10). M6 built; M7–M10 next.
 
 Newer plan versions live in new `build-plan-N.N.md` files; older ones stay frozen.
 
-**As of:** M0 + M1 + M2 + M3 + M4 + M5 complete and verified end-to-end. **v1 is done** —
-every milestone in build-plan-1.0.md §10 is built. **v1.1 (M6–M10) is specced but NOT yet
-built** — it's the next work; see [Next: v1.1](#next-v11-m6m10--not-built-yet) at the bottom
-and build-plan-1.1.md for the full spec.
+**As of:** v1 (M0–M5) done and verified. **v1.1 in progress:** **M6 built** (schema, migration,
+seed foundation). **M7–M10 not yet built** — see [Next: v1.1](#next-v11-m7m10--not-built-yet)
+at the bottom and build-plan-1.1.md for the full spec.
 
 ---
 
@@ -99,24 +98,38 @@ tests/Zmg.Api.Tests      integration tests (WebApplicationFactory + in-memory SQ
 
 ---
 
-## Next: v1.1 (M6–M10) — NOT built yet
+## v1.1 built so far
 
-The next block of work, singles only. Full spec in [build-plan-1.1.md](build-plan-1.1.md);
-per-milestone kickoff prompts are in its §VI. Build in order — M6 is the foundation, M9
-creates Home which M10 plugs into. Nothing below is implemented yet.
+**M6 — Schema & seed foundation. ✅ Built.**
+- Entities: `Release.Upc` / `Release.Isrc`, and `MinDaysBefore` / `MaxDaysBefore` on both `TemplateTask`
+  and `ReleaseTask` ([Entities.cs](src/Zmg.Domain/Entities.cs)). One EF migration
+  `AddIdentifiersAndTaskTimeframes` ([Migrations/](src/Zmg.Api/Migrations)) adds the columns; existing
+  rows get nulls. Migration applies clean (all API integration tests boot via `Migrate()`).
+- `TemplateCopy.CopyToRelease` carries the timeframe fields onto each release task ([TemplateCopy.cs](src/Zmg.Domain/TemplateCopy.cs)).
+- Seed refactor ([SeedData.cs](src/Zmg.Domain/SeedData.cs)): a shared `BaseTasks` list (the original 30) feeds
+  the album template unchanged; the single template is derived from it with "Distribute to DSPs" (7–14 days
+  before) inserted as the **3rd** Pre task and "Pitch to Spotify" set to 7–14. Single **30 → 31** (6 Pre /
+  18 Release / 7 Post); album still **40**, with no timeframes and no Distribute task. `SeedData.DistributeToDspsTitle`
+  is the shared constant M7/M10 key off. The seed's deterministic ids reuse slots on the shifted Pre rows, so
+  the migration is `UpdateData` on those + one `InsertData` (no data loss).
+- Existing releases are snapshots and are **not** retro-modified — a release created before M6 simply lacks
+  the new task, which is correct per the snapshot rule.
+- Tests (**+3 net → 63**): domain copy-carries-timeframe, single counts (31, 6/18/7), Distribute is the 3rd
+  Pre task at 7/14, Pitch to Spotify at 7/14, album untouched at 40 with all-null timeframes. Updated the
+  older count assertions (single 30→31 / delete 29→30) across domain + API tests. Frontend template-size hint 30→31.
 
-Shared schema (one new EF migration, defined in build-plan-1.1.md §I): Release gets `Upc string?` /
-`Isrc string?`; TemplateTask + ReleaseTask get `MinDaysBefore int?` / `MaxDaysBefore int?`;
-`ReleaseTask.Notes` already exists (surface only). Timeframe is a range, both nullable, mostly null —
-Pre = "days before release" (max drives all calc, min display-only), Release/Post = "days to complete"
-(stored, not acted on yet).
+---
 
-**M6 — Schema & seed foundation.**
-- Add the columns above + the migration; template-copy (`TemplateCopy.CopyToRelease`) carries the timeframe fields.
-- Single template seed (single only): insert "Distribute to DSPs" as the **3rd** Pre task (7–14), set
-  "Pitch to Spotify" to 7–14. Single 30 → **31** (6 Pre / 18 Release / 7 Post); album unchanged at **40**.
-  Existing releases are snapshots — do not retro-modify.
-- Tests: copy carries timeframe; seed counts (single 31, the two 7/14 tasks, album 40).
+## Next: v1.1 (M7–M10) — NOT built yet
+
+The remaining block, singles only. Full spec in [build-plan-1.1.md](build-plan-1.1.md);
+per-milestone kickoff prompts are in its §VI. Build in order — M9 creates Home which M10 plugs into.
+M6 (the foundation) is done; nothing below is implemented yet.
+
+Shared schema already landed in M6: Release has `Upc` / `Isrc`; TemplateTask + ReleaseTask have
+`MinDaysBefore` / `MaxDaysBefore`; `ReleaseTask.Notes` already existed (surface only). Timeframe is a range,
+both nullable, mostly null — Pre = "days before release" (max drives all calc, min display-only),
+Release/Post = "days to complete" (stored, not acted on yet).
 
 **M7 — Release identifiers (UPC/ISRC) & soft warnings.**
 - UPC/ISRC on the release form + create/update API; list + detail DTOs return them.

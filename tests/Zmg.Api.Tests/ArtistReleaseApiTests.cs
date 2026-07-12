@@ -68,9 +68,9 @@ public class ArtistReleaseApiTests : IClassFixture<ZmgApiFactory>
         var created = (await res.Content.ReadFromJsonAsync<CreatedWithWarnings<ReleaseDetailDto>>())!;
         var detail = created.Data;
 
-        Assert.Equal(30, detail.TotalTasks);
+        Assert.Equal(31, detail.TotalTasks);
         Assert.Equal(0, detail.DoneTasks);
-        Assert.Equal(5, detail.Phases.Single(p => p.Phase == Phase.Pre).Total);
+        Assert.Equal(6, detail.Phases.Single(p => p.Phase == Phase.Pre).Total);
         Assert.Equal(18, detail.Phases.Single(p => p.Phase == Phase.Release).Total);
         Assert.Equal(7, detail.Phases.Single(p => p.Phase == Phase.Post).Total);
         Assert.Contains(detail.Phases.SelectMany(p => p.Tasks), t => t.Title == "Mix/master");

@@ -12,6 +12,7 @@ public class TemplateCopyTests
         {
             new TemplateTask { Id = Guid.NewGuid(), Title = "Mix/master", Phase = Phase.Pre, SortOrder = 0 },
             new TemplateTask { Id = Guid.NewGuid(), Title = "Design cover", Phase = Phase.Pre, SortOrder = 1 },
+            new TemplateTask { Id = Guid.NewGuid(), Title = "Distribute to DSPs", Phase = Phase.Pre, SortOrder = 2, MinDaysBefore = 7, MaxDaysBefore = 14 },
             new TemplateTask { Id = Guid.NewGuid(), Title = "Smart link", Phase = Phase.Release, SortOrder = 0 },
             new TemplateTask { Id = Guid.NewGuid(), Title = "Meta ads", Phase = Phase.Post, SortOrder = 0 },
         }
@@ -37,8 +38,8 @@ public class TemplateCopyTests
         var tasks = TemplateCopy.CopyToRelease(template, Guid.NewGuid());
 
         var pre = tasks.Where(t => t.Phase == Phase.Pre).OrderBy(t => t.SortOrder).ToList();
-        Assert.Equal(new[] { "Mix/master", "Design cover" }, pre.Select(t => t.Title));
-        Assert.Equal(new[] { 0, 1 }, pre.Select(t => t.SortOrder));
+        Assert.Equal(new[] { "Mix/master", "Design cover", "Distribute to DSPs" }, pre.Select(t => t.Title));
+        Assert.Equal(new[] { 0, 1, 2 }, pre.Select(t => t.SortOrder));
     }
 
     [Fact]
@@ -75,29 +76,76 @@ public class TemplateCopyTests
         Assert.Equal(tasks.Count, tasks.Select(t => t.Id).Distinct().Count());
         Assert.Empty(tasks.Select(t => t.Id).Intersect(template.Tasks.Select(t => t.Id)));
     }
+
+    [Fact]
+    public void CopyToRelease_carries_the_task_timeframe()
+    {
+        var template = SampleTemplate();
+
+        var tasks = TemplateCopy.CopyToRelease(template, Guid.NewGuid());
+
+        var distribute = tasks.Single(t => t.Title == "Distribute to DSPs");
+        Assert.Equal(7, distribute.MinDaysBefore);
+        Assert.Equal(14, distribute.MaxDaysBefore);
+
+        // Tasks without a timeframe stay null.
+        var mix = tasks.Single(t => t.Title == "Mix/master");
+        Assert.Null(mix.MinDaysBefore);
+        Assert.Null(mix.MaxDaysBefore);
+    }
 }
 
 public class SeedDataTests
 {
     [Fact]
-    public void Single_template_has_the_exact_section_5_4_counts()
+    public void Single_template_has_the_v1_1_counts()
     {
         var single = SeedData.Templates().Single(t => t.Type == ReleaseType.Single);
 
-        Assert.Equal(5, single.Tasks.Count(t => t.Phase == Phase.Pre));
+        // v1.1 adds "Distribute to DSPs" as a 6th Pre task: 30 → 31 (6 Pre / 18 Release / 7 Post).
+        Assert.Equal(6, single.Tasks.Count(t => t.Phase == Phase.Pre));
         Assert.Equal(18, single.Tasks.Count(t => t.Phase == Phase.Release));
         Assert.Equal(7, single.Tasks.Count(t => t.Phase == Phase.Post));
-        Assert.Equal(30, single.Tasks.Count);
+        Assert.Equal(31, single.Tasks.Count);
     }
 
     [Fact]
-    public void Album_template_is_the_single_list_plus_album_extras()
+    public void Single_template_distribute_to_dsps_is_the_third_pre_task_at_7_to_14()
+    {
+        var single = SeedData.Templates().Single(t => t.Type == ReleaseType.Single);
+        var pre = single.Tasks.Where(t => t.Phase == Phase.Pre).OrderBy(t => t.SortOrder).ToList();
+
+        var distribute = pre[2];
+        Assert.Equal("Distribute to DSPs", distribute.Title);
+        Assert.Equal(7, distribute.MinDaysBefore);
+        Assert.Equal(14, distribute.MaxDaysBefore);
+    }
+
+    [Fact]
+    public void Single_template_pitch_to_spotify_has_the_7_to_14_timeframe()
+    {
+        var single = SeedData.Templates().Single(t => t.Type == ReleaseType.Single);
+        var spotify = single.Tasks.Single(t => t.Title == "Pitch to Spotify");
+
+        Assert.Equal(7, spotify.MinDaysBefore);
+        Assert.Equal(14, spotify.MaxDaysBefore);
+    }
+
+    [Fact]
+    public void Album_template_is_the_base_list_plus_album_extras_untouched_by_v1_1()
     {
         var album = SeedData.Templates().Single(t => t.Type == ReleaseType.Album);
 
+        // Albums are out of scope for v1.1: no "Distribute to DSPs", no timeframes.
         Assert.Equal(40, album.Tasks.Count);
         Assert.Contains(album.Tasks, t => t.Title.Contains("Finalize tracklist"));
         Assert.Contains(album.Tasks, t => t.Title.Contains("waterfall"));
+        Assert.DoesNotContain(album.Tasks, t => t.Title == "Distribute to DSPs");
+        Assert.All(album.Tasks, t =>
+        {
+            Assert.Null(t.MinDaysBefore);
+            Assert.Null(t.MaxDaysBefore);
+        });
     }
 
     [Fact]

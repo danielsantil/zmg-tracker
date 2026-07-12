@@ -134,7 +134,7 @@ public class ReleaseTaskApiTests : IClassFixture<ZmgApiFactory>
         Assert.Equal(HttpStatusCode.NoContent, del.StatusCode);
 
         var detail = await client.GetFromJsonAsync<ReleaseDetailDto>($"/api/releases/{release.Id}");
-        Assert.Equal(29, detail!.TotalTasks);
+        Assert.Equal(30, detail!.TotalTasks);
         Assert.DoesNotContain(detail.Phases.SelectMany(p => p.Tasks), t => t.Id == task.Id);
     }
 

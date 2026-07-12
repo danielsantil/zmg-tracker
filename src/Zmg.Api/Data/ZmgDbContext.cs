@@ -98,6 +98,8 @@ public class ZmgDbContext : DbContext
                 Title = task.Title,
                 Phase = task.Phase,
                 SortOrder = task.SortOrder,
+                MinDaysBefore = task.MinDaysBefore,
+                MaxDaysBefore = task.MaxDaysBefore,
             });
         }
     }

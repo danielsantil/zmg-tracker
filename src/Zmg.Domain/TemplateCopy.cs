@@ -28,6 +28,8 @@ public static class TemplateCopy
                 IsDone = false,
                 CompletedAt = null,
                 Notes = null,
+                MinDaysBefore = t.MinDaysBefore,
+                MaxDaysBefore = t.MaxDaysBefore,
                 SourceTemplateTaskId = t.Id
             })
             .ToList();

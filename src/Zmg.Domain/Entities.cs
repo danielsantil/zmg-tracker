@@ -16,7 +16,7 @@ public class Artist
 
 /// <summary>
 /// A single or album release. The unit a checklist is copied onto.
-/// UPC/ISRC-ready metadata is added in phase 2; keep the id stable.
+/// UPC/ISRC hang phase-2 streaming/revenue data off a stable id; keep the id stable.
 /// </summary>
 public class Release
 {
@@ -28,6 +28,10 @@ public class Release
     public Artist? MainArtist { get; set; }
     public string? CoverUrl { get; set; }
     public string? Notes { get; set; }
+
+    /// <summary>Release identifiers (v1.1). Optional free text, no format validation; blank until DSP distribution.</summary>
+    public string? Upc { get; set; }
+    public string? Isrc { get; set; }
 
     public List<ReleaseArtist> FeaturedArtists { get; set; } = new();
     public List<ReleaseTask> Tasks { get; set; } = new();
@@ -76,6 +80,14 @@ public class ReleaseTask
     public DateTime? CompletedAt { get; set; }
     public string? Notes { get; set; }
 
+    /// <summary>
+    /// Task timeframe (v1.1), copied from the template task. Both nullable, mostly null.
+    /// Pre tasks: "complete N–M days before release" (max drives pending/sort, min display-only).
+    /// Release/Post tasks: "days to complete" after release — stored, not acted on yet.
+    /// </summary>
+    public int? MinDaysBefore { get; set; }
+    public int? MaxDaysBefore { get; set; }
+
     /// <summary>Lineage back to the template task it was copied from. Nothing depends on it in v1.</summary>
     public Guid? SourceTemplateTaskId { get; set; }
 }
@@ -99,4 +111,8 @@ public class TemplateTask
     public string Title { get; set; } = string.Empty;
     public Phase Phase { get; set; }
     public int SortOrder { get; set; }
+
+    /// <summary>Task timeframe (v1.1). Copied onto each release task; see <see cref="ReleaseTask"/>.</summary>
+    public int? MinDaysBefore { get; set; }
+    public int? MaxDaysBefore { get; set; }
 }
