@@ -87,7 +87,6 @@ export default function Home() {
         <select className={`${inputClass} max-w-[10rem]`} value={status} onChange={(e) => setStatus(e.target.value)}>
           <option value="">All statuses</option>
           <option value="Upcoming">Upcoming</option>
-          <option value="Released">Released</option>
           <option value="Complete">Complete</option>
         </select>
         {hasFilters && (
