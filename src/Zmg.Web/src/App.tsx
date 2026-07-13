@@ -1,5 +1,5 @@
 import { NavLink, Route, Routes } from 'react-router-dom';
-import Home from './pages/Home';
+import Home from './features/home/HomePage';
 import AllReleases from './pages/AllReleases';
 import Artists from './features/artists/ArtistsPage';
 import ReleaseForm from './pages/ReleaseForm';
