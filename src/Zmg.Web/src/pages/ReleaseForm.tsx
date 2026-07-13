@@ -60,7 +60,6 @@ export default function ReleaseForm() {
   }, [id, isEdit]);
 
   const handleBack = () => {
-    console.log('location.key', location.key);
     if (location.key === 'default') {
       navigate('/');
     } else {

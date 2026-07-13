@@ -109,7 +109,9 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
 
         // Backfill (1.0 §9): a release dated in the past was, by definition, already distributed —
         // auto-check its "Distribute to DSPs" task so a blank UPC/ISRC surfaces as a pending action (M10).
-        if (release.ReleaseDate < today)
+        // also, if a release is created with ISRC and UPC, it has been already distributed.
+        if (release.ReleaseDate < today 
+            || (!string.IsNullOrWhiteSpace(release.Isrc) && !string.IsNullOrWhiteSpace(release.Upc)))
         {
             var distribute = release.Tasks.FirstOrDefault(t => t.Title == SeedData.DistributeToDspsTitle);
             if (distribute is not null)
