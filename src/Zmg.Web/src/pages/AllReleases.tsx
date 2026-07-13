@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { api, ApiError } from '../api';
-import type { Artist, ReleaseListItem } from '../types';
-import { ReleaseType } from '../types';
-import { Button, IdentifierWarning, StatusBadge, TypeBadge, inputClass } from '../ui';
+import { api, ApiError } from '@/api';
+import type { Artist, ReleaseListItem } from '@/types';
+import { ReleaseType } from '@/types';
+import { Button, IdentifierWarning, StatusBadge, TypeBadge, inputClass } from '@/components';
 
 export default function AllReleases() {
   const navigate = useNavigate();

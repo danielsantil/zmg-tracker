@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { api, ApiError } from '../api';
-import type { Template, TemplateTaskDto } from '../types';
-import { Phase, ReleaseType } from '../types';
-import { Button, MenuItem, RowMenu, formatTimeframe, inputClass, phaseLabels } from '../ui';
+import { api, ApiError } from '@/api';
+import type { Template, TemplateTaskDto } from '@/types';
+import { Phase, ReleaseType } from '@/types';
+import { Button, MenuItem, RowMenu, inputClass } from '@/components';
+import { formatTimeframe } from '@/lib/format';
+import { phaseLabels } from '@/lib/phase';
 
 const PHASE_ORDER: Phase[] = [Phase.Pre, Phase.Release, Phase.Post];
 

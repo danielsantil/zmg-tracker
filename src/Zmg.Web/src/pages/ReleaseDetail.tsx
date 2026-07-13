@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { api, ApiError } from '../api';
-import type { PendingAction, ReleaseDetail as ReleaseDetailModel, ReleaseTaskDto, TrackDto } from '../types';
-import { PendingKind, Phase, ReleaseType } from '../types';
+import { api, ApiError } from '@/api';
+import type { PendingAction, ReleaseDetail as ReleaseDetailModel, ReleaseTaskDto, TrackDto } from '@/types';
+import { PendingKind, Phase, ReleaseType } from '@/types';
 import {
   Button,
   IdentifierWarning,
@@ -11,11 +11,10 @@ import {
   RowMenu,
   StatusBadge,
   TypeBadge,
-  daysToRelease,
-  formatTimeframe,
   inputClass,
-  phaseLabels,
-} from '../ui';
+} from '@/components';
+import { daysToRelease, formatTimeframe } from '@/lib/format';
+import { phaseLabels } from '@/lib/phase';
 
 const PHASE_ORDER: Phase[] = [Phase.Pre, Phase.Release, Phase.Post];
 

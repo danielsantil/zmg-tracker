@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { api, ApiError } from '../api';
-import type { Artist } from '../types';
-import { Button, Field, inputClass } from '../ui';
+import { api, ApiError } from '@/api';
+import type { Artist } from '@/types';
+import { Button, Field, inputClass } from '@/components';
 
 export default function Artists() {
   const [artists, setArtists] = useState<Artist[]>([]);

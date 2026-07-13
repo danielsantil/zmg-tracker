@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { api, ApiError } from '../api';
-import type { Artist, ReleaseArtistInput } from '../types';
-import { ArtistRole, ReleaseType } from '../types';
-import { Button, Field, inputClass } from '../ui';
+import { api, ApiError } from '@/api';
+import type { Artist, ReleaseArtistInput } from '@/types';
+import { ArtistRole, ReleaseType } from '@/types';
+import { Button, Field, inputClass } from '@/components';
 
 // Known seeded template sizes (build-plan.md §5.4). A template endpoint arrives in M3;
 // until then these drive the "checklist will start from N tasks" hint.

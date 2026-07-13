@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { api, ApiError } from '../api';
-import type { Artist, PendingAction, ReleaseListItem } from '../types';
-import { PendingKind, ReleaseType } from '../types';
-import { Button, IdentifierWarning, ProgressBar, StatusBadge, TypeBadge, daysToRelease, inputClass } from '../ui';
+import { api, ApiError } from '@/api';
+import type { Artist, PendingAction, ReleaseListItem } from '@/types';
+import { PendingKind, ReleaseType } from '@/types';
+import { Button, IdentifierWarning, ProgressBar, StatusBadge, TypeBadge, inputClass } from '@/components';
+import { daysToRelease } from '@/lib/format';
 
 export default function Home() {
   const navigate = useNavigate();
