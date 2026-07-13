@@ -10,6 +10,7 @@ var connectionString = builder.Configuration.GetConnectionString("Zmg");
 builder.Services.AddDbContext<ZmgDbContext>(options => options.UseSqlite(connectionString));
 
 builder.Services.AddScoped<IArtistService, ArtistService>();
+builder.Services.AddScoped<IPendingService, PendingService>();
 
 builder.Services.AddCors(options =>
     options.AddPolicy("dev", p => p

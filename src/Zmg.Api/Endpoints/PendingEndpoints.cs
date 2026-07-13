@@ -1,6 +1,4 @@
-using Microsoft.EntityFrameworkCore;
-using Zmg.Domain;
-using Zmg.Infra.Data;
+using Zmg.Api.Services.Interfaces;
 
 namespace Zmg.Api.Endpoints;
 
@@ -10,18 +8,7 @@ public static class PendingEndpoints
     {
         // Aggregate pending actions across every release, in the global order (task-due nearest-first,
         // then data/missing-identifier items). The Home "Pending Tasks" section renders this whole list.
-        app.MapGet("/api/pending", async (ZmgDbContext db) =>
-        {
-            var today = DateOnly.FromDateTime(DateTime.UtcNow);
-            var releases = await db.Releases
-                .Include(r => r.MainArtist)
-                .Include(r => r.Tasks)
-                .ToListAsync();
-
-            var actions = PendingActions.Order(
-                releases.SelectMany(r => PendingActions.Compute(r, today)));
-
-            return Results.Ok(actions);
-        });
+        app.MapGet("/api/pending", async (IPendingService pending) =>
+            Results.Ok(await pending.ListAsync()));
     }
 }
