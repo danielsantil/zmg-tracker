@@ -4,7 +4,7 @@ import AllReleases from './pages/AllReleases';
 import Artists from './features/artists/ArtistsPage';
 import ReleaseForm from './pages/ReleaseForm';
 import ReleaseDetail from './pages/ReleaseDetail';
-import Templates from './pages/Templates';
+import Templates from './features/templates/TemplatesPage';
 
 function Nav() {
   const link = ({ isActive }: { isActive: boolean }) =>
