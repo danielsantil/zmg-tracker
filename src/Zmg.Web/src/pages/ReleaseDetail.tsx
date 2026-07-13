@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { api, ApiError } from '../api';
 import type { PendingAction, ReleaseDetail as ReleaseDetailModel, ReleaseTaskDto, TrackDto } from '../types';
 import { PendingKind, Phase, ReleaseType } from '../types';
@@ -24,6 +24,7 @@ type TaskPatch = Partial<Pick<ReleaseTaskDto, 'title' | 'phase' | 'notes' | 'min
 export default function ReleaseDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [release, setRelease] = useState<ReleaseDetailModel | null>(null);
   const [tasks, setTasks] = useState<ReleaseTaskDto[]>([]);
@@ -54,6 +55,14 @@ export default function ReleaseDetail() {
       setLoading(false);
     }
   }, [id]);
+
+  const handleBack = () => {
+    if (location.key === 'default') {
+      navigate('/');
+    } else {
+      navigate(-1);
+    }
+  }
 
   useEffect(() => {
     load();
@@ -235,9 +244,9 @@ export default function ReleaseDetail() {
   return (
     <div>
       <div className="mb-4 flex items-center justify-between">
-        <Link to="/" className="text-sm text-slate-400 hover:text-slate-200">
+        <button onClick={handleBack} className="text-sm text-slate-400 hover:text-slate-200">
           ‹ Releases
-        </Link>
+        </button>
         <Button variant="ghost" onClick={() => navigate(`/releases/${release.id}/edit`)}>
           Edit
         </Button>
