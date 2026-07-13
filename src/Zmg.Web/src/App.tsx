@@ -3,7 +3,7 @@ import Home from './features/home/HomePage';
 import AllReleases from './features/releases/AllReleasesPage';
 import Artists from './features/artists/ArtistsPage';
 import ReleaseForm from './features/releases/ReleaseFormPage';
-import ReleaseDetail from './pages/ReleaseDetail';
+import ReleaseDetail from './features/releases/ReleaseDetailPage';
 import Templates from './features/templates/TemplatesPage';
 
 function Nav() {
