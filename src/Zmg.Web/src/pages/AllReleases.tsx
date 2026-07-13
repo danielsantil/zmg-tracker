@@ -16,31 +16,25 @@ export default function AllReleases() {
   const [type, setType] = useState('');
   const [q, setQ] = useState('');
 
-  async function load() {
+  async function loadReleases() {
     setLoading(true);
     setError(null);
-    try {
-      const [rels, arts] = await Promise.all([
-        api.listReleases({
-          scope: 'all',
-          artistId: artistId || undefined,
-          type: type === '' ? undefined : (Number(type) as ReleaseType),
-          q: q.trim() || undefined,
-        }),
-        api.listArtists(),
-      ]);
-      setReleases(rels);
-      setArtists(arts);
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Failed to load releases.');
-    } finally {
-      setLoading(false);
-    }
+    api.listReleases({
+      scope: 'all',
+      artistId: artistId || undefined,
+      type: type === '' ? undefined : (Number(type) as ReleaseType),
+      q: q.trim() || undefined,
+    }).then(setReleases).catch((e) => setError(e instanceof ApiError ? e.message : 'Failed to load releases.'))
+      .finally(() => setLoading(false));
   }
+
+  useEffect(() => {
+    api.listArtists().then(setArtists).catch(() => setError('Failed to load artists.'));
+  }, []);
 
   // Debounce the free-text search so each keystroke doesn't fire a request.
   useEffect(() => {
-    const t = setTimeout(load, q ? 250 : 0);
+    const t = setTimeout(loadReleases, q ? 250 : 0);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [artistId, type, q]);
