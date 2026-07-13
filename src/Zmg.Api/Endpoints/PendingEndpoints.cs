@@ -19,7 +19,7 @@ public static class PendingEndpoints
                 .ToListAsync();
 
             var actions = PendingActions.Order(
-                releases.SelectMany(r => PendingActions.Compute(r, r.Tasks, today)));
+                releases.SelectMany(r => PendingActions.Compute(r, today)));
 
             return Results.Ok(actions);
         });

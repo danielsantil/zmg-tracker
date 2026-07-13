@@ -5,17 +5,21 @@ namespace Zmg.Domain.Tests;
 
 public class ReleaseTests
 {
-    private static List<ReleaseTask> Tasks(bool distributeDone) => new()
-    {
-        new ReleaseTask { Id = Guid.NewGuid(), Title = "Mix/master", Phase = Phase.Pre, IsDone = true },
-        new ReleaseTask { Id = Guid.NewGuid(), Title = SeedData.DistributeToDspsTitle, Phase = Phase.Pre, IsDone = distributeDone },
-    };
-
     [Fact]
     public void IsDistributed_tracks_the_distribute_task_done_state()
     {
-        Assert.False(Release.IsDistributed(Tasks(distributeDone: false)));
-        Assert.True(Release.IsDistributed(Tasks(distributeDone: true)));
+        var release = new Release
+        {
+            Tasks =
+            [
+                new ReleaseTask
+                    { Id = Guid.NewGuid(), Title = SeedData.DistributeToDspsTitle, Phase = Phase.Pre, IsDone = false }
+            ]
+        };
+        Assert.False(release.IsDistributed);
+        
+        release.Tasks.Single().IsDone = true;
+        Assert.True(release.IsDistributed);
     }
 
     [Fact]
@@ -40,9 +44,16 @@ public class ReleaseTests
     [Fact]
     public void MissingLabel_lists_the_blank_ids_or_null()
     {
-        Assert.Equal("Missing UPC, ISRC", Release.MissingLabel(null, null));
-        Assert.Equal("Missing ISRC", Release.MissingLabel("u", null));
-        Assert.Equal("Missing UPC", Release.MissingLabel(null, "i"));
-        Assert.Null(Release.MissingLabel("u", "i"));
+        var release = new Release();
+        Assert.Equal("Missing UPC, ISRC", release.MissingLabel());
+
+        release.Upc = "u";
+        Assert.Equal("Missing ISRC", release.MissingLabel());
+        
+        release.Isrc = "i";
+        Assert.Null(release.MissingLabel());
+        
+        release.Upc = null;
+        Assert.Equal("Missing UPC", release.MissingLabel());
     }
 }

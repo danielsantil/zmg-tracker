@@ -246,8 +246,7 @@ public static class ReleaseEndpoints
             .Select(t => new TrackDto(t.Id, t.TrackNumber, t.Title, t.IsFocusTrack))
             .ToList();
 
-        var distributed = Release.IsDistributed(release.Tasks);
-        var pending = PendingActions.Compute(release, release.Tasks, today);
+        var pending = PendingActions.Compute(release, today);
 
         return new ReleaseDetailDto(
             release.Id, release.Title, release.Type, release.ReleaseDate,
@@ -256,7 +255,7 @@ public static class ReleaseEndpoints
             ReleaseStatus.Derive(release.ReleaseDate, today, progress.Overall),
             featured, progress.Overall.Done, progress.Overall.Total, phases, tracks,
             release.Upc, release.Isrc,
-            Release.NeedsWarning(distributed, release.Upc, release.Isrc),
+            Release.NeedsWarning(release.IsDistributed, release.Upc, release.Isrc),
             pending);
     }
 }

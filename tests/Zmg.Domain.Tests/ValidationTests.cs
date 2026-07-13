@@ -1,5 +1,3 @@
-using Zmg.Domain;
-
 namespace Zmg.Domain.Tests;
 
 public class ValidationTests

@@ -1,4 +1,3 @@
-using Zmg.Domain;
 using Zmg.Domain.Entities;
 using Zmg.Domain.Enums;
 
@@ -39,7 +38,7 @@ public class PendingActionsTests
     public void Task_with_no_timeframe_never_pends()
     {
         var rel = Rel(Today.AddDays(3), tasks: Task("Mix/master"));
-        Assert.Empty(PendingActions.Compute(rel, rel.Tasks, Today));
+        Assert.Empty(PendingActions.Compute(rel, Today));
     }
 
     [Fact]
@@ -47,11 +46,11 @@ public class PendingActionsTests
     {
         // max=14: window opens 14 days before release. Release is 20 days out → still closed.
         var closed = Rel(Today.AddDays(20), tasks: Task("Pitch to Spotify", min: 7, max: 14));
-        Assert.Empty(PendingActions.Compute(closed, closed.Tasks, Today));
+        Assert.Empty(PendingActions.Compute(closed, Today));
 
         // Release 10 days out → window open.
         var open = Rel(Today.AddDays(10), tasks: Task("Pitch to Spotify", min: 7, max: 14));
-        var actions = PendingActions.Compute(open, open.Tasks, Today);
+        var actions = PendingActions.Compute(open, Today);
         var due = Assert.Single(actions);
         Assert.Equal(PendingKind.TaskDue, due.Kind);
         Assert.Equal("Pitch to Spotify", due.Label);
@@ -62,7 +61,7 @@ public class PendingActionsTests
     public void Completed_timeframe_task_does_not_pend()
     {
         var rel = Rel(Today.AddDays(10), tasks: Task("Pitch to Spotify", done: true, min: 7, max: 14));
-        Assert.Empty(PendingActions.Compute(rel, rel.Tasks, Today));
+        Assert.Empty(PendingActions.Compute(rel, Today));
     }
 
     [Fact]
@@ -70,7 +69,7 @@ public class PendingActionsTests
     {
         // Window is open but the release date has passed → not a task-due action.
         var rel = Rel(Today.AddDays(-1), tasks: Task("Pitch to Spotify", min: 7, max: 14));
-        Assert.DoesNotContain(PendingActions.Compute(rel, rel.Tasks, Today), a => a.Kind == PendingKind.TaskDue);
+        Assert.DoesNotContain(PendingActions.Compute(rel, Today), a => a.Kind == PendingKind.TaskDue);
     }
 
     [Fact]
@@ -79,12 +78,12 @@ public class PendingActionsTests
         // Distribute not done → no missing-id action even with blank ids.
         var notDist = Rel(Today.AddDays(-5),
             tasks: Task(SeedData.DistributeToDspsTitle, done: false));
-        Assert.Empty(PendingActions.Compute(notDist, notDist.Tasks, Today));
+        Assert.Empty(PendingActions.Compute(notDist, Today));
 
         // Distribute done, both ids blank → one missing-id action summarizing both.
         var dist = Rel(Today.AddDays(-5),
             tasks: Task(SeedData.DistributeToDspsTitle, done: true));
-        var action = Assert.Single(PendingActions.Compute(dist, dist.Tasks, Today));
+        var action = Assert.Single(PendingActions.Compute(dist, Today));
         Assert.Equal(PendingKind.MissingIdentifier, action.Kind);
         Assert.Equal("Missing UPC, ISRC", action.Label);
         Assert.Null(action.TaskId);
@@ -92,7 +91,7 @@ public class PendingActionsTests
         // Both ids filled → no missing-id action.
         var filled = Rel(Today.AddDays(-5), upc: "u", isrc: "i",
             tasks: Task(SeedData.DistributeToDspsTitle, done: true));
-        Assert.Empty(PendingActions.Compute(filled, filled.Tasks, Today));
+        Assert.Empty(PendingActions.Compute(filled, Today));
     }
 
     [Fact]
@@ -106,7 +105,7 @@ public class PendingActionsTests
             tasks: Task(SeedData.DistributeToDspsTitle, done: true));
 
         var all = new[] { far, near, missing }
-            .SelectMany(r => PendingActions.Compute(r, r.Tasks, Today));
+            .SelectMany(r => PendingActions.Compute(r, Today));
         var ordered = PendingActions.Order(all);
 
         Assert.Equal(3, ordered.Count);
@@ -123,6 +122,6 @@ public class PendingActionsTests
     {
         var rel = Rel(Today.AddDays(10), "Song", null, null,
             Task("Mix/master"), Task("Design cover for DSPs", done: true));
-        Assert.Empty(PendingActions.Compute(rel, rel.Tasks, Today));
+        Assert.Empty(PendingActions.Compute(rel, Today));
     }
 }

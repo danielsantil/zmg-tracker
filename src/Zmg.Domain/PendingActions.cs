@@ -1,15 +1,7 @@
 using Zmg.Domain.Entities;
+using Zmg.Domain.Enums;
 
 namespace Zmg.Domain;
-
-/// <summary>Why a release is surfaced as needing attention (v1.1 M10).</summary>
-public enum PendingKind
-{
-    /// <summary>An incomplete task whose timeframe window has opened and the release hasn't shipped yet.</summary>
-    TaskDue,
-    /// <summary>A distributed release still missing its UPC and/or ISRC.</summary>
-    MissingIdentifier,
-}
 
 /// <summary>One thing the user should act on soon. Data-keyed, not tied to specific task titles.</summary>
 public record PendingAction(
@@ -33,15 +25,14 @@ public static class PendingActions
     /// order, then the single missing-identifier item). The aggregate ordering across releases is applied
     /// by <see cref="Order"/>.
     /// </summary>
-    public static List<PendingAction> Compute(Release release, IEnumerable<ReleaseTask> tasks, DateOnly today)
+    public static List<PendingAction> Compute(Release release, DateOnly today)
     {
-        var taskList = tasks as ICollection<ReleaseTask> ?? tasks.ToList();
         var artistName = release.MainArtist?.Name ?? string.Empty;
         var daysToRelease = release.ReleaseDate.DayNumber - today.DayNumber;
         var result = new List<PendingAction>();
 
         // 1. Task due — incomplete task with a timeframe (max drives), window open, not yet released.
-        foreach (var t in taskList
+        foreach (var t in release.Tasks
             .Where(t => !t.IsDone && t.MaxDaysBefore is not null)
             .OrderBy(t => t.Phase)
             .ThenBy(t => t.SortOrder))
@@ -56,9 +47,9 @@ public static class PendingActions
         }
 
         // 2. Missing identifier — one action per release once distributed with a blank id.
-        if (Release.IsDistributed(taskList))
+        if (release.IsDistributed)
         {
-            var label = Release.MissingLabel(release.Upc, release.Isrc);
+            var label = release.MissingLabel();
             if (label is not null)
             {
                 result.Add(new PendingAction(

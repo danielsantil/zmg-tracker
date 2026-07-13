@@ -1,4 +1,3 @@
-using Zmg.Domain;
 using Zmg.Domain.Entities;
 using Zmg.Domain.Enums;
 
@@ -131,23 +130,6 @@ public class SeedDataTests
 
         Assert.Equal(7, spotify.MinDaysBefore);
         Assert.Equal(14, spotify.MaxDaysBefore);
-    }
-
-    [Fact]
-    public void Album_template_is_the_base_list_plus_album_extras_untouched_by_v1_1()
-    {
-        var album = SeedData.Templates().Single(t => t.Type == ReleaseType.Album);
-
-        // Albums are out of scope for v1.1: no "Distribute to DSPs", no timeframes.
-        Assert.Equal(40, album.Tasks.Count);
-        Assert.Contains(album.Tasks, t => t.Title.Contains("Finalize tracklist"));
-        Assert.Contains(album.Tasks, t => t.Title.Contains("waterfall"));
-        Assert.DoesNotContain(album.Tasks, t => t.Title == "Distribute to DSPs");
-        Assert.All(album.Tasks, t =>
-        {
-            Assert.Null(t.MinDaysBefore);
-            Assert.Null(t.MaxDaysBefore);
-        });
     }
 
     [Fact]

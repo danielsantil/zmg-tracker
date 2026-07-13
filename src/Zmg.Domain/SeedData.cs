@@ -10,8 +10,8 @@ namespace Zmg.Domain;
 /// </summary>
 public static class SeedData
 {
-    public static readonly Guid SingleTemplateId = new("11111111-1111-1111-1111-111111111111");
-    public static readonly Guid AlbumTemplateId = new("22222222-2222-2222-2222-222222222222");
+    private static readonly Guid SingleTemplateId = new("11111111-1111-1111-1111-111111111111");
+    private static readonly Guid AlbumTemplateId = new("22222222-2222-2222-2222-222222222222");
 
     /// <summary>Title of the DSP-distribution task; drives the v1.1 identifier warning and pending logic.</summary>
     public const string DistributeToDspsTitle = "Distribute to DSPs";
@@ -22,12 +22,13 @@ public static class SeedData
     // The base checklist, shared by both templates (album = this + album extras). No timeframes here;
     // the single template's v1.1 timeframes and the "Distribute to DSPs" insertion are applied in SingleTasks().
     private static readonly TaskSeed[] BaseTasks =
-    {
+    [
         new(Phase.Pre, "Mix/master"),
         new(Phase.Pre, "Design cover for DSPs"),
+        new(Phase.Pre, DistributeToDspsTitle, 7, 14), // (v1.1), add 7-14 days window
         new(Phase.Pre, "Make video for YouTube, thumbnail and additional YouTube resources"),
         new(Phase.Pre, "Pitch to Amazon"),
-        new(Phase.Pre, "Pitch to Spotify"),
+        new(Phase.Pre, "Pitch to Spotify", 7, 14), // (v1.1), add 7-14 days window
 
         new(Phase.Release, "Setup smart link to all stores"),
         new(Phase.Release, "Setup smart link redirect from zionmusicgroup.com/<song-name>"),
@@ -54,12 +55,12 @@ public static class SeedData
         new(Phase.Post, "YouTube video ads"),
         new(Phase.Post, "TikTok ads"),
         new(Phase.Post, "Create YouTube lyrics video"),
-        new(Phase.Post, "Set up multitracks: Ableton project, Google Drive upload, new entry in zionmusicgroup.com/recursos"),
-    };
+        new(Phase.Post, "Set up multitracks: Ableton project, Google Drive upload, new entry in zionmusicgroup.com/recursos")
+    ];
 
     // Album template — the base list plus album-specific work (section 5.4). Untouched by v1.1 (albums out of scope).
     private static readonly TaskSeed[] AlbumExtraTasks =
-    {
+    [
         new(Phase.Pre, "Finalize tracklist and sequencing (locked once submitted to distributor)"),
         new(Phase.Pre, "Confirm ISRC/UPC and per-track metadata/credits"),
         new(Phase.Pre, "Pick focus tracks and plan 2-4 pre-release singles (waterfall: each new single re-packaged with prior ones, album inherits their streams)"),
@@ -71,31 +72,16 @@ public static class SeedData
         new(Phase.Release, "Registrations (BMI, MLC, Musixmatch, splits) repeat per track"),
 
         new(Phase.Post, "Rotate focus tracks every few weeks with per-track playlist pitching"),
-        new(Phase.Post, "Lyric videos for remaining tracks"),
-    };
-
-    // Single template (v1.1): the base list with "Distribute to DSPs" (7–14 days before) inserted as the
-    // 3rd Pre task, and "Pitch to Spotify" given the same 7–14 window. 30 → 31 tasks (6 Pre / 18 Release / 7 Post).
-    private static IEnumerable<TaskSeed> SingleTasks()
-    {
-        var tasks = BaseTasks.ToList();
-
-        var spotify = tasks.FindIndex(t => t.Title == "Pitch to Spotify");
-        tasks[spotify] = tasks[spotify] with { MinDaysBefore = 7, MaxDaysBefore = 14 };
-
-        var afterCover = tasks.FindIndex(t => t.Title == "Design cover for DSPs") + 1;
-        tasks.Insert(afterCover, new TaskSeed(Phase.Pre, DistributeToDspsTitle, 7, 14));
-
-        return tasks;
-    }
+        new(Phase.Post, "Lyric videos for remaining tracks")
+    ];
 
     public static IReadOnlyList<ChecklistTemplate> Templates()
     {
-        return new[]
-        {
-            BuildTemplate(SingleTemplateId, ReleaseType.Single, SingleTasks()),
-            BuildTemplate(AlbumTemplateId, ReleaseType.Album, BaseTasks.Concat(AlbumExtraTasks)),
-        };
+        return
+        [
+            BuildTemplate(SingleTemplateId, ReleaseType.Single, BaseTasks),
+            BuildTemplate(AlbumTemplateId, ReleaseType.Album, BaseTasks.Concat(AlbumExtraTasks))
+        ];
     }
 
     /// <summary>Flat (templateId, task) rows for EF <c>HasData</c> seeding with deterministic ids.</summary>
@@ -114,7 +100,7 @@ public static class SeedData
 
         foreach (var seed in tasks)
         {
-            int order = perPhaseOrder.TryGetValue(seed.Phase, out var current) ? current : 0;
+            int order = perPhaseOrder.GetValueOrDefault(seed.Phase, 0);
             perPhaseOrder[seed.Phase] = order + 1;
 
             template.Tasks.Add(new TemplateTask

@@ -26,8 +26,7 @@ public class Release
     public List<Track> Tracks { get; set; } = new();
     
     /// <summary>True once the release's "Distribute to DSPs" task is checked.</summary>
-    public static bool IsDistributed(IEnumerable<ReleaseTask> tasks) =>
-        tasks.Any(t => t is { Title: SeedData.DistributeToDspsTitle, IsDone: true });
+    public bool IsDistributed => Tasks.Any(t => t is { Title: SeedData.DistributeToDspsTitle, IsDone: true });
 
     /// <summary>
     /// Whether a soft identifier warning should show: distributed, and UPC or ISRC still blank.
@@ -40,11 +39,11 @@ public class Release
     /// A human label for which identifiers are missing (e.g. "Missing UPC, ISRC"), or null when both
     /// are present. Independent of distribution state; callers gate on <see cref="NeedsWarning"/>.
     /// </summary>
-    public static string? MissingLabel(string? upc, string? isrc)
+    public string? MissingLabel()
     {
         var missing = new List<string>(2);
-        if (string.IsNullOrWhiteSpace(upc)) missing.Add("UPC");
-        if (string.IsNullOrWhiteSpace(isrc)) missing.Add("ISRC");
+        if (string.IsNullOrWhiteSpace(Upc)) missing.Add("UPC");
+        if (string.IsNullOrWhiteSpace(Isrc)) missing.Add("ISRC");
         return missing.Count == 0 ? null : "Missing " + string.Join(", ", missing);
     }
 }
