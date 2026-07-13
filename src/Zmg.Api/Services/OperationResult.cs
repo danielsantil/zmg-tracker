@@ -11,6 +11,7 @@ public enum ResultStatus
     NotFound,
     ValidationFailed,
     Conflict,
+    Problem,
 }
 
 /// <summary>Result of a service operation that returns no value (e.g. delete).</summary>
@@ -31,6 +32,9 @@ public class OperationResult
     public static OperationResult NotFound() => new(ResultStatus.NotFound, Array.Empty<string>());
     public static OperationResult Invalid(IEnumerable<string> errors) => new(ResultStatus.ValidationFailed, errors.ToArray());
     public static OperationResult Conflict(IEnumerable<string> errors) => new(ResultStatus.Conflict, errors.ToArray());
+
+    /// <summary>An unexpected server-side condition (maps to 500 ProblemDetails), e.g. missing seed data.</summary>
+    public static OperationResult Problem(string detail) => new(ResultStatus.Problem, new[] { detail });
 }
 
 /// <summary>
@@ -61,4 +65,7 @@ public sealed class OperationResult<T> : OperationResult
 
     public static new OperationResult<T> Conflict(IEnumerable<string> errors) =>
         new(ResultStatus.Conflict, default, errors.ToArray(), Array.Empty<string>());
+
+    public static new OperationResult<T> Problem(string detail) =>
+        new(ResultStatus.Problem, default, new[] { detail }, Array.Empty<string>());
 }

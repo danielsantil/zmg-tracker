@@ -19,11 +19,23 @@ public static class OperationResultExtensions
     public static IResult ToNoContent(this OperationResult result) =>
         result.IsSuccess ? Results.NoContent() : Failure(result);
 
+    // Warnings-carrying variants: wrap the value in the CreatedWithWarnings envelope on success.
+    public static IResult ToCreatedWithWarnings<T>(this OperationResult<T> result, Func<T, string> location) =>
+        result.IsSuccess
+            ? Results.Created(location(result.Value!), new CreatedWithWarnings<T>(result.Value!, result.Warnings.ToArray()))
+            : Failure(result);
+
+    public static IResult ToOkWithWarnings<T>(this OperationResult<T> result) =>
+        result.IsSuccess
+            ? Results.Ok(new CreatedWithWarnings<T>(result.Value!, result.Warnings.ToArray()))
+            : Failure(result);
+
     private static IResult Failure(OperationResult result) => result.Status switch
     {
         ResultStatus.NotFound => Results.NotFound(),
         ResultStatus.ValidationFailed => Results.BadRequest(new ValidationErrorResponse(result.Errors.ToArray())),
         ResultStatus.Conflict => Results.Conflict(new ValidationErrorResponse(result.Errors.ToArray())),
+        ResultStatus.Problem => Results.Problem(result.Errors.FirstOrDefault() ?? "Unexpected error."),
         _ => Results.Problem("Unexpected operation result."),
     };
 }
