@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { api, ApiError } from '../api';
 import type { Artist, ReleaseArtistInput } from '../types';
 import { ArtistRole, ReleaseType } from '../types';
@@ -16,6 +16,7 @@ export default function ReleaseForm() {
   const { id } = useParams();
   const isEdit = Boolean(id);
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [artists, setArtists] = useState<Artist[]>([]);
   const [loading, setLoading] = useState(true);
@@ -58,6 +59,15 @@ export default function ReleaseForm() {
     })();
   }, [id, isEdit]);
 
+  const handleBack = () => {
+    console.log('location.key', location.key);
+    if (location.key === 'default') {
+      navigate('/');
+    } else {
+      navigate(-1);
+    }
+  }
+
   function toggleFeatured(artistId: string) {
     setFeatured((prev) =>
       prev.some((f) => f.artistId === artistId)
@@ -91,7 +101,7 @@ export default function ReleaseForm() {
       if (result.warnings.length > 0) {
         setWarnings(result.warnings);
       } else {
-        navigate('/');
+        handleBack();
       }
     } catch (err) {
       setErrors(err instanceof ApiError ? err.errors : ['Failed to save release.']);
@@ -136,8 +146,8 @@ export default function ReleaseForm() {
             ))}
           </ul>
           <div className="mt-3 flex gap-2">
-            <Button variant="ghost" onClick={() => navigate('/')}>
-              Go to releases
+            <Button variant="ghost" onClick={handleBack}>
+              Go back
             </Button>
             <Button variant="ghost" onClick={() => setWarnings([])}>
               Keep editing
@@ -234,7 +244,7 @@ export default function ReleaseForm() {
           <Button type="submit" disabled={saving}>
             {saving ? 'Saving…' : isEdit ? 'Save changes' : 'Create release'}
           </Button>
-          <Button type="button" variant="ghost" onClick={() => navigate('/')}>
+          <Button type="button" variant="ghost" onClick={handleBack}>
             Cancel
           </Button>
         </div>

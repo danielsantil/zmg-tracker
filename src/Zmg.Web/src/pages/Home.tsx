@@ -128,6 +128,14 @@ export default function Home() {
 
 /** Aggregate pending actions across all releases (M10), task-due nearest-first then data items. */
 function PendingSection({ pending }: { pending: PendingAction[] }) {
+  const nextPage = (pending: PendingAction) => {
+    if (pending.kind === PendingKind.TaskDue) {
+      return `/releases/${pending.releaseId}`;
+    } else {
+      return `/releases/${pending.releaseId}/edit`;
+    }
+  }
+  
   if (pending.length === 0) return null;
   return (
     <section className="mb-6 overflow-hidden rounded-xl border border-amber-500/25 bg-amber-500/[0.06]">
@@ -138,7 +146,7 @@ function PendingSection({ pending }: { pending: PendingAction[] }) {
         {pending.map((p, i) => (
           <li key={`${p.releaseId}-${p.taskId ?? p.kind}-${i}`} className="border-b border-amber-500/10 last:border-b-0">
             <Link
-              to={`/releases/${p.releaseId}`}
+              to={nextPage(p)}
               className="flex items-center justify-between gap-3 px-4 py-2.5 hover:bg-amber-500/[0.06]"
             >
               <span className="min-w-0">
