@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { api, ApiError } from '@/api';
 import type { Artist, ReleaseArtistInput } from '@/types';
 import { ArtistRole, ReleaseType } from '@/types';
 import { Button, Field, inputClass } from '@/components';
+import { useBackNavigation } from '@/hooks/useBackNavigation';
 
 // Known seeded template sizes (build-plan.md §5.4). A template endpoint arrives in M3;
 // until then these drive the "checklist will start from N tasks" hint.
@@ -12,11 +13,11 @@ const TEMPLATE_TASK_COUNT: Record<ReleaseType, number> = {
   [ReleaseType.Album]: 40,
 };
 
-export default function ReleaseForm() {
+export default function ReleaseFormPage() {
   const { id } = useParams();
   const isEdit = Boolean(id);
   const navigate = useNavigate();
-  const location = useLocation();
+  const goBack = useBackNavigation();
 
   const [artists, setArtists] = useState<Artist[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,14 +60,6 @@ export default function ReleaseForm() {
     })();
   }, [id, isEdit]);
 
-  const handleBack = () => {
-    if (location.key === 'default') {
-      navigate('/');
-    } else {
-      navigate(-1);
-    }
-  }
-
   function toggleFeatured(artistId: string) {
     setFeatured((prev) =>
       prev.some((f) => f.artistId === artistId)
@@ -100,7 +93,7 @@ export default function ReleaseForm() {
       if (result.warnings.length > 0) {
         setWarnings(result.warnings);
       } else {
-        handleBack();
+        goBack();
       }
     } catch (err) {
       setErrors(err instanceof ApiError ? err.errors : ['Failed to save release.']);
@@ -145,7 +138,7 @@ export default function ReleaseForm() {
             ))}
           </ul>
           <div className="mt-3 flex gap-2">
-            <Button variant="ghost" onClick={handleBack}>
+            <Button variant="ghost" onClick={goBack}>
               Go back
             </Button>
             <Button variant="ghost" onClick={() => setWarnings([])}>
@@ -243,7 +236,7 @@ export default function ReleaseForm() {
           <Button type="submit" disabled={saving}>
             {saving ? 'Saving…' : isEdit ? 'Save changes' : 'Create release'}
           </Button>
-          <Button type="button" variant="ghost" onClick={handleBack}>
+          <Button type="button" variant="ghost" onClick={goBack}>
             Cancel
           </Button>
         </div>

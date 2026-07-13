@@ -5,7 +5,7 @@ import type { Artist, ReleaseListItem } from '@/types';
 import { ReleaseType } from '@/types';
 import { Button, IdentifierWarning, StatusBadge, TypeBadge, inputClass } from '@/components';
 
-export default function AllReleases() {
+export default function AllReleasesPage() {
   const navigate = useNavigate();
   const [releases, setReleases] = useState<ReleaseListItem[]>([]);
   const [artists, setArtists] = useState<Artist[]>([]);
