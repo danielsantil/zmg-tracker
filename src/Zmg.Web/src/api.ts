@@ -73,6 +73,7 @@ export const api = {
     return request<ReleaseListItem[]>(`/api/releases${suffix}`);
   },
   listPending: () => request<PendingAction[]>('/api/pending'),
+  listPendingByRelease: (releaseId: string) => request<PendingAction[]>(`/api/pending/${releaseId}`),
   getRelease: (id: string) => request<ReleaseDetail>(`/api/releases/${id}`),
   createRelease: (input: ReleaseInput) =>
     request<CreatedWithWarnings<ReleaseDetail>>('/api/releases', {

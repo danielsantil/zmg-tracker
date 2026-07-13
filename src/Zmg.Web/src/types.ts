@@ -110,7 +110,6 @@ export interface ReleaseDetail {
   upc: string | null;
   isrc: string | null;
   needsIdentifierWarning: boolean;
-  pendingActions: PendingAction[];
 }
 
 export interface CreatedWithWarnings<T> {

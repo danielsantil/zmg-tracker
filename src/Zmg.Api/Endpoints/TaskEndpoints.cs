@@ -13,23 +13,26 @@ public static class TaskEndpoints
 {
     public static void MapTaskEndpoints(this IEndpointRouteBuilder app)
     {
+        var taskGroup = app.MapGroup("/api/tasks").WithTags("Tasks");
+        var releaseGroup = app.MapGroup("/api/releases").WithTags("Tasks");
+        
         // Add an ad-hoc task to a release, appended to the end of its phase.
-        app.MapPost("/api/releases/{releaseId:guid}/tasks", async (Guid releaseId, AddTaskInput input, IReleaseTaskService tasks) =>
+        releaseGroup.MapPost("/{releaseId:guid}/tasks", async (Guid releaseId, AddTaskInput input, IReleaseTaskService tasks) =>
             (await tasks.AddAsync(releaseId, input)).ToCreated(t => $"/api/tasks/{t.Id}"));
 
         // Rename / move phase / edit notes.
-        app.MapPut("/api/tasks/{id:guid}", async (Guid id, UpdateTaskInput input, IReleaseTaskService tasks) =>
+        taskGroup.MapPut("/{id:guid}", async (Guid id, UpdateTaskInput input, IReleaseTaskService tasks) =>
             (await tasks.UpdateAsync(id, input)).ToOk());
 
         // Check / uncheck, stamping CompletedAt on the transition to done.
-        app.MapPatch("/api/tasks/{id:guid}/toggle", async (Guid id, IReleaseTaskService tasks) =>
+        taskGroup.MapPatch("/{id:guid}/toggle", async (Guid id, IReleaseTaskService tasks) =>
             (await tasks.ToggleAsync(id)).ToOk());
 
         // Reorder tasks within a single phase; SortOrder follows the given id order.
-        app.MapPut("/api/releases/{releaseId:guid}/tasks/order", async (Guid releaseId, ReorderTasksInput input, IReleaseTaskService tasks) =>
+        releaseGroup.MapPut("/{releaseId:guid}/tasks/order", async (Guid releaseId, ReorderTasksInput input, IReleaseTaskService tasks) =>
             (await tasks.ReorderAsync(releaseId, input)).ToNoContent());
 
-        app.MapDelete("/api/tasks/{id:guid}", async (Guid id, IReleaseTaskService tasks) =>
+        taskGroup.MapDelete("/{id:guid}", async (Guid id, IReleaseTaskService tasks) =>
             (await tasks.DeleteAsync(id)).ToNoContent());
     }
 }

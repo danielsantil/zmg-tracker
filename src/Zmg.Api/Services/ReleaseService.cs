@@ -229,8 +229,6 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
             .Select(t => new TrackDto(t.Id, t.TrackNumber, t.Title, t.IsFocusTrack))
             .ToList();
 
-        var pending = PendingActions.Compute(release, today);
-
         return new ReleaseDetailDto(
             release.Id, release.Title, release.Type, release.ReleaseDate,
             release.MainArtistId, release.MainArtist?.Name ?? string.Empty,
@@ -238,7 +236,6 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
             ReleaseStatus.Derive(release.ReleaseDate, today, progress.Overall),
             featured, progress.Overall.Done, progress.Overall.Total, phases, tracks,
             release.Upc, release.Isrc,
-            Release.NeedsWarning(release.IsDistributed, release.Upc, release.Isrc),
-            pending);
+            Release.NeedsWarning(release.IsDistributed, release.Upc, release.Isrc));
     }
 }

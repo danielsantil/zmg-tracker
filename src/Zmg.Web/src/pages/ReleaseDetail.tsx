@@ -29,6 +29,7 @@ export default function ReleaseDetail() {
   const [release, setRelease] = useState<ReleaseDetailModel | null>(null);
   const [tasks, setTasks] = useState<ReleaseTaskDto[]>([]);
   const [tracks, setTracks] = useState<TrackDto[]>([]);
+  const [pendingActions, setPendingActions] = useState<PendingAction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -56,6 +57,13 @@ export default function ReleaseDetail() {
     }
   }, [id]);
 
+  const loadPending = useCallback(async () => {
+    if (!id) return;
+    api.listPendingByRelease(id).then(setPendingActions).catch((e) => {
+      console.error('Failed to load pending actions:', e);
+    });
+  }, [id]);
+
   const handleBack = () => {
     if (location.key === 'default') {
       navigate('/');
@@ -67,6 +75,10 @@ export default function ReleaseDetail() {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    loadPending();
+  }, [loadPending]);
 
   useEffect(() => () => {
     if (toastTimer.current) clearTimeout(toastTimer.current);
@@ -93,6 +105,7 @@ export default function ReleaseDetail() {
     try {
       const saved = await api.toggleTask(task.id);
       setTasks((ts) => ts.map((t) => (t.id === saved.id ? saved : t)));
+      loadPending(); // refresh pending actions after a task toggle
     } catch (e) {
       setTasks((ts) => ts.map((t) => (t.id === task.id ? task : t)));
       showToast(e instanceof ApiError ? e.message : 'Could not save — reverted.');
@@ -289,7 +302,7 @@ export default function ReleaseDetail() {
         </div>
       </div>
 
-      {release.pendingActions.length > 0 && <NeedsAttention actions={release.pendingActions} />}
+      {pendingActions.length > 0 && <NeedsAttention actions={pendingActions} />}
 
       {release.notes && (
         <p className="mb-6 whitespace-pre-wrap rounded-lg border border-edge bg-panel/50 px-4 py-3 text-sm text-slate-300">

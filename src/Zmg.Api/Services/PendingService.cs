@@ -23,4 +23,15 @@ public sealed class PendingService(ZmgDbContext db) : IPendingService
         return PendingActions.Order(
             releases.SelectMany(r => PendingActions.Compute(r, today)));
     }
+
+    public async Task<IReadOnlyList<PendingAction>> ListByReleaseIdAsync(Guid releaseId)
+    {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var release = await db.Releases
+            .Include(r => r.MainArtist)
+            .Include(r => r.Tasks)
+            .FirstOrDefaultAsync(r => r.Id == releaseId);
+
+        return release == null ? [] : PendingActions.Order(PendingActions.Compute(release, today));
+    }
 }

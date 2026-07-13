@@ -9,7 +9,7 @@ public static class ReleaseEndpoints
 {
     public static void MapReleaseEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/releases");
+        var group = app.MapGroup("/api/releases").WithTags("Releases");
 
         // List with progress counts (done/total) and derived status. Filterable.
         group.MapGet("", async (Guid? artistId, ReleaseType? type, string? status, string? scope, string? q, IReleaseService releases) =>

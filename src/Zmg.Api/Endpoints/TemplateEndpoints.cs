@@ -13,24 +13,27 @@ public static class TemplateEndpoints
 {
     public static void MapTemplateEndpoints(this IEndpointRouteBuilder app)
     {
+        var group = app.MapGroup("/api/templates").WithTags("Templates");
+        var tasksGroup = app.MapGroup("/api/template-tasks").WithTags("Templates");
+        
         // Both templates with their tasks, grouped by phase.
-        app.MapGet("/api/templates", async (ITemplateService templates) =>
+        group.MapGet("", async (ITemplateService templates) =>
             Results.Ok(await templates.ListAsync()));
 
         // Add a template task, appended to the end of its phase.
-        app.MapPost("/api/templates/{templateId:guid}/tasks", async (Guid templateId, AddTemplateTaskInput input, ITemplateService templates) =>
+        group.MapPost("/{templateId:guid}/tasks", async (Guid templateId, AddTemplateTaskInput input, ITemplateService templates) =>
             (await templates.AddTaskAsync(templateId, input)).ToCreated(t => $"/api/template-tasks/{t.Id}"));
 
         // Rename / move phase.
-        app.MapPut("/api/template-tasks/{id:guid}", async (Guid id, UpdateTemplateTaskInput input, ITemplateService templates) =>
+        tasksGroup.MapPut("/{id:guid}", async (Guid id, UpdateTemplateTaskInput input, ITemplateService templates) =>
             (await templates.UpdateTaskAsync(id, input)).ToOk());
 
         // Reorder template tasks within a single phase; SortOrder follows the given id order.
-        app.MapPut("/api/templates/{templateId:guid}/tasks/order", async (Guid templateId, ReorderTemplateTasksInput input, ITemplateService templates) =>
+        group.MapPut("/{templateId:guid}/tasks/order", async (Guid templateId, ReorderTemplateTasksInput input, ITemplateService templates) =>
             (await templates.ReorderTasksAsync(templateId, input)).ToNoContent());
 
         // Delete a template task; a template must keep at least one task (§6).
-        app.MapDelete("/api/template-tasks/{id:guid}", async (Guid id, ITemplateService templates) =>
+        tasksGroup.MapDelete("/{id:guid}", async (Guid id, ITemplateService templates) =>
             (await templates.DeleteTaskAsync(id)).ToNoContent());
     }
 }

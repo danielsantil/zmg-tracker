@@ -8,7 +8,7 @@ public static class ArtistEndpoints
 {
     public static void MapArtistEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/artists");
+        var group = app.MapGroup("/api/artists").WithTags("Artists");
 
         group.MapGet("", async (IArtistService artists) =>
             Results.Ok(await artists.ListAsync()));

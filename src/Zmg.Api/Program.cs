@@ -22,6 +22,9 @@ builder.Services.AddCors(options =>
         .AllowAnyHeader()
         .AllowAnyMethod()));
 
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
 var app = builder.Build();
 
 // Apply migrations at startup so `dotnet run` gives a ready database with seeded templates.
@@ -34,6 +37,8 @@ using (var scope = app.Services.CreateScope())
 if (app.Environment.IsDevelopment())
 {
     app.UseCors("dev");
+    app.UseSwagger();
+    app.UseSwaggerUI();
 }
 
 app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
