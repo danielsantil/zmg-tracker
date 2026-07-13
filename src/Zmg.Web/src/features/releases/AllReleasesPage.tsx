@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { api, ApiError } from '../api';
-import type { Artist, ReleaseListItem } from '../types';
-import { ReleaseType } from '../types';
-import { Button, IdentifierWarning, StatusBadge, TypeBadge, inputClass } from '../ui';
+import { api, ApiError } from '@/api';
+import type { Artist, ReleaseListItem } from '@/types';
+import { ReleaseType } from '@/types';
+import { Button, IdentifierWarning, StatusBadge, TypeBadge, inputClass } from '@/components';
 
-export default function AllReleases() {
+export default function AllReleasesPage() {
   const navigate = useNavigate();
   const [releases, setReleases] = useState<ReleaseListItem[]>([]);
   const [artists, setArtists] = useState<Artist[]>([]);
@@ -19,7 +19,7 @@ export default function AllReleases() {
   async function loadReleases() {
     setLoading(true);
     setError(null);
-    api.listReleases({
+    api.releases.list({
       scope: 'all',
       artistId: artistId || undefined,
       type: type === '' ? undefined : (Number(type) as ReleaseType),
@@ -29,7 +29,7 @@ export default function AllReleases() {
   }
 
   useEffect(() => {
-    api.listArtists().then(setArtists).catch(() => setError('Failed to load artists.'));
+    api.artists.list().then(setArtists).catch(() => setError('Failed to load artists.'));
   }, []);
 
   // Debounce the free-text search so each keystroke doesn't fire a request.

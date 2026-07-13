@@ -1,10 +1,10 @@
 import { NavLink, Route, Routes } from 'react-router-dom';
-import Home from './pages/Home';
-import AllReleases from './pages/AllReleases';
-import Artists from './pages/Artists';
-import ReleaseForm from './pages/ReleaseForm';
-import ReleaseDetail from './pages/ReleaseDetail';
-import Templates from './pages/Templates';
+import Home from './features/home/HomePage';
+import AllReleases from './features/releases/AllReleasesPage';
+import Artists from './features/artists/ArtistsPage';
+import ReleaseForm from './features/releases/ReleaseFormPage';
+import ReleaseDetail from './features/releases/ReleaseDetailPage';
+import Templates from './features/templates/TemplatesPage';
 
 function Nav() {
   const link = ({ isActive }: { isActive: boolean }) =>
