@@ -1,11 +1,15 @@
 using Microsoft.EntityFrameworkCore;
 using Zmg.Api.Endpoints;
+using Zmg.Api.Services;
+using Zmg.Api.Services.Interfaces;
 using Zmg.Infra.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
 var connectionString = builder.Configuration.GetConnectionString("Zmg");
 builder.Services.AddDbContext<ZmgDbContext>(options => options.UseSqlite(connectionString));
+
+builder.Services.AddScoped<IArtistService, ArtistService>();
 
 builder.Services.AddCors(options =>
     options.AddPolicy("dev", p => p
