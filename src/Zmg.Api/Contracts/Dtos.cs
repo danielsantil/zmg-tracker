@@ -1,4 +1,5 @@
 using Zmg.Domain;
+using Zmg.Domain.Enums;
 
 namespace Zmg.Api.Contracts;
 

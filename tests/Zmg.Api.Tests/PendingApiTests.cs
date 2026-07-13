@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using Zmg.Api.Contracts;
 using Zmg.Domain;
+using Zmg.Domain.Enums;
 
 namespace Zmg.Api.Tests;
 

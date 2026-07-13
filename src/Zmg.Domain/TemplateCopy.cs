@@ -1,3 +1,5 @@
+using Zmg.Domain.Entities;
+
 namespace Zmg.Domain;
 
 /// <summary>

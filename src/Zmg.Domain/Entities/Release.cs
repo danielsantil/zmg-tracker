@@ -1,15 +1,33 @@
-namespace Zmg.Domain;
+using Zmg.Domain.Enums;
+
+namespace Zmg.Domain.Entities;
 
 /// <summary>
-/// Release-identifier (UPC/ISRC) state, derived from the checklist (v1.1). A blank id is expected
-/// until a release is distributed to DSPs, so the soft warning only fires once the "Distribute to DSPs"
-/// task is done. Pure and reused by the release list flag, the detail header, and the M10 pending engine.
+/// A single or album release. The unit a checklist is copied onto.
+/// UPC/ISRC hang phase-2 streaming/revenue data off a stable id; keep the id stable.
 /// </summary>
-public static class IdentifierState
+public class Release
 {
+    public Guid Id { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public ReleaseType Type { get; set; }
+    public DateOnly ReleaseDate { get; set; }
+    public Guid MainArtistId { get; set; }
+    public Artist? MainArtist { get; set; }
+    public string? CoverUrl { get; set; }
+    public string? Notes { get; set; }
+
+    /// <summary>Release identifiers (v1.1). Optional free text, no format validation; blank until DSP distribution.</summary>
+    public string? Upc { get; set; }
+    public string? Isrc { get; set; }
+
+    public List<ReleaseArtist> FeaturedArtists { get; set; } = new();
+    public List<ReleaseTask> Tasks { get; set; } = new();
+    public List<Track> Tracks { get; set; } = new();
+    
     /// <summary>True once the release's "Distribute to DSPs" task is checked.</summary>
     public static bool IsDistributed(IEnumerable<ReleaseTask> tasks) =>
-        tasks.Any(t => t.IsDone && t.Title == SeedData.DistributeToDspsTitle);
+        tasks.Any(t => t is { Title: SeedData.DistributeToDspsTitle, IsDone: true });
 
     /// <summary>
     /// Whether a soft identifier warning should show: distributed, and UPC or ISRC still blank.

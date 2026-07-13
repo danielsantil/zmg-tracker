@@ -1,4 +1,6 @@
 using Zmg.Domain;
+using Zmg.Domain.Entities;
+using Zmg.Domain.Enums;
 
 namespace Zmg.Domain.Tests;
 

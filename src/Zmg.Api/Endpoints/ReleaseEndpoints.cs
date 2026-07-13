@@ -2,6 +2,8 @@ using Microsoft.EntityFrameworkCore;
 using Zmg.Api.Contracts;
 using Zmg.Api.Data;
 using Zmg.Domain;
+using Zmg.Domain.Entities;
+using Zmg.Domain.Enums;
 
 namespace Zmg.Api.Endpoints;
 
@@ -51,7 +53,7 @@ public static class ReleaseEndpoints
                         r.CoverUrl, r.Done, r.Total,
                         ReleaseStatus.Derive(r.ReleaseDate, today, progress),
                         r.Upc, r.Isrc,
-                        IdentifierState.NeedsWarning(r.Distributed, r.Upc, r.Isrc));
+                        Release.NeedsWarning(r.Distributed, r.Upc, r.Isrc));
                 })
                 .Where(r => status is null || string.Equals(r.Status, status, StringComparison.OrdinalIgnoreCase))
                 .ToList();
@@ -244,7 +246,7 @@ public static class ReleaseEndpoints
             .Select(t => new TrackDto(t.Id, t.TrackNumber, t.Title, t.IsFocusTrack))
             .ToList();
 
-        var distributed = IdentifierState.IsDistributed(release.Tasks);
+        var distributed = Release.IsDistributed(release.Tasks);
         var pending = PendingActions.Compute(release, release.Tasks, today);
 
         return new ReleaseDetailDto(
@@ -254,7 +256,7 @@ public static class ReleaseEndpoints
             ReleaseStatus.Derive(release.ReleaseDate, today, progress.Overall),
             featured, progress.Overall.Done, progress.Overall.Total, phases, tracks,
             release.Upc, release.Isrc,
-            IdentifierState.NeedsWarning(distributed, release.Upc, release.Isrc),
+            Release.NeedsWarning(distributed, release.Upc, release.Isrc),
             pending);
     }
 }

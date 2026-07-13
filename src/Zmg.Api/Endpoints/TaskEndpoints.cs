@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Zmg.Api.Contracts;
 using Zmg.Api.Data;
 using Zmg.Domain;
+using Zmg.Domain.Entities;
 
 namespace Zmg.Api.Endpoints;
 

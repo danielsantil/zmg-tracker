@@ -1,3 +1,6 @@
+using Zmg.Domain.Entities;
+using Zmg.Domain.Enums;
+
 namespace Zmg.Domain;
 
 public readonly record struct ProgressCount(int Done, int Total)

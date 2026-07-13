@@ -1,3 +1,5 @@
+using Zmg.Domain.Entities;
+
 namespace Zmg.Domain;
 
 /// <summary>Why a release is surfaced as needing attention (v1.1 M10).</summary>
@@ -54,9 +56,9 @@ public static class PendingActions
         }
 
         // 2. Missing identifier — one action per release once distributed with a blank id.
-        if (IdentifierState.IsDistributed(taskList))
+        if (Release.IsDistributed(taskList))
         {
-            var label = IdentifierState.MissingLabel(release.Upc, release.Isrc);
+            var label = Release.MissingLabel(release.Upc, release.Isrc);
             if (label is not null)
             {
                 result.Add(new PendingAction(
