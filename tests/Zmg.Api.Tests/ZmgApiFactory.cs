@@ -5,7 +5,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Zmg.Api.Data;
+using Zmg.Infra.Data;
 
 namespace Zmg.Api.Tests;
 

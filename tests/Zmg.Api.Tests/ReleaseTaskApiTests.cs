@@ -6,12 +6,8 @@ using Zmg.Domain.Enums;
 
 namespace Zmg.Api.Tests;
 
-public class ReleaseTaskApiTests : IClassFixture<ZmgApiFactory>
+public class ReleaseTaskApiTests(ZmgApiFactory factory) : IClassFixture<ZmgApiFactory>
 {
-    private readonly ZmgApiFactory _factory;
-
-    public ReleaseTaskApiTests(ZmgApiFactory factory) => _factory = factory;
-
     private async Task<ReleaseDetailDto> CreateReleaseWithChecklist(HttpClient client, string artistName, string title)
     {
         var artistRes = await client.PostAsJsonAsync("/api/artists", new ArtistInput(artistName, null));
@@ -30,7 +26,7 @@ public class ReleaseTaskApiTests : IClassFixture<ZmgApiFactory>
     [Fact]
     public async Task Toggle_marks_task_done_and_stamps_completed_then_clears()
     {
-        var client = _factory.CreateClient();
+        var client = factory.CreateClient();
         var release = await CreateReleaseWithChecklist(client, "Toggle Artist", "Toggle Song");
         var task = FirstTask(release);
 
@@ -49,7 +45,7 @@ public class ReleaseTaskApiTests : IClassFixture<ZmgApiFactory>
     [Fact]
     public async Task Add_task_appends_to_phase_and_shows_in_detail()
     {
-        var client = _factory.CreateClient();
+        var client = factory.CreateClient();
         var release = await CreateReleaseWithChecklist(client, "Add Artist", "Add Song");
         var preBefore = release.Phases.Single(p => p.Phase == Phase.Pre).Total;
 
@@ -68,7 +64,7 @@ public class ReleaseTaskApiTests : IClassFixture<ZmgApiFactory>
     [Fact]
     public async Task Add_task_with_blank_title_is_rejected()
     {
-        var client = _factory.CreateClient();
+        var client = factory.CreateClient();
         var release = await CreateReleaseWithChecklist(client, "Blank Artist", "Blank Song");
 
         var res = await client.PostAsJsonAsync($"/api/releases/{release.Id}/tasks",
@@ -79,7 +75,7 @@ public class ReleaseTaskApiTests : IClassFixture<ZmgApiFactory>
     [Fact]
     public async Task Update_task_can_rename_and_move_phase()
     {
-        var client = _factory.CreateClient();
+        var client = factory.CreateClient();
         var release = await CreateReleaseWithChecklist(client, "Update Artist", "Update Song");
         var task = release.Phases.Single(p => p.Phase == Phase.Pre).Tasks.First();
 
@@ -96,7 +92,7 @@ public class ReleaseTaskApiTests : IClassFixture<ZmgApiFactory>
     [Fact]
     public async Task Reorder_reverses_phase_and_persists()
     {
-        var client = _factory.CreateClient();
+        var client = factory.CreateClient();
         var release = await CreateReleaseWithChecklist(client, "Reorder Artist", "Reorder Song");
         var pre = release.Phases.Single(p => p.Phase == Phase.Pre).Tasks
             .OrderBy(t => t.SortOrder).ToList();
@@ -115,7 +111,7 @@ public class ReleaseTaskApiTests : IClassFixture<ZmgApiFactory>
     [Fact]
     public async Task Reorder_with_missing_ids_is_rejected()
     {
-        var client = _factory.CreateClient();
+        var client = factory.CreateClient();
         var release = await CreateReleaseWithChecklist(client, "Bad Reorder Artist", "Bad Reorder Song");
         var pre = release.Phases.Single(p => p.Phase == Phase.Pre).Tasks;
 
@@ -127,7 +123,7 @@ public class ReleaseTaskApiTests : IClassFixture<ZmgApiFactory>
     [Fact]
     public async Task Delete_task_removes_it_and_lowers_total()
     {
-        var client = _factory.CreateClient();
+        var client = factory.CreateClient();
         var release = await CreateReleaseWithChecklist(client, "Delete Artist", "Delete Song");
         var task = FirstTask(release);
 
@@ -142,7 +138,7 @@ public class ReleaseTaskApiTests : IClassFixture<ZmgApiFactory>
     [Fact]
     public async Task Toggle_missing_task_is_not_found()
     {
-        var client = _factory.CreateClient();
+        var client = factory.CreateClient();
         var res = await client.PatchAsync($"/api/tasks/{Guid.NewGuid()}/toggle", null);
         Assert.Equal(HttpStatusCode.NotFound, res.StatusCode);
     }

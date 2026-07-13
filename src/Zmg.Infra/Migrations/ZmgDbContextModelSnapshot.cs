@@ -2,25 +2,22 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
-using Zmg.Api.Data;
+using Zmg.Infra.Data;
 
 #nullable disable
 
-namespace Zmg.Api.Migrations
+namespace Zmg.Infra.Migrations
 {
     [DbContext(typeof(ZmgDbContext))]
-    [Migration("20260712203129_AddIdentifiersAndTaskTimeframes")]
-    partial class AddIdentifiersAndTaskTimeframes
+    partial class ZmgDbContextModelSnapshot : ModelSnapshot
     {
-        /// <inheritdoc />
-        protected override void BuildTargetModel(ModelBuilder modelBuilder)
+        protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.11");
 
-            modelBuilder.Entity("Zmg.Domain.Artist", b =>
+            modelBuilder.Entity("Zmg.Domain.Entities.Artist", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -40,7 +37,7 @@ namespace Zmg.Api.Migrations
                     b.ToTable("Artists");
                 });
 
-            modelBuilder.Entity("Zmg.Domain.ChecklistTemplate", b =>
+            modelBuilder.Entity("Zmg.Domain.Entities.ChecklistTemplate", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -66,7 +63,7 @@ namespace Zmg.Api.Migrations
                         });
                 });
 
-            modelBuilder.Entity("Zmg.Domain.Release", b =>
+            modelBuilder.Entity("Zmg.Domain.Entities.Release", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -104,7 +101,7 @@ namespace Zmg.Api.Migrations
                     b.ToTable("Releases");
                 });
 
-            modelBuilder.Entity("Zmg.Domain.ReleaseArtist", b =>
+            modelBuilder.Entity("Zmg.Domain.Entities.ReleaseArtist", b =>
                 {
                     b.Property<Guid>("ReleaseId")
                         .HasColumnType("TEXT");
@@ -122,7 +119,7 @@ namespace Zmg.Api.Migrations
                     b.ToTable("ReleaseArtists");
                 });
 
-            modelBuilder.Entity("Zmg.Domain.ReleaseTask", b =>
+            modelBuilder.Entity("Zmg.Domain.Entities.ReleaseTask", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -166,7 +163,7 @@ namespace Zmg.Api.Migrations
                     b.ToTable("ReleaseTasks");
                 });
 
-            modelBuilder.Entity("Zmg.Domain.TemplateTask", b =>
+            modelBuilder.Entity("Zmg.Domain.Entities.TemplateTask", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -470,9 +467,11 @@ namespace Zmg.Api.Migrations
                         {
                             Id = new Guid("22222222-2222-2222-2222-222222220302"),
                             ChecklistTemplateId = new Guid("22222222-2222-2222-2222-222222222222"),
+                            MaxDaysBefore = 14,
+                            MinDaysBefore = 7,
                             Phase = 0,
                             SortOrder = 2,
-                            Title = "Make video for YouTube, thumbnail and additional YouTube resources"
+                            Title = "Distribute to DSPs"
                         },
                         new
                         {
@@ -480,7 +479,7 @@ namespace Zmg.Api.Migrations
                             ChecklistTemplateId = new Guid("22222222-2222-2222-2222-222222222222"),
                             Phase = 0,
                             SortOrder = 3,
-                            Title = "Pitch to Amazon"
+                            Title = "Make video for YouTube, thumbnail and additional YouTube resources"
                         },
                         new
                         {
@@ -488,6 +487,16 @@ namespace Zmg.Api.Migrations
                             ChecklistTemplateId = new Guid("22222222-2222-2222-2222-222222222222"),
                             Phase = 0,
                             SortOrder = 4,
+                            Title = "Pitch to Amazon"
+                        },
+                        new
+                        {
+                            Id = new Guid("22222222-2222-2222-2222-222222220605"),
+                            ChecklistTemplateId = new Guid("22222222-2222-2222-2222-222222222222"),
+                            MaxDaysBefore = 14,
+                            MinDaysBefore = 7,
+                            Phase = 0,
+                            SortOrder = 5,
                             Title = "Pitch to Spotify"
                         },
                         new
@@ -692,19 +701,11 @@ namespace Zmg.Api.Migrations
                         },
                         new
                         {
-                            Id = new Guid("22222222-2222-2222-2222-222222220605"),
-                            ChecklistTemplateId = new Guid("22222222-2222-2222-2222-222222222222"),
-                            Phase = 0,
-                            SortOrder = 5,
-                            Title = "Finalize tracklist and sequencing (locked once submitted to distributor)"
-                        },
-                        new
-                        {
                             Id = new Guid("22222222-2222-2222-2222-222222220706"),
                             ChecklistTemplateId = new Guid("22222222-2222-2222-2222-222222222222"),
                             Phase = 0,
                             SortOrder = 6,
-                            Title = "Confirm ISRC/UPC and per-track metadata/credits"
+                            Title = "Finalize tracklist and sequencing (locked once submitted to distributor)"
                         },
                         new
                         {
@@ -712,7 +713,7 @@ namespace Zmg.Api.Migrations
                             ChecklistTemplateId = new Guid("22222222-2222-2222-2222-222222222222"),
                             Phase = 0,
                             SortOrder = 7,
-                            Title = "Pick focus tracks and plan 2-4 pre-release singles (waterfall: each new single re-packaged with prior ones, album inherits their streams)"
+                            Title = "Confirm ISRC/UPC and per-track metadata/credits"
                         },
                         new
                         {
@@ -720,7 +721,7 @@ namespace Zmg.Api.Migrations
                             ChecklistTemplateId = new Guid("22222222-2222-2222-2222-222222222222"),
                             Phase = 0,
                             SortOrder = 8,
-                            Title = "Album pre-save campaign"
+                            Title = "Pick focus tracks and plan 2-4 pre-release singles (waterfall: each new single re-packaged with prior ones, album inherits their streams)"
                         },
                         new
                         {
@@ -728,7 +729,7 @@ namespace Zmg.Api.Migrations
                             ChecklistTemplateId = new Guid("22222222-2222-2222-2222-222222222222"),
                             Phase = 0,
                             SortOrder = 9,
-                            Title = "Update artist bio / press release / EPK"
+                            Title = "Album pre-save campaign"
                         },
                         new
                         {
@@ -736,7 +737,7 @@ namespace Zmg.Api.Migrations
                             ChecklistTemplateId = new Guid("22222222-2222-2222-2222-222222222222"),
                             Phase = 0,
                             SortOrder = 10,
-                            Title = "Batch-produce content before release week (track-by-track commentary, lyric videos, acoustic cuts)"
+                            Title = "Update artist bio / press release / EPK"
                         },
                         new
                         {
@@ -744,6 +745,14 @@ namespace Zmg.Api.Migrations
                             ChecklistTemplateId = new Guid("22222222-2222-2222-2222-222222222222"),
                             Phase = 0,
                             SortOrder = 11,
+                            Title = "Batch-produce content before release week (track-by-track commentary, lyric videos, acoustic cuts)"
+                        },
+                        new
+                        {
+                            Id = new Guid("22222222-2222-2222-2222-222222220d0c"),
+                            ChecklistTemplateId = new Guid("22222222-2222-2222-2222-222222222222"),
+                            Phase = 0,
+                            SortOrder = 12,
                             Title = "Physical media if applicable (vinyl/CD lead times are months)"
                         },
                         new
@@ -772,7 +781,7 @@ namespace Zmg.Api.Migrations
                         });
                 });
 
-            modelBuilder.Entity("Zmg.Domain.Track", b =>
+            modelBuilder.Entity("Zmg.Domain.Entities.Track", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -798,9 +807,9 @@ namespace Zmg.Api.Migrations
                     b.ToTable("Tracks");
                 });
 
-            modelBuilder.Entity("Zmg.Domain.Release", b =>
+            modelBuilder.Entity("Zmg.Domain.Entities.Release", b =>
                 {
-                    b.HasOne("Zmg.Domain.Artist", "MainArtist")
+                    b.HasOne("Zmg.Domain.Entities.Artist", "MainArtist")
                         .WithMany("Releases")
                         .HasForeignKey("MainArtistId")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -809,15 +818,15 @@ namespace Zmg.Api.Migrations
                     b.Navigation("MainArtist");
                 });
 
-            modelBuilder.Entity("Zmg.Domain.ReleaseArtist", b =>
+            modelBuilder.Entity("Zmg.Domain.Entities.ReleaseArtist", b =>
                 {
-                    b.HasOne("Zmg.Domain.Artist", "Artist")
+                    b.HasOne("Zmg.Domain.Entities.Artist", "Artist")
                         .WithMany("ReleaseCredits")
                         .HasForeignKey("ArtistId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("Zmg.Domain.Release", "Release")
+                    b.HasOne("Zmg.Domain.Entities.Release", "Release")
                         .WithMany("FeaturedArtists")
                         .HasForeignKey("ReleaseId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -828,9 +837,9 @@ namespace Zmg.Api.Migrations
                     b.Navigation("Release");
                 });
 
-            modelBuilder.Entity("Zmg.Domain.ReleaseTask", b =>
+            modelBuilder.Entity("Zmg.Domain.Entities.ReleaseTask", b =>
                 {
-                    b.HasOne("Zmg.Domain.Release", "Release")
+                    b.HasOne("Zmg.Domain.Entities.Release", "Release")
                         .WithMany("Tasks")
                         .HasForeignKey("ReleaseId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -839,9 +848,9 @@ namespace Zmg.Api.Migrations
                     b.Navigation("Release");
                 });
 
-            modelBuilder.Entity("Zmg.Domain.TemplateTask", b =>
+            modelBuilder.Entity("Zmg.Domain.Entities.TemplateTask", b =>
                 {
-                    b.HasOne("Zmg.Domain.ChecklistTemplate", "ChecklistTemplate")
+                    b.HasOne("Zmg.Domain.Entities.ChecklistTemplate", "ChecklistTemplate")
                         .WithMany("Tasks")
                         .HasForeignKey("ChecklistTemplateId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -850,9 +859,9 @@ namespace Zmg.Api.Migrations
                     b.Navigation("ChecklistTemplate");
                 });
 
-            modelBuilder.Entity("Zmg.Domain.Track", b =>
+            modelBuilder.Entity("Zmg.Domain.Entities.Track", b =>
                 {
-                    b.HasOne("Zmg.Domain.Release", "Release")
+                    b.HasOne("Zmg.Domain.Entities.Release", "Release")
                         .WithMany("Tracks")
                         .HasForeignKey("ReleaseId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -861,19 +870,19 @@ namespace Zmg.Api.Migrations
                     b.Navigation("Release");
                 });
 
-            modelBuilder.Entity("Zmg.Domain.Artist", b =>
+            modelBuilder.Entity("Zmg.Domain.Entities.Artist", b =>
                 {
                     b.Navigation("ReleaseCredits");
 
                     b.Navigation("Releases");
                 });
 
-            modelBuilder.Entity("Zmg.Domain.ChecklistTemplate", b =>
+            modelBuilder.Entity("Zmg.Domain.Entities.ChecklistTemplate", b =>
                 {
                     b.Navigation("Tasks");
                 });
 
-            modelBuilder.Entity("Zmg.Domain.Release", b =>
+            modelBuilder.Entity("Zmg.Domain.Entities.Release", b =>
                 {
                     b.Navigation("FeaturedArtists");
 

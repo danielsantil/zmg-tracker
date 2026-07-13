@@ -2,12 +2,10 @@ using Microsoft.EntityFrameworkCore;
 using Zmg.Domain;
 using Zmg.Domain.Entities;
 
-namespace Zmg.Api.Data;
+namespace Zmg.Infra.Data;
 
-public class ZmgDbContext : DbContext
+public class ZmgDbContext(DbContextOptions<ZmgDbContext> options) : DbContext(options)
 {
-    public ZmgDbContext(DbContextOptions<ZmgDbContext> options) : base(options) { }
-
     public DbSet<Artist> Artists => Set<Artist>();
     public DbSet<Release> Releases => Set<Release>();
     public DbSet<ReleaseArtist> ReleaseArtists => Set<ReleaseArtist>();

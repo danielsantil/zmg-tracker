@@ -6,12 +6,8 @@ using Zmg.Domain.Enums;
 
 namespace Zmg.Api.Tests;
 
-public class TrackApiTests : IClassFixture<ZmgApiFactory>
+public class TrackApiTests(ZmgApiFactory factory) : IClassFixture<ZmgApiFactory>
 {
-    private readonly ZmgApiFactory _factory;
-
-    public TrackApiTests(ZmgApiFactory factory) => _factory = factory;
-
     private async Task<ReleaseDetailDto> CreateAlbum(HttpClient client, string artistName, string title)
     {
         var artistRes = await client.PostAsJsonAsync("/api/artists", new ArtistInput(artistName, null));
@@ -34,7 +30,7 @@ public class TrackApiTests : IClassFixture<ZmgApiFactory>
     [Fact]
     public async Task New_album_starts_with_no_tracks()
     {
-        var client = _factory.CreateClient();
+        var client = factory.CreateClient();
         var album = await CreateAlbum(client, "Empty Album Artist", "Empty Album");
         Assert.Empty(album.Tracks);
     }
@@ -42,7 +38,7 @@ public class TrackApiTests : IClassFixture<ZmgApiFactory>
     [Fact]
     public async Task Add_track_appends_with_next_number_and_shows_in_detail()
     {
-        var client = _factory.CreateClient();
+        var client = factory.CreateClient();
         var album = await CreateAlbum(client, "Add Track Artist", "Add Track Album");
 
         var t1 = await AddTrack(client, album.Id, "Intro");
@@ -58,7 +54,7 @@ public class TrackApiTests : IClassFixture<ZmgApiFactory>
     [Fact]
     public async Task Add_track_with_blank_title_is_rejected()
     {
-        var client = _factory.CreateClient();
+        var client = factory.CreateClient();
         var album = await CreateAlbum(client, "Blank Track Artist", "Blank Track Album");
 
         var res = await client.PostAsJsonAsync($"/api/releases/{album.Id}/tracks", new AddTrackInput("   "));
@@ -68,7 +64,7 @@ public class TrackApiTests : IClassFixture<ZmgApiFactory>
     [Fact]
     public async Task Update_track_renames_and_sets_focus()
     {
-        var client = _factory.CreateClient();
+        var client = factory.CreateClient();
         var album = await CreateAlbum(client, "Update Track Artist", "Update Track Album");
         var track = await AddTrack(client, album.Id, "Working Title");
 
@@ -83,7 +79,7 @@ public class TrackApiTests : IClassFixture<ZmgApiFactory>
     [Fact]
     public async Task Toggle_focus_flips_the_flag()
     {
-        var client = _factory.CreateClient();
+        var client = factory.CreateClient();
         var album = await CreateAlbum(client, "Focus Toggle Artist", "Focus Toggle Album");
         var track = await AddTrack(client, album.Id, "Single Off Album");
 
@@ -98,7 +94,7 @@ public class TrackApiTests : IClassFixture<ZmgApiFactory>
     [Fact]
     public async Task Reorder_reverses_and_renumbers_contiguously()
     {
-        var client = _factory.CreateClient();
+        var client = factory.CreateClient();
         var album = await CreateAlbum(client, "Reorder Track Artist", "Reorder Track Album");
         var a = await AddTrack(client, album.Id, "A");
         var b = await AddTrack(client, album.Id, "B");
@@ -118,7 +114,7 @@ public class TrackApiTests : IClassFixture<ZmgApiFactory>
     [Fact]
     public async Task Reorder_with_missing_ids_is_rejected()
     {
-        var client = _factory.CreateClient();
+        var client = factory.CreateClient();
         var album = await CreateAlbum(client, "Bad Reorder Track Artist", "Bad Reorder Track Album");
         var a = await AddTrack(client, album.Id, "A");
         await AddTrack(client, album.Id, "B");
@@ -131,7 +127,7 @@ public class TrackApiTests : IClassFixture<ZmgApiFactory>
     [Fact]
     public async Task Delete_track_removes_it_and_renumbers_survivors()
     {
-        var client = _factory.CreateClient();
+        var client = factory.CreateClient();
         var album = await CreateAlbum(client, "Delete Track Artist", "Delete Track Album");
         var a = await AddTrack(client, album.Id, "A");
         var b = await AddTrack(client, album.Id, "B");
@@ -151,7 +147,7 @@ public class TrackApiTests : IClassFixture<ZmgApiFactory>
     [Fact]
     public async Task Focus_toggle_on_missing_track_is_not_found()
     {
-        var client = _factory.CreateClient();
+        var client = factory.CreateClient();
         var res = await client.PatchAsync($"/api/tracks/{Guid.NewGuid()}/focus", null);
         Assert.Equal(HttpStatusCode.NotFound, res.StatusCode);
     }

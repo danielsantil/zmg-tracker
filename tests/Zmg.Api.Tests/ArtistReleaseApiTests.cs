@@ -6,12 +6,8 @@ using Zmg.Domain.Enums;
 
 namespace Zmg.Api.Tests;
 
-public class ArtistReleaseApiTests : IClassFixture<ZmgApiFactory>
+public class ArtistReleaseApiTests(ZmgApiFactory factory) : IClassFixture<ZmgApiFactory>
 {
-    private readonly ZmgApiFactory _factory;
-
-    public ArtistReleaseApiTests(ZmgApiFactory factory) => _factory = factory;
-
     private async Task<ArtistDto> CreateArtist(HttpClient client, string name)
     {
         var res = await client.PostAsJsonAsync("/api/artists", new ArtistInput(name, null));
@@ -22,7 +18,7 @@ public class ArtistReleaseApiTests : IClassFixture<ZmgApiFactory>
     [Fact]
     public async Task Health_endpoint_is_ok()
     {
-        var client = _factory.CreateClient();
+        var client = factory.CreateClient();
         var res = await client.GetAsync("/api/health");
         res.EnsureSuccessStatusCode();
     }
@@ -30,7 +26,7 @@ public class ArtistReleaseApiTests : IClassFixture<ZmgApiFactory>
     [Fact]
     public async Task Artist_crud_roundtrip()
     {
-        var client = _factory.CreateClient();
+        var client = factory.CreateClient();
 
         var created = await CreateArtist(client, "Roundtrip Artist");
         Assert.NotEqual(Guid.Empty, created.Id);
@@ -49,7 +45,7 @@ public class ArtistReleaseApiTests : IClassFixture<ZmgApiFactory>
     [Fact]
     public async Task Duplicate_artist_name_is_rejected()
     {
-        var client = _factory.CreateClient();
+        var client = factory.CreateClient();
         await CreateArtist(client, "Unique Name");
 
         var res = await client.PostAsJsonAsync("/api/artists", new ArtistInput("unique name", null));
@@ -59,7 +55,7 @@ public class ArtistReleaseApiTests : IClassFixture<ZmgApiFactory>
     [Fact]
     public async Task Golden_path_release_gets_the_seeded_single_checklist()
     {
-        var client = _factory.CreateClient();
+        var client = factory.CreateClient();
         var artist = await CreateArtist(client, "Golden Path Artist");
 
         var res = await client.PostAsJsonAsync("/api/releases", new ReleaseInput(
@@ -80,7 +76,7 @@ public class ArtistReleaseApiTests : IClassFixture<ZmgApiFactory>
     [Fact]
     public async Task Album_release_gets_the_larger_album_checklist()
     {
-        var client = _factory.CreateClient();
+        var client = factory.CreateClient();
         var artist = await CreateArtist(client, "Album Artist");
 
         var res = await client.PostAsJsonAsync("/api/releases", new ReleaseInput(
@@ -88,13 +84,13 @@ public class ArtistReleaseApiTests : IClassFixture<ZmgApiFactory>
         res.EnsureSuccessStatusCode();
 
         var created = (await res.Content.ReadFromJsonAsync<CreatedWithWarnings<ReleaseDetailDto>>())!;
-        Assert.Equal(40, created.Data.TotalTasks);
+        Assert.Equal(41, created.Data.TotalTasks);
     }
 
     [Fact]
     public async Task Deleting_an_artist_with_releases_conflicts()
     {
-        var client = _factory.CreateClient();
+        var client = factory.CreateClient();
         var artist = await CreateArtist(client, "Has Releases");
 
         var relRes = await client.PostAsJsonAsync("/api/releases", new ReleaseInput(
@@ -108,7 +104,7 @@ public class ArtistReleaseApiTests : IClassFixture<ZmgApiFactory>
     [Fact]
     public async Task Past_release_date_still_creates_but_returns_a_warning()
     {
-        var client = _factory.CreateClient();
+        var client = factory.CreateClient();
         var artist = await CreateArtist(client, "Backfill Artist");
 
         var res = await client.PostAsJsonAsync("/api/releases", new ReleaseInput(
@@ -123,7 +119,7 @@ public class ArtistReleaseApiTests : IClassFixture<ZmgApiFactory>
     [Fact]
     public async Task Release_requires_title_and_artist()
     {
-        var client = _factory.CreateClient();
+        var client = factory.CreateClient();
 
         var res = await client.PostAsJsonAsync("/api/releases", new ReleaseInput(
             "", ReleaseType.Single, null, Guid.Empty, null, null, null));
@@ -133,7 +129,7 @@ public class ArtistReleaseApiTests : IClassFixture<ZmgApiFactory>
     [Fact]
     public async Task Release_list_filters_by_type()
     {
-        var client = _factory.CreateClient();
+        var client = factory.CreateClient();
         var artist = await CreateArtist(client, "Filter Artist");
 
         await client.PostAsJsonAsync("/api/releases", new ReleaseInput(

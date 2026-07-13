@@ -6,12 +6,8 @@ using Zmg.Domain.Enums;
 namespace Zmg.Api.Tests;
 
 /// <summary>M7 — UPC/ISRC round-trip, the soft identifier warning, and past-date backfill auto-check.</summary>
-public class ReleaseIdentifierApiTests : IClassFixture<ZmgApiFactory>
+public class ReleaseIdentifierApiTests(ZmgApiFactory factory) : IClassFixture<ZmgApiFactory>
 {
-    private readonly ZmgApiFactory _factory;
-
-    public ReleaseIdentifierApiTests(ZmgApiFactory factory) => _factory = factory;
-
     private async Task<ArtistDto> CreateArtist(HttpClient client, string name)
     {
         var res = await client.PostAsJsonAsync("/api/artists", new ArtistInput(name, null));
@@ -34,7 +30,7 @@ public class ReleaseIdentifierApiTests : IClassFixture<ZmgApiFactory>
     [Fact]
     public async Task Upc_and_isrc_round_trip_on_create_and_update()
     {
-        var client = _factory.CreateClient();
+        var client = factory.CreateClient();
         var artist = await CreateArtist(client, "Identifier Artist");
 
         var created = await CreateRelease(client, artist.Id, "IdSong", new DateOnly(2026, 8, 14),
@@ -54,7 +50,7 @@ public class ReleaseIdentifierApiTests : IClassFixture<ZmgApiFactory>
     [Fact]
     public async Task NeedsIdentifierWarning_only_after_distribution_and_clears_when_ids_filled()
     {
-        var client = _factory.CreateClient();
+        var client = factory.CreateClient();
         var artist = await CreateArtist(client, "Warning Artist");
 
         // Future release, blank ids: silent until distributed.
@@ -84,7 +80,7 @@ public class ReleaseIdentifierApiTests : IClassFixture<ZmgApiFactory>
     [Fact]
     public async Task Create_with_past_date_auto_checks_distribute_to_dsps()
     {
-        var client = _factory.CreateClient();
+        var client = factory.CreateClient();
         var artist = await CreateArtist(client, "Backfill Artist");
 
         var created = await CreateRelease(client, artist.Id, "OldSong", new DateOnly(2026, 6, 1));

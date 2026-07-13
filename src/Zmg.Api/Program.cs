@@ -1,11 +1,10 @@
 using Microsoft.EntityFrameworkCore;
-using Zmg.Api.Data;
 using Zmg.Api.Endpoints;
+using Zmg.Infra.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var connectionString = builder.Configuration.GetConnectionString("Zmg")
-    ?? "Data Source=zmg.db";
+var connectionString = builder.Configuration.GetConnectionString("Zmg");
 builder.Services.AddDbContext<ZmgDbContext>(options => options.UseSqlite(connectionString));
 
 builder.Services.AddCors(options =>

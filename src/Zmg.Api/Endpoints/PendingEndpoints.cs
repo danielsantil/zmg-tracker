@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
-using Zmg.Api.Data;
 using Zmg.Domain;
+using Zmg.Infra.Data;
 
 namespace Zmg.Api.Endpoints;
 

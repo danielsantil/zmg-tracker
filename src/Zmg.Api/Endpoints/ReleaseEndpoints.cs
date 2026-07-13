@@ -1,9 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using Zmg.Api.Contracts;
-using Zmg.Api.Data;
 using Zmg.Domain;
 using Zmg.Domain.Entities;
 using Zmg.Domain.Enums;
+using Zmg.Infra.Data;
 
 namespace Zmg.Api.Endpoints;
 

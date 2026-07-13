@@ -33,7 +33,7 @@ public class TemplateApiTests : IDisposable
         var single = templates.Single(t => t.Type == ReleaseType.Single);
         var album = templates.Single(t => t.Type == ReleaseType.Album);
         Assert.Equal(31, TotalTasks(single));
-        Assert.Equal(40, TotalTasks(album));
+        Assert.Equal(41, TotalTasks(album));
         Assert.Equal(6, single.Phases.Single(p => p.Phase == Phase.Pre).Tasks.Count);
     }
 

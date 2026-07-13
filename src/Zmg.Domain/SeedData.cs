@@ -87,9 +87,7 @@ public static class SeedData
     /// <summary>Flat (templateId, task) rows for EF <c>HasData</c> seeding with deterministic ids.</summary>
     public static IEnumerable<TemplateTask> AllTemplateTasks()
     {
-        foreach (var template in Templates())
-            foreach (var task in template.Tasks)
-                yield return task;
+        return Templates().SelectMany(template => template.Tasks);
     }
 
     private static ChecklistTemplate BuildTemplate(
