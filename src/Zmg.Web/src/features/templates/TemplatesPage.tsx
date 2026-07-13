@@ -25,7 +25,7 @@ export default function TemplatesPage() {
     setLoading(true);
     setError(null);
     try {
-      const all = await api.listTemplates();
+      const all = await api.templates.list();
       setTemplates(all);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Failed to load templates.');
@@ -60,7 +60,7 @@ export default function TemplatesPage() {
   async function addTask(phase: Phase, title: string) {
     if (!active) return;
     try {
-      const created = await api.addTemplateTask(active.id, { title, phase });
+      const created = await api.templates.addTask(active.id, { title, phase });
       setTasks((ts) => [...ts, created]);
     } catch (e) {
       showToast(e instanceof ApiError ? e.message : 'Could not add task.');
@@ -70,7 +70,7 @@ export default function TemplatesPage() {
   async function updateTask(task: TemplateTaskDto, patch: TemplatePatch) {
     try {
       // Full replace of editable fields — carry the current timeframe unless the patch overrides it.
-      const saved = await api.updateTemplateTask(task.id, {
+      const saved = await api.templates.updateTask(task.id, {
         title: patch.title ?? task.title,
         phase: patch.phase ?? task.phase,
         minDaysBefore: patch.minDaysBefore !== undefined ? patch.minDaysBefore : task.minDaysBefore,
@@ -87,7 +87,7 @@ export default function TemplatesPage() {
     const prev = tasks;
     setTasks((ts) => ts.filter((t) => t.id !== task.id));
     try {
-      await api.deleteTemplateTask(task.id);
+      await api.templates.deleteTask(task.id);
     } catch (e) {
       setTasks(prev);
       showToast(e instanceof ApiError ? e.message : 'Could not delete task.');
@@ -107,7 +107,7 @@ export default function TemplatesPage() {
     const prev = tasks;
     setTasks((ts) => ts.map((t) => reordered.find((r) => r.id === t.id) ?? t));
     try {
-      await api.reorderTemplateTasks(active.id, { phase: task.phase, orderedTaskIds: list.map((t) => t.id) });
+      await api.templates.reorderTasks(active.id, { phase: task.phase, orderedTaskIds: list.map((t) => t.id) });
     } catch (e) {
       setTasks(prev);
       showToast(e instanceof ApiError ? e.message : 'Could not reorder.');

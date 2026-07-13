@@ -3,7 +3,7 @@ import { request } from './client';
 
 // Release tasks (checklist engine)
 export const tasksApi = {
-  addTask: (
+  add: (
     releaseId: string,
     input: { title: string; phase: Phase; minDaysBefore?: number | null; maxDaysBefore?: number | null },
   ) =>
@@ -11,7 +11,7 @@ export const tasksApi = {
       method: 'POST',
       body: JSON.stringify(input),
     }),
-  updateTask: (
+  update: (
     id: string,
     input: {
       title: string;
@@ -25,13 +25,13 @@ export const tasksApi = {
       method: 'PUT',
       body: JSON.stringify(input),
     }),
-  toggleTask: (id: string) =>
+  toggle: (id: string) =>
     request<ReleaseTaskDto>(`/api/tasks/${id}/toggle`, { method: 'PATCH' }),
-  reorderTasks: (releaseId: string, input: { phase: Phase; orderedTaskIds: string[] }) =>
+  reorder: (releaseId: string, input: { phase: Phase; orderedTaskIds: string[] }) =>
     request<void>(`/api/releases/${releaseId}/tasks/order`, {
       method: 'PUT',
       body: JSON.stringify(input),
     }),
-  deleteTask: (id: string) =>
+  delete: (id: string) =>
     request<void>(`/api/tasks/${id}`, { method: 'DELETE' }),
 };

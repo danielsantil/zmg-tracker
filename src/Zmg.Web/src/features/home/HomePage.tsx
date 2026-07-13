@@ -25,14 +25,14 @@ export default function HomePage() {
     setError(null);
     try {
       const [rels, arts, pend] = await Promise.all([
-        api.listReleases({
+        api.releases.list({
           scope: 'home',
           artistId: artistId || undefined,
           type: type === '' ? undefined : (Number(type) as ReleaseType),
           status: status || undefined,
         }),
-        api.listArtists(),
-        api.listPending(),
+        api.artists.list(),
+        api.pending.list(),
       ]);
       setReleases(rels);
       setArtists(arts);
@@ -54,7 +54,7 @@ export default function HomePage() {
   async function remove(r: ReleaseListItem) {
     if (!confirm(`Delete "${r.title}"? This removes its checklist.`)) return;
     try {
-      await api.deleteRelease(r.id);
+      await api.releases.delete(r.id);
       load();
     } catch (e) {
       alert(e instanceof ApiError ? e.message : 'Failed to delete.');

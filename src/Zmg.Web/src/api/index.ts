@@ -6,16 +6,17 @@ import { templatesApi } from './templates';
 import { tracksApi } from './tracks';
 
 /**
- * Single grouped entry point, composed from the per-entity modules. The flat shape
- * (e.g. `api.listReleases(...)`) is preserved so call sites don't care how it's split.
+ * Namespaced entry point: one property per entity, e.g. `api.artists.list()`,
+ * `api.releases.get(id)`, `api.tasks.toggle(id)`. Each namespace is defined in its
+ * own module under api/.
  */
 export const api = {
-  ...artistsApi,
-  ...releasesApi,
-  ...tasksApi,
-  ...templatesApi,
-  ...tracksApi,
-  ...pendingApi,
+  artists: artistsApi,
+  releases: releasesApi,
+  tasks: tasksApi,
+  templates: templatesApi,
+  tracks: tracksApi,
+  pending: pendingApi,
 };
 
 export { ApiError } from './client';

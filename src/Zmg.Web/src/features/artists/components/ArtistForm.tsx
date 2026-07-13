@@ -23,8 +23,8 @@ export function ArtistForm({
     setErrors([]);
     try {
       const input = { name, notes: notes || null };
-      if (artist) await api.updateArtist(artist.id, input);
-      else await api.createArtist(input);
+      if (artist) await api.artists.update(artist.id, input);
+      else await api.artists.create(input);
       onSaved();
     } catch (err) {
       setErrors(err instanceof ApiError ? err.errors : ['Failed to save artist.']);

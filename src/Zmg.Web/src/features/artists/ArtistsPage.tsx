@@ -13,7 +13,7 @@ export default function ArtistsPage() {
   async function load() {
     setLoading(true);
     try {
-      setArtists(await api.listArtists());
+      setArtists(await api.artists.list());
     } finally {
       setLoading(false);
     }
@@ -26,7 +26,7 @@ export default function ArtistsPage() {
   async function remove(a: Artist) {
     if (!confirm(`Delete artist "${a.name}"?`)) return;
     try {
-      await api.deleteArtist(a.id);
+      await api.artists.delete(a.id);
       load();
     } catch (e) {
       alert(e instanceof ApiError ? e.message : 'Failed to delete artist.');

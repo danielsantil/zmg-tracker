@@ -31,7 +31,7 @@ export default function ReleaseDetailPage() {
     setLoading(true);
     setError(null);
     try {
-      const detail = await api.getRelease(id);
+      const detail = await api.releases.get(id);
       setRelease(detail);
       setTasks(detail.phases.flatMap((p) => p.tasks));
       setTracks(detail.tracks);
@@ -44,7 +44,7 @@ export default function ReleaseDetailPage() {
 
   const loadPending = useCallback(async () => {
     if (!id) return;
-    api.listPendingByRelease(id).then(setPendingActions).catch((e) => {
+    api.pending.listByRelease(id).then(setPendingActions).catch((e) => {
       console.error('Failed to load pending actions:', e);
     });
   }, [id]);
@@ -76,7 +76,7 @@ export default function ReleaseDetailPage() {
     const optimistic = { ...task, isDone: !task.isDone };
     setTasks((ts) => ts.map((t) => (t.id === task.id ? optimistic : t)));
     try {
-      const saved = await api.toggleTask(task.id);
+      const saved = await api.tasks.toggle(task.id);
       setTasks((ts) => ts.map((t) => (t.id === saved.id ? saved : t)));
       loadPending(); // refresh pending actions after a task toggle
     } catch (e) {
@@ -87,7 +87,7 @@ export default function ReleaseDetailPage() {
 
   async function addTask(phase: Phase, title: string) {
     try {
-      const created = await api.addTask(id!, { title, phase });
+      const created = await api.tasks.add(id!, { title, phase });
       setTasks((ts) => [...ts, created]);
     } catch (e) {
       showToast(e instanceof ApiError ? e.message : 'Could not add task.');
@@ -98,7 +98,7 @@ export default function ReleaseDetailPage() {
     try {
       // Update is a full replace of editable fields, so always send the task's current
       // timeframe/notes unless the patch overrides them (else a rename would wipe them).
-      const saved = await api.updateTask(task.id, {
+      const saved = await api.tasks.update(task.id, {
         title: patch.title ?? task.title,
         phase: patch.phase ?? task.phase,
         notes: patch.notes !== undefined ? patch.notes : task.notes,
@@ -116,7 +116,7 @@ export default function ReleaseDetailPage() {
     const prev = tasks;
     setTasks((ts) => ts.filter((t) => t.id !== task.id));
     try {
-      await api.deleteTask(task.id);
+      await api.tasks.delete(task.id);
     } catch (e) {
       setTasks(prev);
       showToast(e instanceof ApiError ? e.message : 'Could not delete task.');
@@ -135,7 +135,7 @@ export default function ReleaseDetailPage() {
     const prev = tasks;
     setTasks((ts) => ts.map((t) => reordered.find((r) => r.id === t.id) ?? t));
     try {
-      await api.reorderTasks(id!, { phase: task.phase, orderedTaskIds: list.map((t) => t.id) });
+      await api.tasks.reorder(id!, { phase: task.phase, orderedTaskIds: list.map((t) => t.id) });
     } catch (e) {
       setTasks(prev);
       showToast(e instanceof ApiError ? e.message : 'Could not reorder.');
@@ -149,7 +149,7 @@ export default function ReleaseDetailPage() {
 
   async function addTrack(title: string) {
     try {
-      const created = await api.addTrack(id!, { title });
+      const created = await api.tracks.add(id!, { title });
       setTracks((ts) => [...ts, created]);
     } catch (e) {
       showToast(e instanceof ApiError ? e.message : 'Could not add track.');
@@ -158,7 +158,7 @@ export default function ReleaseDetailPage() {
 
   async function renameTrack(track: TrackDto, title: string) {
     try {
-      const saved = await api.updateTrack(track.id, { title, isFocusTrack: track.isFocusTrack });
+      const saved = await api.tracks.update(track.id, { title, isFocusTrack: track.isFocusTrack });
       setTracks((ts) => ts.map((t) => (t.id === saved.id ? saved : t)));
     } catch (e) {
       showToast(e instanceof ApiError ? e.message : 'Could not save track.');
@@ -170,7 +170,7 @@ export default function ReleaseDetailPage() {
     const optimistic = { ...track, isFocusTrack: !track.isFocusTrack };
     setTracks((ts) => ts.map((t) => (t.id === track.id ? optimistic : t)));
     try {
-      const saved = await api.toggleTrackFocus(track.id);
+      const saved = await api.tracks.toggleFocus(track.id);
       setTracks((ts) => ts.map((t) => (t.id === saved.id ? saved : t)));
     } catch (e) {
       setTracks((ts) => ts.map((t) => (t.id === track.id ? track : t)));
@@ -189,7 +189,7 @@ export default function ReleaseDetailPage() {
         .map((t, i) => ({ ...t, trackNumber: i + 1 })),
     );
     try {
-      await api.deleteTrack(track.id);
+      await api.tracks.delete(track.id);
     } catch (e) {
       setTracks(prev);
       showToast(e instanceof ApiError ? e.message : 'Could not delete track.');
@@ -208,7 +208,7 @@ export default function ReleaseDetailPage() {
     const prev = tracks;
     setTracks(renumbered);
     try {
-      await api.reorderTracks(id!, { orderedTrackIds: list.map((t) => t.id) });
+      await api.tracks.reorder(id!, { orderedTrackIds: list.map((t) => t.id) });
     } catch (e) {
       setTracks(prev);
       showToast(e instanceof ApiError ? e.message : 'Could not reorder.');

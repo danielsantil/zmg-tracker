@@ -38,10 +38,10 @@ export default function ReleaseFormPage() {
   useEffect(() => {
     (async () => {
       try {
-        const arts = await api.listArtists();
+        const arts = await api.artists.list();
         setArtists(arts);
         if (isEdit && id) {
-          const r = await api.getRelease(id);
+          const r = await api.releases.get(id);
           setTitle(r.title);
           setType(r.type);
           setReleaseDate(r.releaseDate);
@@ -89,7 +89,7 @@ export default function ReleaseFormPage() {
         isrc: isrc || null,
         featuredArtists: featured.filter((f) => f.artistId !== mainArtistId),
       };
-      const result = isEdit && id ? await api.updateRelease(id, input) : await api.createRelease(input);
+      const result = isEdit && id ? await api.releases.update(id, input) : await api.releases.create(input);
       if (result.warnings.length > 0) {
         setWarnings(result.warnings);
       } else {

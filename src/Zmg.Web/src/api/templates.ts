@@ -3,8 +3,8 @@ import { request } from './client';
 
 // Templates (template management)
 export const templatesApi = {
-  listTemplates: () => request<Template[]>('/api/templates'),
-  addTemplateTask: (
+  list: () => request<Template[]>('/api/templates'),
+  addTask: (
     templateId: string,
     input: { title: string; phase: Phase; minDaysBefore?: number | null; maxDaysBefore?: number | null },
   ) =>
@@ -12,7 +12,7 @@ export const templatesApi = {
       method: 'POST',
       body: JSON.stringify(input),
     }),
-  updateTemplateTask: (
+  updateTask: (
     id: string,
     input: {
       title: string;
@@ -25,11 +25,11 @@ export const templatesApi = {
       method: 'PUT',
       body: JSON.stringify(input),
     }),
-  reorderTemplateTasks: (templateId: string, input: { phase: Phase; orderedTaskIds: string[] }) =>
+  reorderTasks: (templateId: string, input: { phase: Phase; orderedTaskIds: string[] }) =>
     request<void>(`/api/templates/${templateId}/tasks/order`, {
       method: 'PUT',
       body: JSON.stringify(input),
     }),
-  deleteTemplateTask: (id: string) =>
+  deleteTask: (id: string) =>
     request<void>(`/api/template-tasks/${id}`, { method: 'DELETE' }),
 };

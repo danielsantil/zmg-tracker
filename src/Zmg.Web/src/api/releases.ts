@@ -8,7 +8,7 @@ import type {
 import { request } from './client';
 
 export const releasesApi = {
-  listReleases: (filters?: {
+  list: (filters?: {
     artistId?: string;
     type?: ReleaseType;
     status?: string;
@@ -24,17 +24,17 @@ export const releasesApi = {
     const suffix = qs.toString() ? `?${qs}` : '';
     return request<ReleaseListItem[]>(`/api/releases${suffix}`);
   },
-  getRelease: (id: string) => request<ReleaseDetail>(`/api/releases/${id}`),
-  createRelease: (input: ReleaseInput) =>
+  get: (id: string) => request<ReleaseDetail>(`/api/releases/${id}`),
+  create: (input: ReleaseInput) =>
     request<CreatedWithWarnings<ReleaseDetail>>('/api/releases', {
       method: 'POST',
       body: JSON.stringify(input),
     }),
-  updateRelease: (id: string, input: ReleaseInput) =>
+  update: (id: string, input: ReleaseInput) =>
     request<CreatedWithWarnings<ReleaseDetail>>(`/api/releases/${id}`, {
       method: 'PUT',
       body: JSON.stringify(input),
     }),
-  deleteRelease: (id: string) =>
+  delete: (id: string) =>
     request<void>(`/api/releases/${id}`, { method: 'DELETE' }),
 };

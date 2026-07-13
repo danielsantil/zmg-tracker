@@ -19,7 +19,7 @@ export default function AllReleasesPage() {
   async function loadReleases() {
     setLoading(true);
     setError(null);
-    api.listReleases({
+    api.releases.list({
       scope: 'all',
       artistId: artistId || undefined,
       type: type === '' ? undefined : (Number(type) as ReleaseType),
@@ -29,7 +29,7 @@ export default function AllReleasesPage() {
   }
 
   useEffect(() => {
-    api.listArtists().then(setArtists).catch(() => setError('Failed to load artists.'));
+    api.artists.list().then(setArtists).catch(() => setError('Failed to load artists.'));
   }, []);
 
   // Debounce the free-text search so each keystroke doesn't fire a request.
