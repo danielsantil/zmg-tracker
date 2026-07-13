@@ -13,6 +13,7 @@ builder.Services.AddScoped<IArtistService, ArtistService>();
 builder.Services.AddScoped<IPendingService, PendingService>();
 builder.Services.AddScoped<ITrackService, TrackService>();
 builder.Services.AddScoped<ITemplateService, TemplateService>();
+builder.Services.AddScoped<IReleaseTaskService, ReleaseTaskService>();
 
 builder.Services.AddCors(options =>
     options.AddPolicy("dev", p => p
