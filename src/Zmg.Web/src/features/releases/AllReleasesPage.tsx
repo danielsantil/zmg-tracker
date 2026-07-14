@@ -97,6 +97,13 @@ export default function AllReleasesPage() {
         )}
       </div>
 
+      {/* Kept outside the table so it stays reachable even when there are no releases. */}
+      <div className="mb-3 flex justify-end">
+        <Link to="/releases/archived" className="text-sm text-slate-400 hover:text-accent">
+          Archived Releases →
+        </Link>
+      </div>
+
       {error && <p className="rounded-lg bg-red-500/10 px-4 py-3 text-sm text-red-300">{error}</p>}
 
       {loading ? (
@@ -107,11 +114,6 @@ export default function AllReleasesPage() {
         </div>
       ) : (
         <div className="overflow-hidden rounded-xl border border-edge bg-panel">
-          <div className="flex justify-end border-b border-edge px-4 py-2">
-            <Link to="/releases/archived" className="text-sm text-slate-400 hover:text-accent">
-              Archived Releases →
-            </Link>
-          </div>
           <table className="w-full text-left text-sm">
             <thead className="border-b border-edge text-xs uppercase tracking-wide text-slate-500">
               <tr>

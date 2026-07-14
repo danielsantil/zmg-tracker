@@ -7,6 +7,7 @@ import { Button, Toast } from '@/components';
 import { useToast } from '@/hooks/useToast';
 import { useBackNavigation } from '@/hooks/useBackNavigation';
 import { PHASE_ORDER } from '@/lib/phase';
+import { todayIso } from '@/lib/format';
 import { ReleaseHeader } from './components/ReleaseHeader';
 import { NeedsAttention } from './components/NeedsAttention';
 import { PhaseSection } from './components/PhaseSection';
@@ -215,12 +216,24 @@ export default function ReleaseDetailPage() {
     }
   }
 
+  async function archive(r: ReleaseDetailModel) {
+    if (!confirm(`Archive "${r.title}"? Archived releases are read-only and can't be restored.`)) return;
+    try {
+      await api.releases.archive(r.id);
+      load();
+    } catch (e) {
+      showToast(e instanceof ApiError ? e.message : 'Could not archive.');
+    }
+  }
+
   if (loading) return <p className="text-slate-400">Loading…</p>;
   if (error) return <p className="rounded-lg bg-red-500/10 px-4 py-3 text-sm text-red-300">{error}</p>;
   if (!release) return null;
 
   // Archived releases are terminal and read-only: no edit, no toggles, no add/menu controls.
   const readOnly = release.isArchived;
+  // Archive is only allowed for releases still to come (releaseDate >= today).
+  const canArchive = !readOnly && release.releaseDate >= todayIso();
 
   return (
     <div>
@@ -231,9 +244,16 @@ export default function ReleaseDetailPage() {
         {readOnly ? (
           <span className="text-sm text-slate-500">Archived — read only</span>
         ) : (
-          <Button variant="ghost" onClick={() => navigate(`/releases/${release.id}/edit`)}>
-            Edit
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" onClick={() => navigate(`/releases/${release.id}/edit`)}>
+              Edit
+            </Button>
+            {canArchive && (
+              <Button variant="ghost" onClick={() => archive(release)}>
+                Archive
+              </Button>
+            )}
+          </div>
         )}
       </div>
 
