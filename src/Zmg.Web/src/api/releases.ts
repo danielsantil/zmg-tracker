@@ -12,7 +12,7 @@ export const releasesApi = {
     artistId?: string;
     type?: ReleaseType;
     status?: string;
-    scope?: 'home' | 'all';
+    scope?: 'home' | 'all' | 'archived';
     q?: string;
   }) => {
     const qs = new URLSearchParams();
@@ -35,6 +35,10 @@ export const releasesApi = {
       method: 'PUT',
       body: JSON.stringify(input),
     }),
+  // Archive a release (terminal, non-restorable). v1.2.
+  archive: (id: string) =>
+    request<void>(`/api/releases/${id}/archive`, { method: 'POST' }),
+  // Remove an archived release — soft-delete on the server (never hard-deleted). v1.2.
   delete: (id: string) =>
     request<void>(`/api/releases/${id}`, { method: 'DELETE' }),
 };

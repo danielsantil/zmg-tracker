@@ -18,17 +18,23 @@ namespace Zmg.Api.Services;
 public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
 {
     // List with progress counts (done/total) and derived status. Filterable.
-    // scope=home returns only forward-looking releases (releaseDate >= today) ordered nearest-first;
-    // scope=all (default) returns everything ordered releaseDate desc. q is a case-insensitive title search.
+    // scope=home returns only forward-looking active releases (releaseDate >= today) ordered nearest-first;
+    // scope=archived returns only archived releases ordered releaseDate desc;
+    // scope=all (default) returns active (non-archived) releases ordered releaseDate desc.
+    // Removed (soft-deleted) releases are excluded everywhere by the global query filter.
+    // q is a case-insensitive title search.
     public async Task<IReadOnlyList<ReleaseListItemDto>> ListAsync(
         Guid? artistId, ReleaseType? type, string? status, string? scope, string? q)
     {
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
         var isHome = string.Equals(scope, "home", StringComparison.OrdinalIgnoreCase);
+        var isArchived = string.Equals(scope, "archived", StringComparison.OrdinalIgnoreCase);
 
         var query = db.Releases.AsQueryable();
         if (artistId is { } aid) query = query.Where(r => r.MainArtistId == aid);
         if (type is { } t) query = query.Where(r => r.Type == t);
+        // Archived releases live only in the archived scope; every other scope shows active ones.
+        query = isArchived ? query.Where(r => r.ArchivedAt != null) : query.Where(r => r.ArchivedAt == null);
         if (isHome) query = query.Where(r => r.ReleaseDate >= today);
         if (!string.IsNullOrWhiteSpace(q))
         {
@@ -42,7 +48,7 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
             .Select(r => new
             {
                 r.Id, r.Title, r.Type, r.ReleaseDate, r.MainArtistId,
-                MainArtistName = r.MainArtist!.Name, r.CoverUrl, r.Upc, r.Isrc,
+                MainArtistName = r.MainArtist!.Name, r.CoverUrl, r.Upc, r.Isrc, r.ArchivedAt,
                 Done = r.Tasks.Count(x => x.IsDone),
                 Total = r.Tasks.Count,
                 Distributed = r.Tasks.Any(x => x.IsDone && x.Title == SeedData.DistributeToDspsTitle),
@@ -56,7 +62,7 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
                 return new ReleaseListItemDto(
                     r.Id, r.Title, r.Type, r.ReleaseDate, r.MainArtistId, r.MainArtistName,
                     r.CoverUrl, r.Done, r.Total,
-                    ReleaseStatus.Derive(r.ReleaseDate, today, progress),
+                    ReleaseStatus.Derive(r.ReleaseDate, today, progress, r.ArchivedAt != null),
                     r.Upc, r.Isrc,
                     Release.NeedsWarning(r.Distributed, r.Upc, r.Isrc));
             })
@@ -169,12 +175,36 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
         return OperationResult<ReleaseDetailDto>.Success(ToDetail(updated), validation.Warnings);
     }
 
+    // Archive (v1.2): a terminal, non-restorable state. Only a release still to come (releaseDate >= today)
+    // can be archived, and never twice.
+    public async Task<OperationResult> ArchiveAsync(Guid id)
+    {
+        var release = await db.Releases.FindAsync(id);
+        if (release is null) return OperationResult.NotFound();
+
+        if (release.IsArchived)
+            return OperationResult.Conflict(new[] { "Release is already archived." });
+
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        if (release.ReleaseDate < today)
+            return OperationResult.Conflict(new[] { "Only releases dated today or later can be archived." });
+
+        release.ArchivedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync();
+        return OperationResult.Success();
+    }
+
+    // Remove (v1.2): a soft-delete reachable only from an archived release. Releases are never hard-deleted —
+    // the row is stamped DeletedAt and hidden everywhere by the global query filter.
     public async Task<OperationResult> DeleteAsync(Guid id)
     {
         var release = await db.Releases.FindAsync(id);
         if (release is null) return OperationResult.NotFound();
 
-        db.Releases.Remove(release);
+        if (!release.IsArchived)
+            return OperationResult.Conflict(new[] { "Only archived releases can be removed." });
+
+        release.DeletedAt = DateTime.UtcNow;
         await db.SaveChangesAsync();
         return OperationResult.Success();
     }
@@ -235,9 +265,10 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
             release.Id, release.Title, release.Type, release.ReleaseDate,
             release.MainArtistId, release.MainArtist?.Name ?? string.Empty,
             release.CoverUrl, release.Notes,
-            ReleaseStatus.Derive(release.ReleaseDate, today, progress.Overall),
+            ReleaseStatus.Derive(release.ReleaseDate, today, progress.Overall, release.IsArchived),
             featured, progress.Overall.Done, progress.Overall.Total, phases, tracks,
             release.Upc, release.Isrc,
-            Release.NeedsWarning(release.IsDistributed, release.Upc, release.Isrc));
+            Release.NeedsWarning(release.IsDistributed, release.Upc, release.Isrc),
+            release.IsArchived);
     }
 }

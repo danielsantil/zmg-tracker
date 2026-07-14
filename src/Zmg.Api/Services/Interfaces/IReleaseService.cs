@@ -10,5 +10,6 @@ public interface IReleaseService
     Task<OperationResult<ReleaseDetailDto>> GetAsync(Guid id);
     Task<OperationResult<ReleaseDetailDto>> CreateAsync(ReleaseInput input);
     Task<OperationResult<ReleaseDetailDto>> UpdateAsync(Guid id, ReleaseInput input);
+    Task<OperationResult> ArchiveAsync(Guid id);
     Task<OperationResult> DeleteAsync(Guid id);
 }

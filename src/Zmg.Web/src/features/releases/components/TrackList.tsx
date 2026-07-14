@@ -4,6 +4,7 @@ import { TrackRow } from './TrackRow';
 
 export function TrackList({
   tracks,
+  readOnly = false,
   onAdd,
   onRename,
   onToggleFocus,
@@ -11,6 +12,7 @@ export function TrackList({
   onMove,
 }: {
   tracks: TrackDto[];
+  readOnly?: boolean;
   onAdd: (title: string) => void;
   onRename: (t: TrackDto, title: string) => void;
   onToggleFocus: (t: TrackDto) => void;
@@ -34,6 +36,7 @@ export function TrackList({
                 track={t}
                 isFirst={i === 0}
                 isLast={i === tracks.length - 1}
+                readOnly={readOnly}
                 onRename={onRename}
                 onToggleFocus={onToggleFocus}
                 onDelete={onDelete}
@@ -43,7 +46,7 @@ export function TrackList({
           </ul>
         )}
 
-        <InlineAddForm addLabel="+ Add track" placeholder="New track title" onAdd={onAdd} />
+        {!readOnly && <InlineAddForm addLabel="+ Add track" placeholder="New track title" onAdd={onAdd} />}
       </div>
     </section>
   );

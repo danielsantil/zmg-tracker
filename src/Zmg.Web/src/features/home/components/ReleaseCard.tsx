@@ -6,12 +6,12 @@ export function ReleaseCard({
   r,
   onOpen,
   onEdit,
-  onDelete,
+  onArchive,
 }: {
   r: ReleaseListItem;
   onOpen: () => void;
   onEdit: () => void;
-  onDelete: () => void;
+  onArchive: () => void;
 }) {
   const countdown = formatCountdown(r.status, r.releaseDate);
 
@@ -51,8 +51,8 @@ export function ReleaseCard({
           <Button variant="ghost" onClick={onEdit}>
             Edit
           </Button>
-          <Button variant="danger" onClick={onDelete}>
-            Delete
+          <Button variant="ghost" onClick={onArchive}>
+            Archive
           </Button>
         </div>
       </div>

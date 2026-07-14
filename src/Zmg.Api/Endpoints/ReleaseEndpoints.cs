@@ -26,6 +26,11 @@ public static class ReleaseEndpoints
         group.MapPut("/{id:guid}", async (Guid id, ReleaseInput input, IReleaseService releases) =>
             (await releases.UpdateAsync(id, input)).ToOkWithWarnings());
 
+        // Archive a release (terminal, non-restorable; only for releaseDate >= today). v1.2.
+        group.MapPost("/{id:guid}/archive", async (Guid id, IReleaseService releases) =>
+            (await releases.ArchiveAsync(id)).ToNoContent());
+
+        // Remove: soft-delete, reachable only from an archived release. Releases are never hard-deleted. v1.2.
         group.MapDelete("/{id:guid}", async (Guid id, IReleaseService releases) =>
             (await releases.DeleteAsync(id)).ToNoContent());
     }

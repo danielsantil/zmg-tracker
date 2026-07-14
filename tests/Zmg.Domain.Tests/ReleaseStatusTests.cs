@@ -33,4 +33,13 @@ public class ReleaseStatusTests
         var status = ReleaseStatus.Derive(Today, Today, new ProgressCount(0, 30));
         Assert.Equal(ReleaseStatus.Released, status);
     }
+
+    [Fact]
+    public void Archived_overrides_date_and_progress()
+    {
+        var future = ReleaseStatus.Derive(Today.AddDays(30), Today, new ProgressCount(0, 30), isArchived: true);
+        var complete = ReleaseStatus.Derive(Today.AddDays(-1), Today, new ProgressCount(30, 30), isArchived: true);
+        Assert.Equal(ReleaseStatus.Archived, future);
+        Assert.Equal(ReleaseStatus.Archived, complete);
+    }
 }

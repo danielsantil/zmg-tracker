@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Zmg.Infra.Data;
 
@@ -10,9 +11,11 @@ using Zmg.Infra.Data;
 namespace Zmg.Infra.Migrations
 {
     [DbContext(typeof(ZmgDbContext))]
-    partial class ZmgDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260714015556_AddReleaseArchival")]
+    partial class AddReleaseArchival
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.11");

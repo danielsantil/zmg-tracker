@@ -59,6 +59,7 @@ export interface ReleaseDetail {
   upc: string | null;
   isrc: string | null;
   needsIdentifierWarning: boolean;
+  isArchived: boolean;
 }
 
 export interface CreatedWithWarnings<T> {

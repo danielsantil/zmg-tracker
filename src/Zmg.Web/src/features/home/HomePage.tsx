@@ -51,13 +51,13 @@ export default function HomePage() {
 
   const hasFilters = useMemo(() => artistId || type || status, [artistId, type, status]);
 
-  async function remove(r: ReleaseListItem) {
-    if (!confirm(`Delete "${r.title}"? This removes its checklist.`)) return;
+  async function archive(r: ReleaseListItem) {
+    if (!confirm(`Archive "${r.title}"? Archived releases are read-only and can't be restored.`)) return;
     try {
-      await api.releases.delete(r.id);
+      await api.releases.archive(r.id);
       load();
     } catch (e) {
-      alert(e instanceof ApiError ? e.message : 'Failed to delete.');
+      alert(e instanceof ApiError ? e.message : 'Failed to archive.');
     }
   }
 
@@ -120,7 +120,7 @@ export default function HomePage() {
               r={r}
               onOpen={() => navigate(`/releases/${r.id}`)}
               onEdit={() => navigate(`/releases/${r.id}/edit`)}
-              onDelete={() => remove(r)}
+              onArchive={() => archive(r)}
             />
           ))}
         </div>

@@ -219,15 +219,22 @@ export default function ReleaseDetailPage() {
   if (error) return <p className="rounded-lg bg-red-500/10 px-4 py-3 text-sm text-red-300">{error}</p>;
   if (!release) return null;
 
+  // Archived releases are terminal and read-only: no edit, no toggles, no add/menu controls.
+  const readOnly = release.isArchived;
+
   return (
     <div>
       <div className="mb-4 flex items-center justify-between">
         <button onClick={goBack} className="text-sm text-slate-400 hover:text-slate-200">
           ‹ Releases
         </button>
-        <Button variant="ghost" onClick={() => navigate(`/releases/${release.id}/edit`)}>
-          Edit
-        </Button>
+        {readOnly ? (
+          <span className="text-sm text-slate-500">Archived — read only</span>
+        ) : (
+          <Button variant="ghost" onClick={() => navigate(`/releases/${release.id}/edit`)}>
+            Edit
+          </Button>
+        )}
       </div>
 
       <ReleaseHeader release={release} done={done} total={total} />
@@ -244,6 +251,7 @@ export default function ReleaseDetailPage() {
         <div className="mb-6">
           <TrackList
             tracks={orderedTracks}
+            readOnly={readOnly}
             onAdd={addTrack}
             onRename={renameTrack}
             onToggleFocus={toggleFocus}
@@ -259,6 +267,7 @@ export default function ReleaseDetailPage() {
             key={phase}
             phase={phase}
             tasks={byPhase.get(phase) ?? []}
+            readOnly={readOnly}
             onToggle={toggle}
             onAdd={(title) => addTask(phase, title)}
             onUpdate={updateTask}

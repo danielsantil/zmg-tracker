@@ -16,6 +16,7 @@ public sealed class PendingService(ZmgDbContext db) : IPendingService
     {
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
         var releases = await db.Releases
+            .Where(r => r.ArchivedAt == null) // archived releases are read-only; no actions
             .Include(r => r.MainArtist)
             .Include(r => r.Tasks)
             .ToListAsync();
@@ -32,6 +33,9 @@ public sealed class PendingService(ZmgDbContext db) : IPendingService
             .Include(r => r.Tasks)
             .FirstOrDefaultAsync(r => r.Id == releaseId);
 
-        return release == null ? [] : PendingActions.Order(PendingActions.Compute(release, today));
+        // Archived releases are read-only — surface no pending actions on their detail either.
+        return release is null || release.IsArchived
+            ? []
+            : PendingActions.Order(PendingActions.Compute(release, today));
     }
 }

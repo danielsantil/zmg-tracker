@@ -33,6 +33,8 @@ public class ZmgDbContext(DbContextOptions<ZmgDbContext> options) : DbContext(op
                 .WithMany(a => a.Releases)
                 .HasForeignKey(x => x.MainArtistId)
                 .OnDelete(DeleteBehavior.Restrict); // artist with releases can't be deleted
+            // Soft-delete (v1.2): removed releases are never hard-deleted, just hidden everywhere.
+            e.HasQueryFilter(x => x.DeletedAt == null);
         });
 
         b.Entity<ReleaseArtist>(e =>
