@@ -7,12 +7,20 @@ can't carry. Read the plans for scope/rationale; read this for where things stan
 **Plan versions:**
 - [build-plan-1.0.md](build-plan-1.0.md) — frozen v1 brief (M0–M5). Shipped.
 - [build-plan-1.1.md](build-plan-1.1.md) — singles improvements (M6–M10). **All built (M6–M10).**
+- [build-plan-1.2.md](build-plan-1.2.md) — archived releases (M11). **Built (M11).**
 
 Newer plan versions live in new `build-plan-N.N.md` files; older ones stay frozen.
 
 **As of:** v1 (M0–M5) done and verified. **v1.1 (M6–M10) complete and verified:** schema/seed foundation;
 UPC/ISRC + soft warnings; task timeframes & notes; Home vs All Releases navigation; and the pending-actions
-engine. Deferred/next-phase items are in the [Backlog](#backlog-deferred--next-phase-not-gaps-in-v1-or-v11).
+engine. **v1.2 (M11) complete and verified:** the Archived lifecycle — archive an upcoming release, an
+Archived Releases screen, and a soft-delete ("Remove") reachable only from archives. Deferred/next-phase items
+are in the [Backlog](#backlog-deferred--next-phase-not-gaps-in-v1-or-v11).
+
+**v1.1 bug fix (post-M10):** the M7 soft UPC/ISRC warning was a hover-only `title` tooltip — invisible/unusable
+on touch. It's now a real button that toggles a tap-dismissable popover (fixed positioning + backdrop, the
+RowMenu pattern), click isolated with `stopPropagation` so it never triggers the card/row nav
+([IdentifierWarning.tsx](src/Zmg.Web/src/components/IdentifierWarning.tsx)).
 
 ---
 
@@ -193,6 +201,56 @@ tests/Zmg.Api.Tests      integration tests (WebApplicationFactory + in-memory SQ
   (window not open) contributed nothing; the detail DTO carried the same `pendingActions`.
 
 **v1.1 (M6–M10) is complete.** Residual/next-phase items are in the backlog below.
+
+---
+
+## v1.2 built so far
+
+**M11 — Archived status & soft-delete lifecycle. ✅ Built.**
+- Domain: `Release.ArchivedAt` / `Release.DeletedAt` (nullable) + `Release.IsArchived`
+  ([Release.cs](src/Zmg.Domain/Entities/Release.cs)); `ReleaseStatus.Archived` const and
+  `Derive(..., bool isArchived = false)` returns `Archived` first, overriding date/progress
+  ([ReleaseStatus.cs](src/Zmg.Domain/ReleaseStatus.cs)). One EF migration `AddReleaseArchival`
+  ([Migrations/](src/Zmg.Infra/Migrations)) adds the two columns (existing rows → null = active).
+- Infra: a global query filter `HasQueryFilter(r => r.DeletedAt == null)` on `Release`
+  ([ZmgDbContext.cs](src/Zmg.Infra/Data/ZmgDbContext.cs)) hides soft-deleted rows from every read in one place.
+  (EF logs the standard "required end of a relationship" advisory for the child navs — benign for soft-delete;
+  children are only ever loaded through the filtered `Release`.)
+- API: the list ([ReleaseService.cs](src/Zmg.Api/Services/ReleaseService.cs)) gained `scope=archived`
+  (only `ArchivedAt != null`, desc); `home`/`all` now exclude archived (`ArchivedAt == null`); the status
+  projection carries `ArchivedAt` so `Derive` stamps `Archived`. `POST /api/releases/{id}/archive` — 409 if
+  `releaseDate < today` or already archived, else stamps `ArchivedAt`. `DELETE /api/releases/{id}` **repurposed**
+  from a hard delete to a guarded **soft-delete** — 409 unless archived, else stamps `DeletedAt`
+  ([ReleaseEndpoints.cs](src/Zmg.Api/Endpoints/ReleaseEndpoints.cs)). Pending excludes archived on both paths
+  ([PendingService.cs](src/Zmg.Api/Services/PendingService.cs)). Detail DTO gained `isArchived`
+  ([Dtos.cs](src/Zmg.Api/Contracts/Dtos.cs)).
+- Frontend: `StatusBadge` gained an `Archived` (slate) style. **Home cards** replace the Delete button with
+  **Archive** ([ReleaseCard.tsx](src/Zmg.Web/src/features/home/components/ReleaseCard.tsx),
+  [HomePage.tsx](src/Zmg.Web/src/features/home/HomePage.tsx)) — every Home card is `releaseDate >= today` so
+  Archive always applies. **All Releases** gained an "Archived Releases →" link atop the table and an **Action**
+  column with an **Archive** button shown only when `releaseDate >= today`
+  ([AllReleasesPage.tsx](src/Zmg.Web/src/features/releases/AllReleasesPage.tsx)). New **Archived Releases** page
+  (`/releases/archived`, [ArchivedReleasesPage.tsx](src/Zmg.Web/src/features/releases/ArchivedReleasesPage.tsx))
+  — same table (Name · Type · Released Date · Action), Action = **Delete** (soft-delete). Not a nav item — reached
+  via the link. **Release detail** is read-only when archived: `readOnly` threads through
+  PhaseSection/TaskRow/TrackList/TrackRow (checkboxes disabled, row menus + add forms hidden), the Edit button
+  becomes an "Archived — read only" note ([ReleaseDetailPage.tsx](src/Zmg.Web/src/features/releases/ReleaseDetailPage.tsx)).
+  API client gained `scope: 'archived'` + `archive(id)`; `delete(id)` now means soft-delete
+  ([releases.ts](src/Zmg.Web/src/api/releases.ts)).
+- Tests (**+7 → domain 40 / API 54, all green**): domain `Derive(isArchived: true)` overrides date/progress
+  ([ReleaseStatusTests.cs](tests/Zmg.Domain.Tests/ReleaseStatusTests.cs)); API archive → moves to `scope=archived`
+  and off home/all (+ detail `isArchived`), archive past → 409, archive twice → 409, remove archived → 204 and gone,
+  remove active → 409, archived release contributes no pending
+  ([ReleaseArchiveApiTests.cs](tests/Zmg.Api.Tests/ReleaseArchiveApiTests.cs)).
+- **Verified:** ran the API on :5274 with a freshly-migrated DB. Via API: archived a future release (204),
+  archiving a past release 409'd, `scope=archived` returned it as `Archived` while `all`/`home` dropped it,
+  removing an active release 409'd, removing the archived one 204'd and it left `scope=archived`. Via the browser
+  SPA: All Releases showed the "Archived Releases →" link + an Archive button only on the future row; the Archived
+  page rendered the Archived badge + Delete action; the archived detail showed "Archived — read only" (no Edit),
+  the `Archived` badge, and a checklist with disabled checkboxes and no row menus.
+
+**Rules enforced:** Archive only when `releaseDate >= today`; Remove only for archived; archives are terminal
+(no restore) and their detail is fully read-only. Releases are never hard-deleted (soft-delete + global filter).
 
 ---
 

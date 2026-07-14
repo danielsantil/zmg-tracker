@@ -8,6 +8,7 @@ import { TaskRow, type TaskPatch } from './TaskRow';
 export function PhaseSection({
   phase,
   tasks,
+  readOnly = false,
   onToggle,
   onAdd,
   onUpdate,
@@ -16,6 +17,7 @@ export function PhaseSection({
 }: {
   phase: Phase;
   tasks: ReleaseTaskDto[];
+  readOnly?: boolean;
   onToggle: (t: ReleaseTaskDto) => void;
   onAdd: (title: string) => void;
   onUpdate: (t: ReleaseTaskDto, patch: TaskPatch) => void;
@@ -56,6 +58,7 @@ export function PhaseSection({
                   task={t}
                   isFirst={i === 0}
                   isLast={i === tasks.length - 1}
+                  readOnly={readOnly}
                   onToggle={onToggle}
                   onUpdate={onUpdate}
                   onDelete={onDelete}
@@ -65,7 +68,7 @@ export function PhaseSection({
             </ul>
           )}
 
-          <InlineAddForm addLabel="+ Add task" placeholder="New task title" onAdd={onAdd} />
+          {!readOnly && <InlineAddForm addLabel="+ Add task" placeholder="New task title" onAdd={onAdd} />}
         </div>
       )}
     </section>

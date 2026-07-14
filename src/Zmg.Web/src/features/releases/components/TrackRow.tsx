@@ -6,6 +6,7 @@ export function TrackRow({
   track,
   isFirst,
   isLast,
+  readOnly = false,
   onRename,
   onToggleFocus,
   onDelete,
@@ -14,6 +15,7 @@ export function TrackRow({
   track: TrackDto;
   isFirst: boolean;
   isLast: boolean;
+  readOnly?: boolean;
   onRename: (t: TrackDto, title: string) => void;
   onToggleFocus: (t: TrackDto) => void;
   onDelete: (t: TrackDto) => void;
@@ -43,10 +45,11 @@ export function TrackRow({
         <button
           aria-label={track.isFocusTrack ? 'Unset focus track' : 'Set focus track'}
           aria-pressed={track.isFocusTrack}
-          onClick={() => onToggleFocus(track)}
+          disabled={readOnly}
+          onClick={() => !readOnly && onToggleFocus(track)}
           className={`shrink-0 text-lg leading-none transition ${
             track.isFocusTrack ? 'text-amber-400' : 'text-slate-600 hover:text-slate-400'
-          }`}
+          } ${readOnly ? 'cursor-default' : ''}`}
         >
           {track.isFocusTrack ? '★' : '☆'}
         </button>
@@ -64,7 +67,11 @@ export function TrackRow({
             }}
           />
         ) : (
-          <button className="flex-1 text-left text-sm text-slate-100" onClick={startEdit}>
+          <button
+            className={`flex-1 text-left text-sm text-slate-100 ${readOnly ? 'cursor-default' : ''}`}
+            disabled={readOnly}
+            onClick={() => !readOnly && startEdit()}
+          >
             {track.title}
             {track.isFocusTrack && (
               <span className="ml-2 text-xs text-amber-400/80">focus</span>
@@ -72,25 +79,27 @@ export function TrackRow({
           </button>
         )}
 
-        <RowMenu label="Track actions">
-          {(close) => (
-            <>
-              <MenuItem onClick={() => { close(); startEdit(); }}>Rename</MenuItem>
-              <MenuItem onClick={() => { close(); onToggleFocus(track); }}>
-                {track.isFocusTrack ? 'Unset focus track' : 'Set focus track'}
-              </MenuItem>
-              {!isFirst && (
-                <MenuItem onClick={() => { close(); onMove(track, -1); }}>Move up</MenuItem>
-              )}
-              {!isLast && (
-                <MenuItem onClick={() => { close(); onMove(track, 1); }}>Move down</MenuItem>
-              )}
-              <MenuItem danger onClick={() => { close(); onDelete(track); }}>
-                Delete
-              </MenuItem>
-            </>
-          )}
-        </RowMenu>
+        {!readOnly && (
+          <RowMenu label="Track actions">
+            {(close) => (
+              <>
+                <MenuItem onClick={() => { close(); startEdit(); }}>Rename</MenuItem>
+                <MenuItem onClick={() => { close(); onToggleFocus(track); }}>
+                  {track.isFocusTrack ? 'Unset focus track' : 'Set focus track'}
+                </MenuItem>
+                {!isFirst && (
+                  <MenuItem onClick={() => { close(); onMove(track, -1); }}>Move up</MenuItem>
+                )}
+                {!isLast && (
+                  <MenuItem onClick={() => { close(); onMove(track, 1); }}>Move down</MenuItem>
+                )}
+                <MenuItem danger onClick={() => { close(); onDelete(track); }}>
+                  Delete
+                </MenuItem>
+              </>
+            )}
+          </RowMenu>
+        )}
       </div>
     </li>
   );

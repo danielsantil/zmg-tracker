@@ -12,6 +12,7 @@ export function TaskRow({
   task,
   isFirst,
   isLast,
+  readOnly = false,
   onToggle,
   onUpdate,
   onDelete,
@@ -20,6 +21,7 @@ export function TaskRow({
   task: ReleaseTaskDto;
   isFirst: boolean;
   isLast: boolean;
+  readOnly?: boolean;
   onToggle: (t: ReleaseTaskDto) => void;
   onUpdate: (t: ReleaseTaskDto, patch: TaskPatch) => void;
   onDelete: (t: ReleaseTaskDto) => void;
@@ -53,12 +55,13 @@ export function TaskRow({
           role="checkbox"
           aria-checked={task.isDone}
           aria-label={task.title}
-          onClick={() => onToggle(task)}
+          disabled={readOnly}
+          onClick={() => !readOnly && onToggle(task)}
           className={`grid h-6 w-6 shrink-0 place-items-center rounded-md border transition ${
             task.isDone
               ? 'border-accent bg-accent text-white'
               : 'border-edge bg-panel hover:border-accent'
-          }`}
+          } ${readOnly ? 'cursor-default opacity-70 hover:border-edge' : ''}`}
         >
           {task.isDone && '✓'}
         </button>
@@ -77,8 +80,9 @@ export function TaskRow({
           />
         ) : (
           <button
-            className={`flex-1 text-left text-sm ${task.isDone ? 'text-slate-500 line-through' : 'text-slate-100'}`}
-            onClick={() => onToggle(task)}
+            className={`flex-1 text-left text-sm ${task.isDone ? 'text-slate-500 line-through' : 'text-slate-100'} ${readOnly ? 'cursor-default' : ''}`}
+            disabled={readOnly}
+            onClick={() => !readOnly && onToggle(task)}
           >
             {task.title}
             {timeframe && (
@@ -92,31 +96,33 @@ export function TaskRow({
           </button>
         )}
 
-        <RowMenu>
-          {(close) => (
-            <>
-              <MenuItem onClick={() => { close(); startEdit('title'); }}>Rename</MenuItem>
-              <MenuItem onClick={() => { close(); startEdit('notes'); }}>
-                {task.notes ? 'Edit notes' : 'Add notes'}
-              </MenuItem>
-              {task.phase === Phase.Pre && (
-                <MenuItem onClick={() => { close(); setEditing('timeframe'); }}>
-                  {timeframe ? 'Edit timeframe' : 'Set timeframe'}
+        {!readOnly && (
+          <RowMenu>
+            {(close) => (
+              <>
+                <MenuItem onClick={() => { close(); startEdit('title'); }}>Rename</MenuItem>
+                <MenuItem onClick={() => { close(); startEdit('notes'); }}>
+                  {task.notes ? 'Edit notes' : 'Add notes'}
                 </MenuItem>
-              )}
-              <MovePhaseItems task={task} onUpdate={onUpdate} close={close} />
-              {!isFirst && (
-                <MenuItem onClick={() => { close(); onMove(task, -1); }}>Move up</MenuItem>
-              )}
-              {!isLast && (
-                <MenuItem onClick={() => { close(); onMove(task, 1); }}>Move down</MenuItem>
-              )}
-              <MenuItem danger onClick={() => { close(); onDelete(task); }}>
-                Delete
-              </MenuItem>
-            </>
-          )}
-        </RowMenu>
+                {task.phase === Phase.Pre && (
+                  <MenuItem onClick={() => { close(); setEditing('timeframe'); }}>
+                    {timeframe ? 'Edit timeframe' : 'Set timeframe'}
+                  </MenuItem>
+                )}
+                <MovePhaseItems task={task} onUpdate={onUpdate} close={close} />
+                {!isFirst && (
+                  <MenuItem onClick={() => { close(); onMove(task, -1); }}>Move up</MenuItem>
+                )}
+                {!isLast && (
+                  <MenuItem onClick={() => { close(); onMove(task, 1); }}>Move down</MenuItem>
+                )}
+                <MenuItem danger onClick={() => { close(); onDelete(task); }}>
+                  Delete
+                </MenuItem>
+              </>
+            )}
+          </RowMenu>
+        )}
       </div>
 
       {editing === 'notes' && (

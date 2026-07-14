@@ -4,6 +4,7 @@ import { api, ApiError } from '@/api';
 import type { Artist, ReleaseListItem } from '@/types';
 import { ReleaseType } from '@/types';
 import { Button, IdentifierWarning, StatusBadge, TypeBadge, inputClass } from '@/components';
+import { todayIso } from '@/lib/format';
 
 export default function AllReleasesPage() {
   const navigate = useNavigate();
@@ -15,6 +16,7 @@ export default function AllReleasesPage() {
   const [artistId, setArtistId] = useState('');
   const [type, setType] = useState('');
   const [q, setQ] = useState('');
+  const today = todayIso();
 
   async function loadReleases() {
     setLoading(true);
@@ -40,6 +42,16 @@ export default function AllReleasesPage() {
   }, [artistId, type, q]);
 
   const hasFilters = useMemo(() => artistId || type || q, [artistId, type, q]);
+
+  async function archive(r: ReleaseListItem) {
+    if (!confirm(`Archive "${r.title}"? Archived releases are read-only and can't be restored.`)) return;
+    try {
+      await api.releases.archive(r.id);
+      loadReleases();
+    } catch (e) {
+      alert(e instanceof ApiError ? e.message : 'Failed to archive.');
+    }
+  }
 
   return (
     <div>
@@ -95,6 +107,11 @@ export default function AllReleasesPage() {
         </div>
       ) : (
         <div className="overflow-hidden rounded-xl border border-edge bg-panel">
+          <div className="flex justify-end border-b border-edge px-4 py-2">
+            <Link to="/releases/archived" className="text-sm text-slate-400 hover:text-accent">
+              Archived Releases →
+            </Link>
+          </div>
           <table className="w-full text-left text-sm">
             <thead className="border-b border-edge text-xs uppercase tracking-wide text-slate-500">
               <tr>
@@ -102,6 +119,7 @@ export default function AllReleasesPage() {
                 <th className="px-4 py-3 font-medium">Type</th>
                 <th className="px-4 py-3 font-medium">Released Date</th>
                 <th className="px-4 py-3 font-medium">Status</th>
+                <th className="px-4 py-3 font-medium">Action</th>
               </tr>
             </thead>
             <tbody>
@@ -130,6 +148,20 @@ export default function AllReleasesPage() {
                   <td className="whitespace-nowrap px-4 py-3 text-slate-300">{r.releaseDate}</td>
                   <td className="px-4 py-3">
                     <StatusBadge status={r.status} />
+                  </td>
+                  <td className="px-4 py-3">
+                    {/* Archive is only allowed for releases still to come (releaseDate >= today). */}
+                    {r.releaseDate >= today && (
+                      <Button
+                        variant="ghost"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          archive(r);
+                        }}
+                      >
+                        Archive
+                      </Button>
+                    )}
                   </td>
                 </tr>
               ))}

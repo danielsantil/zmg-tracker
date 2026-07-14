@@ -10,6 +10,11 @@ export function formatTimeframe(min: number | null, max: number | null): string 
   return `${max ?? min} days before`;
 }
 
+/** Today as a yyyy-MM-dd string, for lexicographic comparison against release dates. */
+export function todayIso(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
 export function daysToRelease(date: string): number {
   const d = new Date(date + 'T00:00:00');
   const now = new Date();

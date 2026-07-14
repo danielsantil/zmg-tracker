@@ -1,6 +1,7 @@
 import { NavLink, Route, Routes } from 'react-router-dom';
 import Home from './features/home/HomePage';
 import AllReleases from './features/releases/AllReleasesPage';
+import ArchivedReleases from './features/releases/ArchivedReleasesPage';
 import Artists from './features/artists/ArtistsPage';
 import ReleaseForm from './features/releases/ReleaseFormPage';
 import ReleaseDetail from './features/releases/ReleaseDetailPage';
@@ -43,6 +44,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/releases" element={<AllReleases />} />
+          <Route path="/releases/archived" element={<ArchivedReleases />} />
           <Route path="/artists" element={<Artists />} />
           <Route path="/templates" element={<Templates />} />
           <Route path="/releases/new" element={<ReleaseForm />} />
