@@ -1,3 +1,5 @@
+using Zmg.Domain.Enums;
+
 namespace Zmg.Domain.Tests;
 
 public class ValidationTests
@@ -88,13 +90,59 @@ public class ValidationTests
         Assert.True(Validation.ValidateTaskTitle("Pitch to Spotify").IsValid);
     }
 
-    // ---- Track title required (albums) ----
+    // ---- Song create/rename (v2.0) ----
 
     [Fact]
-    public void Track_title_required()
+    public void Song_requires_title_and_main_artist()
     {
-        Assert.False(Validation.ValidateTrackTitle(" ").IsValid);
-        Assert.True(Validation.ValidateTrackTitle("Intro").IsValid);
+        Assert.False(Validation.ValidateSong("  ", Guid.NewGuid(), mainArtistExists: true, Array.Empty<string>()).IsValid);
+        Assert.False(Validation.ValidateSong("Luz", Guid.Empty, mainArtistExists: false, Array.Empty<string>()).IsValid);
+        Assert.True(Validation.ValidateSong("Luz", Guid.NewGuid(), mainArtistExists: true, Array.Empty<string>()).IsValid);
+    }
+
+    [Fact]
+    public void Song_duplicate_title_for_same_artist_warns_but_does_not_block()
+    {
+        var result = Validation.ValidateSong("Luz", Guid.NewGuid(), mainArtistExists: true, new[] { "luz" });
+        Assert.True(result.IsValid);
+        Assert.Contains(result.Warnings, w => w.Contains("already exists"));
+    }
+
+    // ---- Release tracks (v2.0) ----
+
+    [Fact]
+    public void Single_must_have_exactly_one_track()
+    {
+        Assert.False(Validation.ValidateReleaseTracks(ReleaseType.Single, Array.Empty<TrackSpec>()).IsValid);
+        Assert.False(Validation.ValidateReleaseTracks(ReleaseType.Single,
+            new[] { new TrackSpec(null, "A"), new TrackSpec(null, "B") }).IsValid);
+        Assert.True(Validation.ValidateReleaseTracks(ReleaseType.Single,
+            new[] { new TrackSpec(null, "A") }).IsValid);
+    }
+
+    [Fact]
+    public void Album_may_have_zero_tracks()
+    {
+        Assert.True(Validation.ValidateReleaseTracks(ReleaseType.Album, Array.Empty<TrackSpec>()).IsValid);
+    }
+
+    [Fact]
+    public void Track_spec_must_set_exactly_one_of_id_or_title()
+    {
+        // Neither.
+        Assert.False(Validation.ValidateReleaseTracks(ReleaseType.Album,
+            new[] { new TrackSpec(null, "  ") }).IsValid);
+        // Both.
+        Assert.False(Validation.ValidateReleaseTracks(ReleaseType.Album,
+            new[] { new TrackSpec(Guid.NewGuid(), "Title") }).IsValid);
+    }
+
+    [Fact]
+    public void Duplicate_song_ids_are_rejected()
+    {
+        var id = Guid.NewGuid();
+        Assert.False(Validation.ValidateReleaseTracks(ReleaseType.Album,
+            new[] { new TrackSpec(id, null), new TrackSpec(id, null) }).IsValid);
     }
 
     // ---- Template must keep at least one task ----

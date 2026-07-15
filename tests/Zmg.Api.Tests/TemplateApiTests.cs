@@ -147,7 +147,8 @@ public class TemplateApiTests : IDisposable
         var artist = (await (await client.PostAsJsonAsync("/api/artists",
             new ArtistInput("Invariant Artist", null))).Content.ReadFromJsonAsync<ArtistDto>())!;
         var release = (await (await client.PostAsJsonAsync("/api/releases", new ReleaseInput(
-            "Invariant Song", ReleaseType.Single, new DateOnly(2026, 8, 14), artist.Id, null, null, null)))
+            "Invariant Song", ReleaseType.Single, new DateOnly(2026, 8, 14), artist.Id, null, null,
+            new List<TrackInput> { new(null, "Track 1", null, null) })))
             .Content.ReadFromJsonAsync<CreatedWithWarnings<ReleaseDetailDto>>())!.Data;
         var releaseTotalBefore = release.TotalTasks;
 

@@ -26,7 +26,8 @@ public class PendingApiTests
     private async Task<Guid> CreateReleaseReturningId(HttpClient client, Guid artistId, string title, DateOnly date)
     {
         var res = await client.PostAsJsonAsync("/api/releases", new ReleaseInput(
-            title, ReleaseType.Single, date, artistId, null, null, null));
+            title, ReleaseType.Single, date, artistId, null, null,
+            new List<TrackInput> { new(null, "Track 1", null, null) }));
         res.EnsureSuccessStatusCode();
         var created = (await res.Content.ReadFromJsonAsync<CreatedWithWarnings<ReleaseDetailDto>>())!;
         return created.Data.Id;
@@ -62,7 +63,7 @@ public class PendingApiTests
         Assert.Equal("Near", taskDue.First().ReleaseTitle);
 
         // The past release surfaces as a missing-identifier data action.
-        Assert.Contains(missing, a => a.ReleaseTitle == "Past" && a.Label == "Missing UPC, ISRC");
+        Assert.Contains(missing, a => a.ReleaseTitle == "Past" && a.Label == "Missing UPC");
     }
 
     [Fact]

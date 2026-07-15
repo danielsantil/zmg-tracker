@@ -46,16 +46,13 @@ public static class PendingActions
             }
         }
 
-        // 2. Missing identifier — one action per release once distributed with a blank id.
-        if (release.IsDistributed)
+        // 2. Missing identifier — one action per release once distributed with a blank UPC.
+        // v2.0: ISRC moved to the song, so this is UPC-only here; the ISRC nag is reworked in M14.
+        if (release.IsDistributed && string.IsNullOrWhiteSpace(release.Upc))
         {
-            var label = release.MissingLabel();
-            if (label is not null)
-            {
-                result.Add(new PendingAction(
-                    release.Id, release.Title, artistName,
-                    PendingKind.MissingIdentifier, null, label, null));
-            }
+            result.Add(new PendingAction(
+                release.Id, release.Title, artistName,
+                PendingKind.MissingIdentifier, null, "Missing UPC", null));
         }
 
         return result;

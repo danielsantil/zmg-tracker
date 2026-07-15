@@ -8,7 +8,8 @@ public class ZmgDbContext(DbContextOptions<ZmgDbContext> options) : DbContext(op
 {
     public DbSet<Artist> Artists => Set<Artist>();
     public DbSet<Release> Releases => Set<Release>();
-    public DbSet<ReleaseArtist> ReleaseArtists => Set<ReleaseArtist>();
+    public DbSet<Song> Songs => Set<Song>();
+    public DbSet<SongArtist> SongArtists => Set<SongArtist>();
     public DbSet<Track> Tracks => Set<Track>();
     public DbSet<ReleaseTask> ReleaseTasks => Set<ReleaseTask>();
     public DbSet<ChecklistTemplate> ChecklistTemplates => Set<ChecklistTemplate>();
@@ -37,27 +38,48 @@ public class ZmgDbContext(DbContextOptions<ZmgDbContext> options) : DbContext(op
             e.HasQueryFilter(x => x.DeletedAt == null);
         });
 
-        b.Entity<ReleaseArtist>(e =>
+        b.Entity<Song>(e =>
         {
-            e.HasKey(x => new { x.ReleaseId, x.ArtistId });
-            e.HasOne(x => x.Release)
-                .WithMany(r => r.FeaturedArtists)
-                .HasForeignKey(x => x.ReleaseId)
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Title).IsRequired();
+            e.HasOne(x => x.MainArtist)
+                .WithMany(a => a.Songs)
+                .HasForeignKey(x => x.MainArtistId)
+                .OnDelete(DeleteBehavior.Restrict); // artist who's a song's main artist can't be deleted
+            e.HasIndex(x => x.Title);
+            // Soft-delete (v2.0): removed songs are hidden everywhere. Stale join rows are hidden by
+            // the Track query filter below.
+            e.HasQueryFilter(x => x.DeletedAt == null);
+        });
+
+        b.Entity<SongArtist>(e =>
+        {
+            e.HasKey(x => new { x.SongId, x.ArtistId });
+            e.HasOne(x => x.Song)
+                .WithMany(s => s.Artists)
+                .HasForeignKey(x => x.SongId)
                 .OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.Artist)
-                .WithMany(a => a.ReleaseCredits)
+                .WithMany(a => a.SongCredits)
                 .HasForeignKey(x => x.ArtistId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
         b.Entity<Track>(e =>
         {
-            e.HasKey(x => x.Id);
-            e.Property(x => x.Title).IsRequired();
+            // Composite PK: structurally prevents the same song appearing twice on one release.
+            e.HasKey(x => new { x.ReleaseId, x.SongId });
             e.HasOne(x => x.Release)
                 .WithMany(r => r.Tracks)
                 .HasForeignKey(x => x.ReleaseId)
                 .OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Song)
+                .WithMany(s => s.ReleaseLinks)
+                .HasForeignKey(x => x.SongId)
+                .OnDelete(DeleteBehavior.Restrict);
+            // A join between two soft-filtered entities must vanish with either parent; this also
+            // silences EF's required-nav-to-filtered-entity warning.
+            e.HasQueryFilter(x => x.Release!.DeletedAt == null && x.Song!.DeletedAt == null);
         });
 
         b.Entity<ReleaseTask>(e =>

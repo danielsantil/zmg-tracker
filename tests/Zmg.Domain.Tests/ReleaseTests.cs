@@ -25,35 +25,20 @@ public class ReleaseTests
     [Fact]
     public void NeedsWarning_is_silent_until_distributed()
     {
-        Assert.False(Release.NeedsWarning(distributed: false, upc: null, isrc: null));
+        Assert.False(Release.NeedsWarning(distributed: false, upc: null));
     }
 
     [Fact]
-    public void NeedsWarning_fires_on_a_blank_id_once_distributed()
+    public void NeedsWarning_fires_on_a_blank_upc_once_distributed()
     {
-        Assert.True(Release.NeedsWarning(distributed: true, upc: null, isrc: "x"));
-        Assert.True(Release.NeedsWarning(distributed: true, upc: "x", isrc: "   "));
+        // v2.0: UPC-only (ISRC moved to the song).
+        Assert.True(Release.NeedsWarning(distributed: true, upc: null));
+        Assert.True(Release.NeedsWarning(distributed: true, upc: "   "));
     }
 
     [Fact]
-    public void NeedsWarning_is_false_when_both_ids_present()
+    public void NeedsWarning_is_false_when_upc_present()
     {
-        Assert.False(Release.NeedsWarning(distributed: true, upc: "u", isrc: "i"));
-    }
-
-    [Fact]
-    public void MissingLabel_lists_the_blank_ids_or_null()
-    {
-        var release = new Release();
-        Assert.Equal("Missing UPC, ISRC", release.MissingLabel());
-
-        release.Upc = "u";
-        Assert.Equal("Missing ISRC", release.MissingLabel());
-        
-        release.Isrc = "i";
-        Assert.Null(release.MissingLabel());
-        
-        release.Upc = null;
-        Assert.Equal("Missing UPC", release.MissingLabel());
+        Assert.False(Release.NeedsWarning(distributed: true, upc: "u"));
     }
 }

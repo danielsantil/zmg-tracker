@@ -11,5 +11,10 @@ public class Artist
     public string? Notes { get; set; }
 
     public List<Release> Releases { get; set; } = new();
-    public List<ReleaseArtist> ReleaseCredits { get; set; } = new();
+
+    /// <summary>Songs this artist is the main artist of (v2.0).</summary>
+    public List<Song> Songs { get; set; } = new();
+
+    /// <summary>Songs this artist is credited on as a feat/collab (v2.0).</summary>
+    public List<SongArtist> SongCredits { get; set; } = new();
 }

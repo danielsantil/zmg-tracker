@@ -15,6 +15,10 @@ public class ArtistReleaseApiTests(ZmgApiFactory factory) : IClassFixture<ZmgApi
         return (await res.Content.ReadFromJsonAsync<ArtistDto>())!;
     }
 
+    // A single must carry exactly one track (v2.0).
+    private static List<TrackInput> OneTrack(string title = "Track 1") =>
+        new() { new TrackInput(null, title, null, null) };
+
     [Fact]
     public async Task Health_endpoint_is_ok()
     {
@@ -59,7 +63,7 @@ public class ArtistReleaseApiTests(ZmgApiFactory factory) : IClassFixture<ZmgApi
         var artist = await CreateArtist(client, "Golden Path Artist");
 
         var res = await client.PostAsJsonAsync("/api/releases", new ReleaseInput(
-            "Luz", ReleaseType.Single, new DateOnly(2026, 8, 14), artist.Id, null, null, null));
+            "Luz", ReleaseType.Single, new DateOnly(2026, 8, 14), artist.Id, null, null, OneTrack()));
         res.EnsureSuccessStatusCode();
 
         var created = (await res.Content.ReadFromJsonAsync<CreatedWithWarnings<ReleaseDetailDto>>())!;
@@ -94,7 +98,7 @@ public class ArtistReleaseApiTests(ZmgApiFactory factory) : IClassFixture<ZmgApi
         var artist = await CreateArtist(client, "Has Releases");
 
         var relRes = await client.PostAsJsonAsync("/api/releases", new ReleaseInput(
-            "Song", ReleaseType.Single, new DateOnly(2026, 9, 1), artist.Id, null, null, null));
+            "Song", ReleaseType.Single, new DateOnly(2026, 9, 1), artist.Id, null, null, OneTrack()));
         relRes.EnsureSuccessStatusCode();
 
         var delete = await client.DeleteAsync($"/api/artists/{artist.Id}");
@@ -108,7 +112,7 @@ public class ArtistReleaseApiTests(ZmgApiFactory factory) : IClassFixture<ZmgApi
         var artist = await CreateArtist(client, "Backfill Artist");
 
         var res = await client.PostAsJsonAsync("/api/releases", new ReleaseInput(
-            "Old Song", ReleaseType.Single, new DateOnly(2020, 1, 1), artist.Id, null, null, null));
+            "Old Song", ReleaseType.Single, new DateOnly(2020, 1, 1), artist.Id, null, null, OneTrack()));
         res.EnsureSuccessStatusCode();
 
         var created = (await res.Content.ReadFromJsonAsync<CreatedWithWarnings<ReleaseDetailDto>>())!;
@@ -133,7 +137,7 @@ public class ArtistReleaseApiTests(ZmgApiFactory factory) : IClassFixture<ZmgApi
         var artist = await CreateArtist(client, "Filter Artist");
 
         await client.PostAsJsonAsync("/api/releases", new ReleaseInput(
-            "A Single", ReleaseType.Single, new DateOnly(2026, 8, 1), artist.Id, null, null, null));
+            "A Single", ReleaseType.Single, new DateOnly(2026, 8, 1), artist.Id, null, null, OneTrack()));
         await client.PostAsJsonAsync("/api/releases", new ReleaseInput(
             "An Album", ReleaseType.Album, new DateOnly(2026, 8, 1), artist.Id, null, null, null));
 

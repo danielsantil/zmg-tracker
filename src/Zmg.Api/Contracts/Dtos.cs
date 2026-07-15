@@ -7,9 +7,12 @@ namespace Zmg.Api.Contracts;
 public record ArtistDto(Guid Id, string Name, string? Notes, int ReleaseCount);
 public record ArtistInput(string Name, string? Notes);
 
-// ---- Releases ----
-public record ReleaseArtistInput(Guid ArtistId, ArtistRole Role);
+// ---- Songs / artists on songs (v2.0) ----
+public record SongArtistInput(Guid ArtistId, ArtistRole Role);
+public record SongArtistDto(Guid ArtistId, string Name, ArtistRole Role);
 
+// ---- Releases ----
+// Tracks is create-only (ignored on PUT). Exactly one of SongId/Title per track.
 public record ReleaseInput(
     string Title,
     ReleaseType Type,
@@ -17,11 +20,8 @@ public record ReleaseInput(
     Guid MainArtistId,
     string? CoverUrl,
     string? Notes,
-    List<ReleaseArtistInput>? FeaturedArtists,
-    string? Upc = null,
-    string? Isrc = null);
-
-public record FeaturedArtistDto(Guid ArtistId, string Name, ArtistRole Role);
+    List<TrackInput>? Tracks,
+    string? Upc = null);
 
 public record ReleaseListItemDto(
     Guid Id,
@@ -35,7 +35,6 @@ public record ReleaseListItemDto(
     int TotalTasks,
     string Status,
     string? Upc,
-    string? Isrc,
     bool NeedsIdentifierWarning);
 
 public record ReleaseDetailDto(
@@ -48,13 +47,11 @@ public record ReleaseDetailDto(
     string? CoverUrl,
     string? Notes,
     string Status,
-    List<FeaturedArtistDto> FeaturedArtists,
     int DoneTasks,
     int TotalTasks,
     List<PhaseGroupDto> Phases,
     List<TrackDto> Tracks,
     string? Upc,
-    string? Isrc,
     bool NeedsIdentifierWarning,
     bool IsArchived);
 
@@ -70,11 +67,13 @@ public record AddTaskInput(string Title, Phase Phase, int? MinDaysBefore = null,
 public record UpdateTaskInput(string Title, Phase Phase, string? Notes, int? MinDaysBefore = null, int? MaxDaysBefore = null);
 public record ReorderTasksInput(Phase Phase, List<Guid> OrderedTaskIds);
 
-// ---- Tracks (M4 album support) ----
-public record TrackDto(Guid Id, int TrackNumber, string Title, bool IsFocusTrack);
-public record AddTrackInput(string Title);
-public record UpdateTrackInput(string Title, bool IsFocusTrack);
-public record ReorderTracksInput(List<Guid> OrderedTrackIds);
+// ---- Tracks (v2.0: a Release↔Song join) ----
+// Used by both the create-form Tracks section and the add-track endpoint. Exactly one of
+// SongId (existing catalog song) / Title (new song). Isrc/Artists apply only to a new song.
+public record TrackInput(Guid? SongId, string? Title, string? Isrc, List<SongArtistInput>? Artists);
+// Projected from the linked Song. Title/Isrc/Artists live on the song, not the join.
+public record TrackDto(Guid SongId, int TrackNumber, string Title, string? Isrc, bool IsFocusTrack, List<SongArtistDto> Artists);
+public record ReorderTracksInput(List<Guid> OrderedSongIds);
 
 // ---- Templates (M3 template management) ----
 public record TemplateDto(Guid Id, ReleaseType Type, List<TemplatePhaseGroupDto> Phases);

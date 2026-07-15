@@ -50,13 +50,36 @@ namespace Zmg.Infra.Migrations
                     CoverUrl = table.Column<string>(type: "TEXT", nullable: true),
                     Notes = table.Column<string>(type: "TEXT", nullable: true),
                     Upc = table.Column<string>(type: "TEXT", nullable: true),
-                    Isrc = table.Column<string>(type: "TEXT", nullable: true)
+                    ArchivedAt = table.Column<DateTime>(type: "TEXT", nullable: true),
+                    DeletedAt = table.Column<DateTime>(type: "TEXT", nullable: true)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Releases", x => x.Id);
                     table.ForeignKey(
                         name: "FK_Releases_Artists_MainArtistId",
+                        column: x => x.MainArtistId,
+                        principalTable: "Artists",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Songs",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
+                    Title = table.Column<string>(type: "TEXT", nullable: false),
+                    MainArtistId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    Isrc = table.Column<string>(type: "TEXT", nullable: true),
+                    ArchivedAt = table.Column<DateTime>(type: "TEXT", nullable: true),
+                    DeletedAt = table.Column<DateTime>(type: "TEXT", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Songs", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Songs_Artists_MainArtistId",
                         column: x => x.MainArtistId,
                         principalTable: "Artists",
                         principalColumn: "Id",
@@ -82,31 +105,6 @@ namespace Zmg.Infra.Migrations
                         name: "FK_TemplateTasks_ChecklistTemplates_ChecklistTemplateId",
                         column: x => x.ChecklistTemplateId,
                         principalTable: "ChecklistTemplates",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "ReleaseArtists",
-                columns: table => new
-                {
-                    ReleaseId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    ArtistId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    Role = table.Column<int>(type: "INTEGER", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_ReleaseArtists", x => new { x.ReleaseId, x.ArtistId });
-                    table.ForeignKey(
-                        name: "FK_ReleaseArtists_Artists_ArtistId",
-                        column: x => x.ArtistId,
-                        principalTable: "Artists",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_ReleaseArtists_Releases_ReleaseId",
-                        column: x => x.ReleaseId,
-                        principalTable: "Releases",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
@@ -139,24 +137,54 @@ namespace Zmg.Infra.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "SongArtists",
+                columns: table => new
+                {
+                    SongId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    ArtistId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    Role = table.Column<int>(type: "INTEGER", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_SongArtists", x => new { x.SongId, x.ArtistId });
+                    table.ForeignKey(
+                        name: "FK_SongArtists_Artists_ArtistId",
+                        column: x => x.ArtistId,
+                        principalTable: "Artists",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_SongArtists_Songs_SongId",
+                        column: x => x.SongId,
+                        principalTable: "Songs",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Tracks",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
                     ReleaseId = table.Column<Guid>(type: "TEXT", nullable: false),
+                    SongId = table.Column<Guid>(type: "TEXT", nullable: false),
                     TrackNumber = table.Column<int>(type: "INTEGER", nullable: false),
-                    Title = table.Column<string>(type: "TEXT", nullable: false),
                     IsFocusTrack = table.Column<bool>(type: "INTEGER", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Tracks", x => x.Id);
+                    table.PrimaryKey("PK_Tracks", x => new { x.ReleaseId, x.SongId });
                     table.ForeignKey(
                         name: "FK_Tracks_Releases_ReleaseId",
                         column: x => x.ReleaseId,
                         principalTable: "Releases",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_Tracks_Songs_SongId",
+                        column: x => x.SongId,
+                        principalTable: "Songs",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.InsertData(
@@ -253,11 +281,6 @@ namespace Zmg.Infra.Migrations
                 column: "Name");
 
             migrationBuilder.CreateIndex(
-                name: "IX_ReleaseArtists_ArtistId",
-                table: "ReleaseArtists",
-                column: "ArtistId");
-
-            migrationBuilder.CreateIndex(
                 name: "IX_Releases_MainArtistId",
                 table: "Releases",
                 column: "MainArtistId");
@@ -268,24 +291,39 @@ namespace Zmg.Infra.Migrations
                 column: "ReleaseId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_SongArtists_ArtistId",
+                table: "SongArtists",
+                column: "ArtistId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Songs_MainArtistId",
+                table: "Songs",
+                column: "MainArtistId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Songs_Title",
+                table: "Songs",
+                column: "Title");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_TemplateTasks_ChecklistTemplateId",
                 table: "TemplateTasks",
                 column: "ChecklistTemplateId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Tracks_ReleaseId",
+                name: "IX_Tracks_SongId",
                 table: "Tracks",
-                column: "ReleaseId");
+                column: "SongId");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "ReleaseArtists");
+                name: "ReleaseTasks");
 
             migrationBuilder.DropTable(
-                name: "ReleaseTasks");
+                name: "SongArtists");
 
             migrationBuilder.DropTable(
                 name: "TemplateTasks");
@@ -298,6 +336,9 @@ namespace Zmg.Infra.Migrations
 
             migrationBuilder.DropTable(
                 name: "Releases");
+
+            migrationBuilder.DropTable(
+                name: "Songs");
 
             migrationBuilder.DropTable(
                 name: "Artists");

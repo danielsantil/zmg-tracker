@@ -10,8 +10,9 @@ using Zmg.Infra.Data;
 namespace Zmg.Api.Services;
 
 /// <summary>
-/// Release orchestration: list with derived status/progress, detail with phase-grouped tasks,
-/// and create/edit which copy the type's template snapshot onto the release. Pure rules live in
+/// Release orchestration: list with derived status/progress, detail with phase-grouped tasks and
+/// its tracks (each projected from its song), and create/edit which copy the type's template snapshot
+/// onto the release. Create also materialises the inline Tracks section (v2.0). Pure rules live in
 /// Domain (<see cref="Validation"/>, <see cref="TemplateCopy"/>, <see cref="ProgressCalculator"/>,
 /// <see cref="ReleaseStatus"/>, <see cref="PendingActions"/>); this loads/persists and maps to DTOs.
 /// </summary>
@@ -48,7 +49,7 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
             .Select(r => new
             {
                 r.Id, r.Title, r.Type, r.ReleaseDate, r.MainArtistId,
-                MainArtistName = r.MainArtist!.Name, r.CoverUrl, r.Upc, r.Isrc, r.ArchivedAt,
+                MainArtistName = r.MainArtist!.Name, r.CoverUrl, r.Upc, r.ArchivedAt,
                 Done = r.Tasks.Count(x => x.IsDone),
                 Total = r.Tasks.Count,
                 Distributed = r.Tasks.Any(x => x.IsDone && x.Title == SeedData.DistributeToDspsTitle),
@@ -63,8 +64,8 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
                     r.Id, r.Title, r.Type, r.ReleaseDate, r.MainArtistId, r.MainArtistName,
                     r.CoverUrl, r.Done, r.Total,
                     ReleaseStatus.Derive(r.ReleaseDate, today, progress, r.ArchivedAt != null),
-                    r.Upc, r.Isrc,
-                    Release.NeedsWarning(r.Distributed, r.Upc, r.Isrc));
+                    r.Upc,
+                    Release.NeedsWarning(r.Distributed, r.Upc));
             })
             .Where(r => status is null || string.Equals(r.Status, status, StringComparison.OrdinalIgnoreCase))
             .ToList();
@@ -78,7 +79,8 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
         return OperationResult<ReleaseDetailDto>.Success(ToDetail(release));
     }
 
-    // Create; copies the default template for the type onto the release.
+    // Create; copies the default template for the type onto the release and materialises the inline
+    // Tracks section (new songs and/or existing catalog songs).
     public async Task<OperationResult<ReleaseDetailDto>> CreateAsync(ReleaseInput input)
     {
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
@@ -91,8 +93,28 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
 
         var validation = Validation.ValidateRelease(
             input.Title, input.MainArtistId, mainArtistExists, input.ReleaseDate, today, otherTitles);
+
+        var trackInputs = input.Tracks ?? new List<TrackInput>();
+        var specs = trackInputs.Select(t => new TrackSpec(t.SongId, t.Title)).ToList();
+        var trackValidation = Validation.ValidateReleaseTracks(input.Type, specs);
+        foreach (var e in trackValidation.Errors) validation.Error(e);
+
         if (!validation.IsValid)
             return OperationResult<ReleaseDetailDto>.Invalid(validation.Errors);
+
+        // Resolve existing catalog songs referenced by the specs (deleted ones are hidden by the filter).
+        var existingIds = specs
+            .Where(s => s.ExistingSongId is { } id && id != Guid.Empty)
+            .Select(s => s.ExistingSongId!.Value)
+            .ToList();
+        var existingSongs = existingIds.Count == 0
+            ? new List<Song>()
+            : await db.Songs.Where(s => existingIds.Contains(s.Id)).ToListAsync();
+
+        if (existingIds.Any(id => existingSongs.All(s => s.Id != id)))
+            return OperationResult<ReleaseDetailDto>.Invalid(new[] { "One or more selected songs do not exist." });
+        if (existingSongs.Any(s => s.IsArchived))
+            return OperationResult<ReleaseDetailDto>.Conflict(new[] { "Can't add an archived song to a release." });
 
         var template = await LoadTemplate(input.Type);
         if (template is null)
@@ -108,16 +130,14 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
             CoverUrl = string.IsNullOrWhiteSpace(input.CoverUrl) ? null : input.CoverUrl.Trim(),
             Notes = input.Notes,
             Upc = Clean(input.Upc),
-            Isrc = Clean(input.Isrc),
             Tasks = TemplateCopy.CopyToRelease(template, Guid.Empty), // ReleaseId set below
         };
         foreach (var task in release.Tasks) task.ReleaseId = release.Id;
 
-        // Backfill (1.0 §9): a release dated in the past was, by definition, already distributed —
-        // auto-check its "Distribute to DSPs" task so a blank UPC/ISRC surfaces as a pending action (M10).
-        // also, if a release is created with ISRC and UPC, it has been already distributed.
-        if (release.ReleaseDate < today 
-            || (!string.IsNullOrWhiteSpace(release.Isrc) && !string.IsNullOrWhiteSpace(release.Upc)))
+        // Backfill (v2.0 simplified): a release dated in the past was, by definition, already
+        // distributed — auto-check its "Distribute to DSPs" task. Identifiers no longer imply
+        // distribution (the ISRC branch moved to the song).
+        if (release.ReleaseDate < today)
         {
             var distribute = release.Tasks.FirstOrDefault(t => t.Title == SeedData.DistributeToDspsTitle);
             if (distribute is not null)
@@ -127,7 +147,43 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
             }
         }
 
-        AddFeaturedArtists(release, input.FeaturedArtists);
+        // Active (non-archived) song titles for the same main artist drive the non-blocking duplicate
+        // warning — a title only clashes with a song still in the working catalog.
+        var existingTitlesForArtist = await db.Songs
+            .Where(s => s.MainArtistId == input.MainArtistId && s.ArchivedAt == null)
+            .Select(s => s.Title)
+            .ToListAsync();
+        var warnedTitles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        var trackNumber = 1;
+        foreach (var t in trackInputs)
+        {
+            Guid songId;
+            if (t.SongId is { } sid && sid != Guid.Empty)
+            {
+                songId = sid;
+            }
+            else
+            {
+                var song = SongMapping.NewSong(input.MainArtistId, t.Title!, t.Isrc, t.Artists);
+                if (existingTitlesForArtist.Any(x =>
+                        string.Equals(x?.Trim(), song.Title, StringComparison.OrdinalIgnoreCase))
+                    && warnedTitles.Add(song.Title))
+                {
+                    validation.Warn("A song with this title already exists for this artist — consider picking it from the catalog.");
+                }
+                db.Songs.Add(song);
+                songId = song.Id;
+            }
+
+            release.Tracks.Add(new Track
+            {
+                ReleaseId = release.Id,
+                SongId = songId,
+                TrackNumber = trackNumber++,
+                IsFocusTrack = false,
+            });
+        }
 
         db.Releases.Add(release);
         await db.SaveChangesAsync();
@@ -138,11 +194,13 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
 
     public async Task<OperationResult<ReleaseDetailDto>> UpdateAsync(Guid id, ReleaseInput input)
     {
-        var release = await db.Releases
-            .Include(r => r.FeaturedArtists)
-            .Include(r => r.Tasks)
-            .FirstOrDefaultAsync(r => r.Id == id);
+        var release = await db.Releases.FirstOrDefaultAsync(r => r.Id == id);
         if (release is null) return OperationResult<ReleaseDetailDto>.NotFound();
+
+        // Type is fixed at create (it determines the checklist template). Tracks mutate only via the
+        // track endpoints, so input.Tracks is ignored on PUT.
+        if (input.Type != release.Type)
+            return OperationResult<ReleaseDetailDto>.Conflict(new[] { "Release type can't change after creation." });
 
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
         var mainArtistExists = input.MainArtistId != Guid.Empty
@@ -158,16 +216,11 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
             return OperationResult<ReleaseDetailDto>.Invalid(validation.Errors);
 
         release.Title = input.Title.Trim();
-        release.Type = input.Type; // note: does not re-copy the checklist
         release.ReleaseDate = input.ReleaseDate!.Value;
         release.MainArtistId = input.MainArtistId;
         release.CoverUrl = string.IsNullOrWhiteSpace(input.CoverUrl) ? null : input.CoverUrl.Trim();
         release.Notes = input.Notes;
         release.Upc = Clean(input.Upc);
-        release.Isrc = Clean(input.Isrc);
-
-        release.FeaturedArtists.Clear();
-        AddFeaturedArtists(release, input.FeaturedArtists);
 
         await db.SaveChangesAsync();
 
@@ -209,7 +262,7 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
         return OperationResult.Success();
     }
 
-    // Optional free-text identifiers: trim, and store blank as null (no format validation, §6).
+    // Optional free-text identifier: trim, and store blank as null (no format validation, §6).
     private static string? Clean(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
@@ -217,20 +270,6 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
         await db.ChecklistTemplates
             .Include(t => t.Tasks)
             .FirstOrDefaultAsync(t => t.Type == type);
-
-    private static void AddFeaturedArtists(Release release, List<ReleaseArtistInput>? featured)
-    {
-        if (featured is null) return;
-        foreach (var f in featured.Where(f => f.ArtistId != release.MainArtistId).DistinctBy(f => f.ArtistId))
-        {
-            release.FeaturedArtists.Add(new ReleaseArtist
-            {
-                ReleaseId = release.Id,
-                ArtistId = f.ArtistId,
-                Role = f.Role,
-            });
-        }
-    }
 
     private static ReleaseDetailDto ToDetail(Release release)
     {
@@ -252,13 +291,9 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
             })
             .ToList();
 
-        var featured = release.FeaturedArtists
-            .Select(fa => new FeaturedArtistDto(fa.ArtistId, fa.Artist?.Name ?? string.Empty, fa.Role))
-            .ToList();
-
         var tracks = release.Tracks
             .OrderBy(t => t.TrackNumber)
-            .Select(t => new TrackDto(t.Id, t.TrackNumber, t.Title, t.IsFocusTrack))
+            .Select(SongMapping.ToDto)
             .ToList();
 
         return new ReleaseDetailDto(
@@ -266,9 +301,9 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
             release.MainArtistId, release.MainArtist?.Name ?? string.Empty,
             release.CoverUrl, release.Notes,
             ReleaseStatus.Derive(release.ReleaseDate, today, progress.Overall, release.IsArchived),
-            featured, progress.Overall.Done, progress.Overall.Total, phases, tracks,
-            release.Upc, release.Isrc,
-            Release.NeedsWarning(release.IsDistributed, release.Upc, release.Isrc),
+            progress.Overall.Done, progress.Overall.Total, phases, tracks,
+            release.Upc,
+            Release.NeedsWarning(release.IsDistributed, release.Upc),
             release.IsArchived);
     }
 }

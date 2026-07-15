@@ -33,7 +33,7 @@ export function ReleaseCard({
               {r.title}
             </button>
             <div className="flex items-center gap-1.5">
-              {r.needsIdentifierWarning && <IdentifierWarning upc={r.upc} isrc={r.isrc} />}
+              {r.needsIdentifierWarning && <IdentifierWarning />}
               <StatusBadge status={r.status} />
             </div>
           </div>

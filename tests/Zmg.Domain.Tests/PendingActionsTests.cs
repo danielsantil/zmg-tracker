@@ -8,7 +8,7 @@ public class PendingActionsTests
 {
     private static readonly DateOnly Today = new(2026, 7, 12);
 
-    private static Release Rel(DateOnly date, string title = "Song", string? upc = null, string? isrc = null,
+    private static Release Rel(DateOnly date, string title = "Song", string? upc = null,
         params ReleaseTask[] tasks) =>
         new()
         {
@@ -17,7 +17,6 @@ public class PendingActionsTests
             ReleaseDate = date,
             MainArtist = new Artist { Name = "Artist" },
             Upc = upc,
-            Isrc = isrc,
             Tasks = tasks.ToList(),
         };
 
@@ -75,21 +74,21 @@ public class PendingActionsTests
     [Fact]
     public void Missing_identifier_pends_only_after_distribution()
     {
-        // Distribute not done → no missing-id action even with blank ids.
+        // Distribute not done → no missing-id action even with blank UPC.
         var notDist = Rel(Today.AddDays(-5),
             tasks: Task(SeedData.DistributeToDspsTitle, done: false));
         Assert.Empty(PendingActions.Compute(notDist, Today));
 
-        // Distribute done, both ids blank → one missing-id action summarizing both.
+        // Distribute done, UPC blank → one missing-UPC action (v2.0: UPC-only).
         var dist = Rel(Today.AddDays(-5),
             tasks: Task(SeedData.DistributeToDspsTitle, done: true));
         var action = Assert.Single(PendingActions.Compute(dist, Today));
         Assert.Equal(PendingKind.MissingIdentifier, action.Kind);
-        Assert.Equal("Missing UPC, ISRC", action.Label);
+        Assert.Equal("Missing UPC", action.Label);
         Assert.Null(action.TaskId);
 
-        // Both ids filled → no missing-id action.
-        var filled = Rel(Today.AddDays(-5), upc: "u", isrc: "i",
+        // UPC filled → no missing-id action.
+        var filled = Rel(Today.AddDays(-5), upc: "u",
             tasks: Task(SeedData.DistributeToDspsTitle, done: true));
         Assert.Empty(PendingActions.Compute(filled, Today));
     }
@@ -120,7 +119,7 @@ public class PendingActionsTests
     [Fact]
     public void Empty_when_nothing_is_pending()
     {
-        var rel = Rel(Today.AddDays(10), "Song", null, null,
+        var rel = Rel(Today.AddDays(10), "Song", null,
             Task("Mix/master"), Task("Design cover for DSPs", done: true));
         Assert.Empty(PendingActions.Compute(rel, Today));
     }

@@ -140,7 +140,7 @@ export default function AllReleasesPage() {
                       >
                         {r.title}
                       </Link>
-                      {r.needsIdentifierWarning && <IdentifierWarning upc={r.upc} isrc={r.isrc} />}
+                      {r.needsIdentifierWarning && <IdentifierWarning />}
                     </div>
                     <div className="text-xs text-slate-400">{r.mainArtistName}</div>
                   </td>

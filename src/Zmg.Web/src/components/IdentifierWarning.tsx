@@ -1,15 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 
 /**
- * Soft advisory glyph for a release missing UPC/ISRC after DSP distribution (v1.1 M7).
- * Amber, never a red error, never blocking. It's a real button so the message is
- * reachable by tap on mobile (a hover-only `title` was invisible on touch devices);
- * clicking toggles a small popover, positioned `fixed` from the button rect so it
- * escapes any `overflow-hidden` ancestor, dismissed by tapping the backdrop.
+ * Soft advisory glyph for a release missing its UPC after DSP distribution (v1.1 M7; UPC-only in
+ * v2.0 — ISRC moved to the song). Amber, never a red error, never blocking. It's a real button so
+ * the message is reachable by tap on mobile (a hover-only `title` was invisible on touch devices);
+ * clicking toggles a small popover, positioned `fixed` from the button rect so it escapes any
+ * `overflow-hidden` ancestor, dismissed by tapping the backdrop.
  */
-export function IdentifierWarning({ upc, isrc }: { upc?: string | null; isrc?: string | null }) {
-  const missing = [!upc && 'UPC', !isrc && 'ISRC'].filter(Boolean).join(', ');
-  const label = missing ? `Missing ${missing}` : 'Missing identifier';
+export function IdentifierWarning() {
+  // Only rendered when the UPC is blank (callers gate on needsIdentifierWarning), so the message is fixed.
+  const label = 'Missing UPC';
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<React.CSSProperties | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);

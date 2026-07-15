@@ -24,7 +24,8 @@ public class ReleaseArchiveApiTests
     private async Task<Guid> CreateRelease(HttpClient client, Guid artistId, string title, DateOnly date)
     {
         var res = await client.PostAsJsonAsync("/api/releases", new ReleaseInput(
-            title, ReleaseType.Single, date, artistId, null, null, null));
+            title, ReleaseType.Single, date, artistId, null, null,
+            new List<TrackInput> { new(null, "Track 1", null, null) }));
         res.EnsureSuccessStatusCode();
         var created = await res.Content.ReadFromJsonAsync<CreatedWithWarnings<ReleaseDetailDto>>();
         return created!.Data.Id;

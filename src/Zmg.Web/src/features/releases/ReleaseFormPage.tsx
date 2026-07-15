@@ -1,16 +1,17 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api, ApiError } from '@/api';
-import type { Artist, ReleaseArtistInput } from '@/types';
-import { ArtistRole, ReleaseType } from '@/types';
+import type { Artist, TrackInput } from '@/types';
+import { ReleaseType } from '@/types';
 import { Button, Field, inputClass } from '@/components';
 import { useBackNavigation } from '@/hooks/useBackNavigation';
+import { TracksEditor, emptyTrack } from './components/TracksEditor';
 
 // Known seeded template sizes (build-plan.md §5.4). A template endpoint arrives in M3;
 // until then these drive the "checklist will start from N tasks" hint.
 const TEMPLATE_TASK_COUNT: Record<ReleaseType, number> = {
   [ReleaseType.Single]: 31,
-  [ReleaseType.Album]: 40,
+  [ReleaseType.Album]: 41,
 };
 
 export default function ReleaseFormPage() {
@@ -32,8 +33,8 @@ export default function ReleaseFormPage() {
   const [coverUrl, setCoverUrl] = useState('');
   const [notes, setNotes] = useState('');
   const [upc, setUpc] = useState('');
-  const [isrc, setIsrc] = useState('');
-  const [featured, setFeatured] = useState<ReleaseArtistInput[]>([]);
+  // Tracks are create-only. A single starts with exactly one fixed row; an album starts empty.
+  const [tracks, setTracks] = useState<TrackInput[]>([emptyTrack()]);
 
   useEffect(() => {
     (async () => {
@@ -49,8 +50,6 @@ export default function ReleaseFormPage() {
           setCoverUrl(r.coverUrl ?? '');
           setNotes(r.notes ?? '');
           setUpc(r.upc ?? '');
-          setIsrc(r.isrc ?? '');
-          setFeatured(r.featuredArtists.map((f) => ({ artistId: f.artistId, role: f.role })));
         } else if (arts.length > 0) {
           setMainArtistId(arts[0].id);
         }
@@ -60,24 +59,39 @@ export default function ReleaseFormPage() {
     })();
   }, [id, isEdit]);
 
-  function toggleFeatured(artistId: string) {
-    setFeatured((prev) =>
-      prev.some((f) => f.artistId === artistId)
-        ? prev.filter((f) => f.artistId !== artistId)
-        : [...prev, { artistId, role: ArtistRole.Featured }],
-    );
-  }
-
-  function setRole(artistId: string, role: ArtistRole) {
-    setFeatured((prev) => prev.map((f) => (f.artistId === artistId ? { ...f, role } : f)));
+  // Switching type resets the Tracks section to its type's baseline (single = 1 fixed row, album = empty).
+  function changeType(next: ReleaseType) {
+    setType(next);
+    setTracks(next === ReleaseType.Single ? [emptyTrack()] : []);
   }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    setSaving(true);
     setErrors([]);
     setWarnings([]);
+
+    // Client-side guards mirror the API 400s (create only).
+    if (!isEdit) {
+      const named = tracks.filter((t) => (t.title ?? '').trim());
+      if (type === ReleaseType.Single && named.length !== 1) {
+        setErrors(['A single must have exactly one track with a title.']);
+        return;
+      }
+      if (tracks.some((t) => !(t.title ?? '').trim())) {
+        setErrors(['Every track needs a title.']);
+        return;
+      }
+    }
+
+    setSaving(true);
     try {
+      const cleanedTracks: TrackInput[] = tracks.map((t) => ({
+        songId: null,
+        title: (t.title ?? '').trim(),
+        isrc: (t.isrc ?? '').trim() || null,
+        artists: t.artists && t.artists.length > 0 ? t.artists : null,
+      }));
+
       const input = {
         title,
         type,
@@ -86,8 +100,7 @@ export default function ReleaseFormPage() {
         coverUrl: coverUrl || null,
         notes: notes || null,
         upc: upc || null,
-        isrc: isrc || null,
-        featuredArtists: featured.filter((f) => f.artistId !== mainArtistId),
+        tracks: isEdit ? null : cleanedTracks,
       };
       const result = isEdit && id ? await api.releases.update(id, input) : await api.releases.create(input);
       if (result.warnings.length > 0) {
@@ -114,8 +127,6 @@ export default function ReleaseFormPage() {
       </div>
     );
   }
-
-  const otherArtists = artists.filter((a) => a.id !== mainArtistId);
 
   return (
     <div className="mx-auto max-w-xl">
@@ -168,7 +179,7 @@ export default function ReleaseFormPage() {
             <select
               className={inputClass}
               value={type}
-              onChange={(e) => setType(Number(e.target.value) as ReleaseType)}
+              onChange={(e) => changeType(Number(e.target.value) as ReleaseType)}
               disabled={isEdit}
             >
               <option value={ReleaseType.Single}>Single</option>
@@ -187,50 +198,28 @@ export default function ReleaseFormPage() {
           </p>
         )}
 
-        {otherArtists.length > 0 && (
-          <Field label="Featured / collab artists" hint="Optional">
-            <div className="space-y-2 rounded-lg border border-edge bg-panel p-3">
-              {otherArtists.map((a) => {
-                const entry = featured.find((f) => f.artistId === a.id);
-                return (
-                  <div key={a.id} className="flex items-center gap-3">
-                    <label className="flex flex-1 items-center gap-2 text-sm text-slate-200">
-                      <input type="checkbox" checked={Boolean(entry)} onChange={() => toggleFeatured(a.id)} />
-                      {a.name}
-                    </label>
-                    {entry && (
-                      <select
-                        className={`${inputClass} max-w-[9rem]`}
-                        value={entry.role}
-                        onChange={(e) => setRole(a.id, Number(e.target.value) as ArtistRole)}
-                      >
-                        <option value={ArtistRole.Featured}>Featured</option>
-                        <option value={ArtistRole.Collab}>Collab</option>
-                      </select>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </Field>
-        )}
-
         <Field label="Cover URL" hint="Optional — shown on release cards">
           <input className={inputClass} value={coverUrl} onChange={(e) => setCoverUrl(e.target.value)} placeholder="https://…" />
         </Field>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="UPC" hint="Optional — blank until DSP distribution">
-            <input className={inputClass} value={upc} onChange={(e) => setUpc(e.target.value)} placeholder="e.g. 0123456789012" />
-          </Field>
-          <Field label="ISRC" hint="Optional — blank until DSP distribution">
-            <input className={inputClass} value={isrc} onChange={(e) => setIsrc(e.target.value)} placeholder="e.g. US-XXX-YY-NNNNN" />
-          </Field>
-        </div>
+        <Field label="UPC" hint="Optional — blank until DSP distribution">
+          <input className={`${inputClass} max-w-[16rem]`} value={upc} onChange={(e) => setUpc(e.target.value)} placeholder="e.g. 0123456789012" />
+        </Field>
 
         <Field label="Notes" hint="Optional">
           <textarea className={inputClass} rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />
         </Field>
+
+        {/* Tracks are set at create only; editing them happens via the release detail (and the catalog). */}
+        {!isEdit && (
+          <TracksEditor
+            type={type}
+            value={tracks}
+            onChange={setTracks}
+            artists={artists}
+            mainArtistId={mainArtistId}
+          />
+        )}
 
         <div className="flex gap-2">
           <Button type="submit" disabled={saving}>
