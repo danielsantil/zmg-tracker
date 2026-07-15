@@ -25,5 +25,13 @@ public static class SongEndpoints
         // Edit title / main artist / ISRC / feats-collabs. Returns the updated song + any warnings.
         group.MapPut("/{id:guid}", async (Guid id, SongUpdateInput input, ISongService songs) =>
             (await songs.UpdateAsync(id, input)).ToOkWithWarnings());
+
+        // Archive: terminal, non-restorable (M15). Mostly orphans — active-release songs cascade via the release.
+        group.MapPost("/{id:guid}/archive", async (Guid id, ISongService songs) =>
+            (await songs.ArchiveAsync(id)).ToNoContent());
+
+        // Remove: soft-delete, allowed for an archived song or an orphan. Songs are never hard-deleted. M15.
+        group.MapDelete("/{id:guid}", async (Guid id, ISongService songs) =>
+            (await songs.DeleteAsync(id)).ToNoContent());
     }
 }

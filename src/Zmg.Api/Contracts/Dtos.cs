@@ -13,6 +13,8 @@ public record SongArtistDto(Guid ArtistId, string Name, ArtistRole Role);
 
 // ---- Catalog (M13) ----
 // ReleaseDate = earliest non-archived linked release date, null for orphans/unreleased.
+// CanArchive/IsOrphan (M15) drive the catalog row action from backend truth: Archive when CanArchive,
+// Delete when IsOrphan (never released).
 public record SongListItemDto(
     Guid Id,
     string Title,
@@ -21,7 +23,9 @@ public record SongListItemDto(
     DateOnly? ReleaseDate,
     string? Isrc,
     int ReleaseCount,
-    bool IsArchived);
+    bool IsArchived,
+    bool CanArchive,
+    bool IsOrphan);
 
 // One linked release on a song's detail. MainArtistId/Name drive the client-side artist-drift hint.
 public record SongReleaseLinkDto(
@@ -107,7 +111,8 @@ public record ReorderTasksInput(Phase Phase, List<Guid> OrderedTaskIds);
 // SongId (existing catalog song) / Title (new song). Isrc/Artists apply only to a new song.
 public record TrackInput(Guid? SongId, string? Title, string? Isrc, List<SongArtistInput>? Artists);
 // Projected from the linked Song. Title/Isrc/Artists live on the song, not the join.
-public record TrackDto(Guid SongId, int TrackNumber, string Title, string? Isrc, bool IsFocusTrack, List<SongArtistDto> Artists);
+// IsSongArchived (M15) badges rows whose song has been archived (only visible on an archived release).
+public record TrackDto(Guid SongId, int TrackNumber, string Title, string? Isrc, bool IsFocusTrack, bool IsSongArchived, List<SongArtistDto> Artists);
 public record ReorderTracksInput(List<Guid> OrderedSongIds);
 
 // ---- Templates (M3 template management) ----

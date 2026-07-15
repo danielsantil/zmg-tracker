@@ -8,14 +8,14 @@ lists; read **this** for current state and the cross-cutting knowledge the plans
 - [build-plan-1.0.md](build-plan-1.0.md) — frozen v1 brief (M0–M5). Shipped.
 - [build-plan-1.1.md](build-plan-1.1.md) — singles improvements (M6–M10). Shipped.
 - [build-plan-1.2.md](build-plan-1.2.md) — archived releases (M11). Shipped.
-- [build-plan-2.0.md](build-plan-2.0.md) — songs & catalog (M12–M15). **M12–M14 shipped; M15 next.**
+- [build-plan-2.0.md](build-plan-2.0.md) — songs & catalog (M12–M15). **M12–M15 shipped — v2.0 complete.**
 
 Newer plan versions go in new `build-plan-N.N.md` files; older ones stay frozen.
 
-**Current state:** v2.0 **M14** done (Pending actions rework — kinds split by owner + collapsible
-section), on top of M13's Catalog and M12's Song data model. Tests green (`dotnet test` — domain 50 /
-API 74). Next work is **M15 (Archive cascade & Catalog Archive)** — see the build plan — then the rest
-of [Backlog / next steps](#backlog--next-steps).
+**Current state:** v2.0 **M15** done — **build-plan-2.0 fully shipped**. Song archive lifecycle with a
+release-archive cascade and the Catalog archive pages, on top of M14 (pending rework), M13 (catalog) and
+M12 (song data model). Tests green (`dotnet test` — domain 56 / API 87). Next work is the
+[Backlog / next steps](#backlog--next-steps) (Phase 2 — DSP stats).
 
 > ⚠️ **M12 is a hard schema reset with no migration.** Any existing local `src/Zmg.Api/zmg.db` from
 > v1.x must be deleted before running — the fresh `InitialCreate` won't apply on top of the old schema.
@@ -90,6 +90,25 @@ became **collapsible** (PhaseSection-style) with a ~4-row `overflow-y-auto` scro
 both `PendingSection` and `NeedsAttention`. Verified via the full test suite (domain 50 / API 74 — the API
 tests run the real app + EF `Migrate()`) + `tsc`/`vite build`; a live `dotnet run` smoke test is blocked
 by the documented EF-tooling migration issue (see below), not by this change.
+
+**v2.0 (M15) — Archive cascade & Catalog Archive.** Songs got the release lifecycle verbatim
+(`Active → Archived (terminal, read-only) → Removed`). New pure
+[`SongArchival.ShouldArchive`](src/Zmg.Domain/SongArchival.cs) (unit-tested without EF) drives the
+**release-archive cascade**: [`ReleaseService.ArchiveAsync`](src/Zmg.Api/Services/ReleaseService.cs) now
+loads its tracks' songs (+ their links) and archives each song that is dormant — not already archived,
+never released (no past-dated link), and with no remaining active link (every other link points to an
+already-archived release). Released songs and songs shared with an active release stay put. Manual
+[`POST /api/songs/{id}/archive`](src/Zmg.Api/Endpoints/SongEndpoints.cs) (409 on active-link / released /
+already-archived — mostly orphans in practice) and soft-delete `DELETE /api/songs/{id}` (allowed iff
+archived **or** orphan). `PUT /api/songs/{id}` now 409s when archived; `SongListItemDto` gained
+**`CanArchive`/`IsOrphan`** (computed in the list projection) so the Catalog row action renders from
+backend truth; `TrackDto` gained `IsSongArchived`. Frontend: Catalog "Archived Songs →" link + per-row
+Archive/Delete action, new [`ArchivedSongsPage`](src/Zmg.Web/src/features/catalog/ArchivedSongsPage.tsx)
+(`/catalog/archived`, registered before `:id`), archived [`SongDetailPage`](src/Zmg.Web/src/features/catalog/SongDetailPage.tsx)
+is read-only (fields disabled, Save replaced by a note, release links stay live), and archived-song track
+rows show a badge. Verified via the full suite (domain 56 / API 87 — API tests run the real app + EF
+`Migrate()`, incl. the cascade end-to-end) + `tsc`/`vite build`; a live `dotnet run` smoke test is blocked
+by the documented EF-tooling migration issue below, not by this change.
 
 ---
 
@@ -169,13 +188,7 @@ tests/Zmg.Api.Tests      integration tests (WebApplicationFactory + in-memory SQ
 
 ## Backlog / next steps
 
-- **v2.0 remainder — M14–M15** (see [build-plan-2.0.md](build-plan-2.0.md)):
-  - **M14 — Pending rework.** Split `MissingIdentifier` → `MissingUpc` (release) + `MissingIsrc` (song),
-    add `EmptyAlbum`; per-song distributed flag; collapsible `PendingSection` that scrolls past 4 items.
-    *(M12 left `PendingKind.MissingIdentifier` as a UPC-only compile-fix — the full split is M14.)*
-  - **M15 — Archive cascade & Catalog Archive.** Song archive/delete lifecycle, release-archive cascade
-    to exclusively-linked upcoming songs, `/catalog/archived`. *(Song `ArchivedAt`/`DeletedAt` columns +
-    the `IsArchived`/archived-add-409 guards already exist from M12.)*
+- **v2.0 is fully shipped (M12–M15).** See the journal above and [build-plan-2.0.md](build-plan-2.0.md).
 - **Phase 2 — DSP stats** (the reason this exists over Notion/Trello): hang streaming/revenue data off
   the stable Artist / Release / **Song** / Track ids and UPC/ISRC columns. The v2.0 Song ids are its
   foundation.

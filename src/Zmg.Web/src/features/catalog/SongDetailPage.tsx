@@ -11,7 +11,8 @@ import { SongArtistsEditor } from './components/SongArtistsEditor';
  * Catalog song detail (M13): editable Name / Main artist / ISRC / feats-collabs, plus a read-only
  * list of every linked release (the song's UPCs derive from these). An informational artist-drift
  * hint appears when the song's main artist differs from a linked release's — divergence is
- * intentional (compilations, collab albums), so it never blocks. Archived read-only view is M15.
+ * intentional (compilations, collab albums), so it never blocks. When the song is archived (M15) all
+ * fields are disabled and a read-only note replaces Save; the release links stay clickable.
  */
 export default function SongDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -80,6 +81,7 @@ export default function SongDetailPage() {
 
   // Drift is intentional (compilations, collab albums) — informational only, never blocks.
   const drifts = song.releases.filter((r) => r.mainArtistId !== mainArtistId);
+  const archived = song.isArchived;
 
   return (
     <div className="mx-auto max-w-xl">
@@ -108,13 +110,19 @@ export default function SongDetailPage() {
         </div>
       )}
 
+      {archived && (
+        <div className="mb-4 rounded-lg border border-edge bg-panel/50 px-4 py-2.5 text-sm text-slate-300">
+          Archived — read only. This song can't be edited or restored.
+        </div>
+      )}
+
       <div className="space-y-4">
         <Field label="Name">
-          <input className={inputClass} value={title} onChange={(e) => setTitle(e.target.value)} />
+          <input className={inputClass} value={title} disabled={archived} onChange={(e) => setTitle(e.target.value)} />
         </Field>
 
         <Field label="Main artist">
-          <select className={inputClass} value={mainArtistId} onChange={(e) => setMainArtistId(e.target.value)}>
+          <select className={inputClass} value={mainArtistId} disabled={archived} onChange={(e) => setMainArtistId(e.target.value)}>
             {artists.map((a) => (
               <option key={a.id} value={a.id}>
                 {a.name}
@@ -137,6 +145,7 @@ export default function SongDetailPage() {
           <input
             className={`${inputClass} max-w-[16rem]`}
             value={isrc}
+            disabled={archived}
             onChange={(e) => setIsrc(e.target.value)}
             placeholder="e.g. US-XXX-YY-NNNNN"
           />
@@ -148,14 +157,17 @@ export default function SongDetailPage() {
             value={songArtists}
             onChange={setSongArtists}
             mainArtistId={mainArtistId}
+            disabled={archived}
           />
         </Field>
 
-        <div className="flex gap-2">
-          <Button onClick={save} disabled={saving}>
-            {saving ? 'Saving…' : 'Save changes'}
-          </Button>
-        </div>
+        {!archived && (
+          <div className="flex gap-2">
+            <Button onClick={save} disabled={saving}>
+              {saving ? 'Saving…' : 'Save changes'}
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Read-only: every release this song is on. The song's UPCs derive from here. */}

@@ -48,6 +48,7 @@ export function TrackRow({
             {track.title}
           </Link>
           {track.isFocusTrack && <span className="ml-2 text-xs text-amber-400/80">focus</span>}
+          {track.isSongArchived && <span className="ml-2 text-xs text-slate-500">archived</span>}
           {track.isrc && <span className="ml-2 text-xs text-slate-500">{track.isrc}</span>}
         </span>
 

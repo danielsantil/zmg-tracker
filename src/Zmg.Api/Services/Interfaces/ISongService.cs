@@ -7,4 +7,6 @@ public interface ISongService
     Task<IReadOnlyList<SongListItemDto>> ListAsync(string? q, string? scope);
     Task<OperationResult<SongDetailDto>> GetAsync(Guid id);
     Task<OperationResult<SongDetailDto>> UpdateAsync(Guid id, SongUpdateInput input);
+    Task<OperationResult> ArchiveAsync(Guid id);
+    Task<OperationResult> DeleteAsync(Guid id);
 }

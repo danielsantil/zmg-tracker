@@ -16,4 +16,7 @@ export const songsApi = {
       method: 'PUT',
       body: JSON.stringify(input),
     }),
+  // Archive: terminal, non-restorable (M15). Remove: soft-delete for an archived or orphan song.
+  archive: (id: string) => request<void>(`/api/songs/${id}/archive`, { method: 'POST' }),
+  delete: (id: string) => request<void>(`/api/songs/${id}`, { method: 'DELETE' }),
 };

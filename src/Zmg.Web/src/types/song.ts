@@ -22,6 +22,8 @@ export interface SongListItem {
   isrc: string | null;
   releaseCount: number;
   isArchived: boolean;
+  canArchive: boolean; // M15: catalog offers Archive when true
+  isOrphan: boolean; // M15: never released → catalog offers Delete
 }
 
 export interface SongReleaseLink {
