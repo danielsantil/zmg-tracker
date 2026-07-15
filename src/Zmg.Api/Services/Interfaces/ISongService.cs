@@ -1,0 +1,10 @@
+using Zmg.Api.Contracts;
+
+namespace Zmg.Api.Services.Interfaces;
+
+public interface ISongService
+{
+    Task<IReadOnlyList<SongListItemDto>> ListAsync(string? q, string? scope);
+    Task<OperationResult<SongDetailDto>> GetAsync(Guid id);
+    Task<OperationResult<SongDetailDto>> UpdateAsync(Guid id, SongUpdateInput input);
+}

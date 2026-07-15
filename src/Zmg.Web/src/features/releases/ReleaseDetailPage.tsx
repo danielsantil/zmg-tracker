@@ -12,6 +12,7 @@ import { ReleaseHeader } from './components/ReleaseHeader';
 import { NeedsAttention } from './components/NeedsAttention';
 import { PhaseSection } from './components/PhaseSection';
 import { TrackList } from './components/TrackList';
+import { SongCard } from './components/SongCard';
 import type { TaskPatch } from './components/TaskRow';
 
 export default function ReleaseDetailPage() {
@@ -157,6 +158,15 @@ export default function ReleaseDetailPage() {
     }
   }
 
+  async function addExistingTrack(songId: string) {
+    try {
+      const created = await api.tracks.add(id!, { songId, title: null, isrc: null, artists: null });
+      setTracks((ts) => [...ts, created]);
+    } catch (e) {
+      showToast(e instanceof ApiError ? e.message : 'Could not add song.');
+    }
+  }
+
   // Optimistic focus toggle: flip locally, revert + toast on failure.
   async function toggleFocus(track: TrackDto) {
     const optimistic = { ...track, isFocusTrack: !track.isFocusTrack };
@@ -259,15 +269,22 @@ export default function ReleaseDetailPage() {
       )}
 
       <div className="mb-6">
-        <TrackList
-          tracks={orderedTracks}
-          isSingle={release.type === ReleaseType.Single}
-          readOnly={readOnly}
-          onAdd={addTrack}
-          onToggleFocus={toggleFocus}
-          onDelete={removeTrack}
-          onMove={moveTrack}
-        />
+        {release.type === ReleaseType.Single ? (
+          orderedTracks.length > 0 && (
+            <SongCard track={orderedTracks[0]} mainArtistName={release.mainArtistName} />
+          )
+        ) : (
+          <TrackList
+            tracks={orderedTracks}
+            isSingle={false}
+            readOnly={readOnly}
+            onAdd={addTrack}
+            onAddExisting={addExistingTrack}
+            onToggleFocus={toggleFocus}
+            onDelete={removeTrack}
+            onMove={moveTrack}
+          />
+        )}
       </div>
 
       <div className="space-y-3">

@@ -11,6 +11,41 @@ public record ArtistInput(string Name, string? Notes);
 public record SongArtistInput(Guid ArtistId, ArtistRole Role);
 public record SongArtistDto(Guid ArtistId, string Name, ArtistRole Role);
 
+// ---- Catalog (M13) ----
+// ReleaseDate = earliest non-archived linked release date, null for orphans/unreleased.
+public record SongListItemDto(
+    Guid Id,
+    string Title,
+    Guid MainArtistId,
+    string MainArtistName,
+    DateOnly? ReleaseDate,
+    string? Isrc,
+    int ReleaseCount,
+    bool IsArchived);
+
+// One linked release on a song's detail. MainArtistId/Name drive the client-side artist-drift hint.
+public record SongReleaseLinkDto(
+    Guid ReleaseId,
+    string Title,
+    ReleaseType Type,
+    DateOnly ReleaseDate,
+    string? Upc,
+    Guid MainArtistId,
+    string MainArtistName,
+    bool IsArchived);
+
+public record SongDetailDto(
+    Guid Id,
+    string Title,
+    Guid MainArtistId,
+    string MainArtistName,
+    string? Isrc,
+    bool IsArchived,
+    List<SongArtistDto> Artists,
+    List<SongReleaseLinkDto> Releases);
+
+public record SongUpdateInput(string Title, Guid MainArtistId, string? Isrc, List<SongArtistInput>? Artists);
+
 // ---- Releases ----
 // Tracks is create-only (ignored on PUT). Exactly one of SongId/Title per track.
 public record ReleaseInput(
