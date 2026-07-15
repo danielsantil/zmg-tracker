@@ -8,13 +8,14 @@ lists; read **this** for current state and the cross-cutting knowledge the plans
 - [build-plan-1.0.md](build-plan-1.0.md) — frozen v1 brief (M0–M5). Shipped.
 - [build-plan-1.1.md](build-plan-1.1.md) — singles improvements (M6–M10). Shipped.
 - [build-plan-1.2.md](build-plan-1.2.md) — archived releases (M11). Shipped.
-- [build-plan-2.0.md](build-plan-2.0.md) — songs & catalog (M12–M15). **M12–M13 shipped; M14–M15 next.**
+- [build-plan-2.0.md](build-plan-2.0.md) — songs & catalog (M12–M15). **M12–M14 shipped; M15 next.**
 
 Newer plan versions go in new `build-plan-N.N.md` files; older ones stay frozen.
 
-**Current state:** v2.0 **M13** done and verified (Catalog — songs API + pages + pickers, on top of
-M12's Song data model). Tests green (`dotnet test` — domain 44 / API 68). Next work is **M14 (Pending
-rework)** — see the build plan — then the rest of [Backlog / next steps](#backlog--next-steps).
+**Current state:** v2.0 **M14** done (Pending actions rework — kinds split by owner + collapsible
+section), on top of M13's Catalog and M12's Song data model. Tests green (`dotnet test` — domain 50 /
+API 74). Next work is **M15 (Archive cascade & Catalog Archive)** — see the build plan — then the rest
+of [Backlog / next steps](#backlog--next-steps).
 
 > ⚠️ **M12 is a hard schema reset with no migration.** Any existing local `src/Zmg.Api/zmg.db` from
 > v1.x must be deleted before running — the fresh `InitialCreate` won't apply on top of the old schema.
@@ -74,6 +75,21 @@ the release-form block) and [SongPicker](src/Zmg.Web/src/features/catalog/compon
 a **single** swaps its one-row tracklist for a compact
 [SongCard](src/Zmg.Web/src/features/releases/components/SongCard.tsx). Verified end-to-end
 (list/detail/edit, double-link UPCs, drift hint, existing-song linking, single card) via API + SPA.
+
+**v2.0 (M14) — Pending actions rework.** `PendingKind.MissingIdentifier` split into **`MissingUpc`**
+(release-owned) + **`MissingIsrc`** (song-owned), plus a new **`EmptyAlbum`** kind (every non-archived
+album with < 2 tracks — released ones included, label "Album is empty" / "…only 1 track"). `PendingAction`
+now carries nullable `ReleaseId`/`SongId` and a generic `Subject` (release title *or* song title); the old
+`ReleaseTitle` is gone. New pure [`PendingActions.ComputeForSong`](src/Zmg.Domain/PendingActions.cs) —
+a song is "distributed" (→ needs ISRC) when **any** linked non-archived release has its Distribute-to-DSPs
+task checked, yielding **one action per song**, not per release. [`PendingService`](src/Zmg.Api/Services/PendingService.cs)
+adds a second query over active songs for the ISRC flag; `ListByReleaseIdAsync` rolls up its own songs'
+`MissingIsrc` rows. Frontend: [`PendingSection`](src/Zmg.Web/src/features/home/components/PendingSection.tsx)
+became **collapsible** (PhaseSection-style) with a ~4-row `overflow-y-auto` scroll; per-kind routing
+(`MissingIsrc → /catalog/{songId}`, `MissingUpc → …/edit`, `TaskDue`/`EmptyAlbum → /releases/{id}`) in
+both `PendingSection` and `NeedsAttention`. Verified via the full test suite (domain 50 / API 74 — the API
+tests run the real app + EF `Migrate()`) + `tsc`/`vite build`; a live `dotnet run` smoke test is blocked
+by the documented EF-tooling migration issue (see below), not by this change.
 
 ---
 
