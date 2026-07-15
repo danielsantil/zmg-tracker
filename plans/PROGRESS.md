@@ -8,13 +8,13 @@ lists; read **this** for current state and the cross-cutting knowledge the plans
 - [build-plan-1.0.md](build-plan-1.0.md) — frozen v1 brief (M0–M5). Shipped.
 - [build-plan-1.1.md](build-plan-1.1.md) — singles improvements (M6–M10). Shipped.
 - [build-plan-1.2.md](build-plan-1.2.md) — archived releases (M11). Shipped.
-- [build-plan-2.0.md](build-plan-2.0.md) — songs & catalog (M12–M15). **M12 shipped; M13–M15 next.**
+- [build-plan-2.0.md](build-plan-2.0.md) — songs & catalog (M12–M15). **M12–M13 shipped; M14–M15 next.**
 
 Newer plan versions go in new `build-plan-N.N.md` files; older ones stay frozen.
 
-**Current state:** v2.0 **M12** done and verified (Song data model + hard schema reset). Tests green
-(`dotnet test` — domain 44 / API 59). Next work is **M13 (Catalog)** — see the build plan — then the
-rest of [Backlog / next steps](#backlog--next-steps).
+**Current state:** v2.0 **M13** done and verified (Catalog — songs API + pages + pickers, on top of
+M12's Song data model). Tests green (`dotnet test` — domain 44 / API 68). Next work is **M14 (Pending
+rework)** — see the build plan — then the rest of [Backlog / next steps](#backlog--next-steps).
 
 > ⚠️ **M12 is a hard schema reset with no migration.** Any existing local `src/Zmg.Api/zmg.db` from
 > v1.x must be deleted before running — the fresh `InitialCreate` won't apply on top of the old schema.
@@ -58,6 +58,22 @@ Tracks section (new inline songs and/or existing catalog songs); the create form
 ([TracksEditor.tsx](src/Zmg.Web/src/features/releases/components/TracksEditor.tsx)) ships new-track
 rows only (existing-song picker is M13). Auto-distribute simplified to **past-date-only** (identifiers
 no longer imply distribution). Verified end-to-end via the running API + browser SPA.
+
+**v2.0 (M13) — Catalog.** New `SongService`/`SongEndpoints` (`GET /api/songs?q=&scope=`,
+`GET/PUT /api/songs/{id}`): list ordered by title with a **derived** release date (earliest
+non-archived link, null for orphans), detail exposing every linked release so the page derives the
+UPC list, and always-editable song fields (title / main artist / ISRC / feats-collabs; a rename
+clashing with an active same-artist song returns the non-blocking warning). Frontend: **Catalog** nav
++ `/catalog` list + `/catalog/:id` detail
+([SongDetailPage](src/Zmg.Web/src/features/catalog/SongDetailPage.tsx)) with the **artist-drift hint**
+(song's main artist ≠ a linked release's — informational, never blocks). Shared
+[SongArtistsEditor](src/Zmg.Web/src/features/catalog/components/SongArtistsEditor.tsx) (extracted from
+the release-form block) and [SongPicker](src/Zmg.Web/src/features/catalog/components/SongPicker.tsx)
+(debounced catalog search) — the picker is wired into the create-form Tracks section (per-row
+"New | From catalog") and the album add-row on the release detail. Track rows link into the catalog;
+a **single** swaps its one-row tracklist for a compact
+[SongCard](src/Zmg.Web/src/features/releases/components/SongCard.tsx). Verified end-to-end
+(list/detail/edit, double-link UPCs, drift hint, existing-song linking, single card) via API + SPA.
 
 ---
 
@@ -137,11 +153,7 @@ tests/Zmg.Api.Tests      integration tests (WebApplicationFactory + in-memory SQ
 
 ## Backlog / next steps
 
-- **v2.0 remainder — M13–M15** (see [build-plan-2.0.md](build-plan-2.0.md)):
-  - **M13 — Catalog.** Songs API (`GET/PUT /api/songs`, list/detail/search), `/catalog` + `/catalog/{id}`
-    pages, nav item, the existing-song **picker** wired into TracksEditor + the album add-row, track rows
-    linking into the catalog, singles surfacing their one song. *(M12 already ships the backend support
-    for linking existing songs — the picker UI is what's missing.)*
+- **v2.0 remainder — M14–M15** (see [build-plan-2.0.md](build-plan-2.0.md)):
   - **M14 — Pending rework.** Split `MissingIdentifier` → `MissingUpc` (release) + `MissingIsrc` (song),
     add `EmptyAlbum`; per-song distributed flag; collapsible `PendingSection` that scrolls past 4 items.
     *(M12 left `PendingKind.MissingIdentifier` as a UPC-only compile-fix — the full split is M14.)*

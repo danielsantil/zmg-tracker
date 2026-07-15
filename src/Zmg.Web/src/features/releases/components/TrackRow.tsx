@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import type { TrackDto } from '@/types';
 import { MenuItem, RowMenu } from '@/components';
 
@@ -42,8 +43,10 @@ export function TrackRow({
           {track.isFocusTrack ? '★' : '☆'}
         </button>
 
-        <span className="flex-1 text-sm text-slate-100">
-          {track.title}
+        <span className="flex-1 text-sm">
+          <Link to={`/catalog/${track.songId}`} className="text-slate-100 hover:text-accent">
+            {track.title}
+          </Link>
           {track.isFocusTrack && <span className="ml-2 text-xs text-amber-400/80">focus</span>}
           {track.isrc && <span className="ml-2 text-xs text-slate-500">{track.isrc}</span>}
         </span>

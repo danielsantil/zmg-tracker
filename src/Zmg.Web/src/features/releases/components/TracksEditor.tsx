@@ -1,66 +1,85 @@
-import type { Artist, TrackInput } from '@/types';
-import { ArtistRole, ReleaseType } from '@/types';
+import { useState } from 'react';
+import type { Artist, SongArtistInput, TrackInput } from '@/types';
+import { ReleaseType } from '@/types';
 import { Button, Field, inputClass } from '@/components';
+import { SongArtistsEditor } from '@/features/catalog/components/SongArtistsEditor';
+import { SongPicker } from '@/features/catalog/components/SongPicker';
 
-// A create-form row is always a NEW inline song in M12 (the existing-song picker lands in M13),
-// so title is edited as a plain string; the payload coerces blank ISRC/empty artists to null.
+// A create-form row is either a NEW inline song (title/ISRC/feats editable) or an existing catalog
+// song (songId + display title). `key` keeps React state stable across reorder/remove.
+interface EditorRow {
+  key: string;
+  songId: string | null;
+  title: string;
+  isrc: string;
+  artists: SongArtistInput[];
+}
+
+let rowSeq = 0;
+const newKey = () => `row-${rowSeq++}`;
+
+function blankRow(): EditorRow {
+  return { key: newKey(), songId: null, title: '', isrc: '', artists: [] };
+}
+
+// Seed one empty new-track row (used by the single's fixed row and the parent's initial state).
 export function emptyTrack(): TrackInput {
   return { songId: null, title: '', isrc: null, artists: [] };
 }
 
+function toInput(r: EditorRow): TrackInput {
+  return r.songId
+    ? { songId: r.songId, title: null, isrc: null, artists: null }
+    : { songId: null, title: r.title, isrc: r.isrc.trim() || null, artists: r.artists.length ? r.artists : null };
+}
+
 /**
- * The create-form Tracks section (v2.0 M12): rows of inline new tracks (Name, optional ISRC,
- * feats/collabs with role). A single has exactly one fixed row; an album has zero or more with
- * add/remove/reorder. Client-side guards mirror the API 400s.
+ * The create-form Tracks section (v2.0). Each row is a new inline track or an existing catalog song
+ * (per-row toggle, M13). A single has exactly one fixed row; an album has zero or more with
+ * add/remove/reorder. Emits `TrackInput[]` to the parent on every change. Remount (via `key={type}`
+ * in the parent) resets rows when the release type changes.
  */
 export function TracksEditor({
   type,
-  value,
   onChange,
   artists,
   mainArtistId,
 }: {
   type: ReleaseType;
-  value: TrackInput[];
   onChange: (tracks: TrackInput[]) => void;
   artists: Artist[];
   mainArtistId: string;
 }) {
   const isAlbum = type === ReleaseType.Album;
-  const otherArtists = artists.filter((a) => a.id !== mainArtistId);
+  const [rows, setRows] = useState<EditorRow[]>(() => (isAlbum ? [] : [blankRow()]));
 
-  function update(i: number, patch: Partial<TrackInput>) {
-    onChange(value.map((t, idx) => (idx === i ? { ...t, ...patch } : t)));
+  function commit(next: EditorRow[]) {
+    setRows(next);
+    onChange(next.map(toInput));
+  }
+
+  function update(i: number, patch: Partial<EditorRow>) {
+    commit(rows.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
   }
 
   function addRow() {
-    onChange([...value, emptyTrack()]);
+    commit([...rows, blankRow()]);
   }
 
   function removeRow(i: number) {
-    onChange(value.filter((_, idx) => idx !== i));
+    commit(rows.filter((_, idx) => idx !== i));
   }
 
   function move(i: number, dir: -1 | 1) {
     const j = i + dir;
-    if (j < 0 || j >= value.length) return;
-    const next = [...value];
+    if (j < 0 || j >= rows.length) return;
+    const next = [...rows];
     [next[i], next[j]] = [next[j], next[i]];
-    onChange(next);
+    commit(next);
   }
 
-  function toggleArtist(i: number, artistId: string) {
-    const current = value[i].artists ?? [];
-    const next = current.some((a) => a.artistId === artistId)
-      ? current.filter((a) => a.artistId !== artistId)
-      : [...current, { artistId, role: ArtistRole.Featured }];
-    update(i, { artists: next });
-  }
-
-  function setRole(i: number, artistId: string, role: ArtistRole) {
-    const next = (value[i].artists ?? []).map((a) => (a.artistId === artistId ? { ...a, role } : a));
-    update(i, { artists: next });
-  }
+  // songIds already chosen in other rows — exclude them from the picker.
+  const chosenIds = rows.filter((r) => r.songId).map((r) => r.songId!);
 
   return (
     <Field
@@ -68,91 +87,74 @@ export function TracksEditor({
       hint={isAlbum ? 'Add the songs on this album' : 'A single has exactly one song'}
     >
       <div className="space-y-3">
-        {value.map((track, i) => (
-          <div key={i} className="rounded-lg border border-edge bg-panel p-3">
+        {rows.map((track, i) => (
+          <div key={track.key} className="rounded-lg border border-edge bg-panel p-3">
             <div className="flex items-center gap-2">
               <span className="w-5 shrink-0 text-right text-sm tabular-nums text-slate-500">{i + 1}</span>
-              <input
-                className={inputClass}
-                value={track.title ?? ''}
-                onChange={(e) => update(i, { title: e.target.value })}
-                placeholder="Song title"
-              />
+
+              {track.songId ? (
+                // Existing catalog song: title is read-only, "Change" re-opens the picker.
+                <div className="flex flex-1 items-center gap-2">
+                  <span className="flex-1 text-sm text-slate-100">{track.title}</span>
+                  <span className="text-xs text-slate-500">from catalog</span>
+                  <button
+                    type="button"
+                    className="text-xs text-slate-400 hover:text-accent"
+                    onClick={() => update(i, { songId: null, title: '' })}
+                  >
+                    Change
+                  </button>
+                </div>
+              ) : (
+                <input
+                  className={inputClass}
+                  value={track.title}
+                  onChange={(e) => update(i, { title: e.target.value })}
+                  placeholder="Song title"
+                />
+              )}
+
               {isAlbum && (
                 <div className="flex shrink-0 items-center gap-1">
-                  <button
-                    type="button"
-                    aria-label="Move up"
-                    disabled={i === 0}
-                    onClick={() => move(i, -1)}
-                    className="px-1.5 text-slate-500 hover:text-slate-300 disabled:opacity-30"
-                  >
-                    ↑
-                  </button>
-                  <button
-                    type="button"
-                    aria-label="Move down"
-                    disabled={i === value.length - 1}
-                    onClick={() => move(i, 1)}
-                    className="px-1.5 text-slate-500 hover:text-slate-300 disabled:opacity-30"
-                  >
-                    ↓
-                  </button>
-                  <button
-                    type="button"
-                    aria-label="Remove track"
-                    onClick={() => removeRow(i)}
-                    className="px-1.5 text-red-400/70 hover:text-red-300"
-                  >
-                    ✕
-                  </button>
+                  <button type="button" aria-label="Move up" disabled={i === 0} onClick={() => move(i, -1)}
+                    className="px-1.5 text-slate-500 hover:text-slate-300 disabled:opacity-30">↑</button>
+                  <button type="button" aria-label="Move down" disabled={i === rows.length - 1} onClick={() => move(i, 1)}
+                    className="px-1.5 text-slate-500 hover:text-slate-300 disabled:opacity-30">↓</button>
+                  <button type="button" aria-label="Remove track" onClick={() => removeRow(i)}
+                    className="px-1.5 text-red-400/70 hover:text-red-300">✕</button>
                 </div>
               )}
             </div>
 
-            <div className="mt-2 pl-7">
-              <input
-                className={`${inputClass} max-w-[16rem]`}
-                value={track.isrc ?? ''}
-                onChange={(e) => update(i, { isrc: e.target.value })}
-                placeholder="ISRC (optional)"
-              />
-            </div>
-
-            {otherArtists.length > 0 && (
-              <div className="mt-2 space-y-1.5 pl-7">
-                <p className="text-xs text-slate-500">Featured / collab artists</p>
-                {otherArtists.map((a) => {
-                  const entry = (track.artists ?? []).find((f) => f.artistId === a.id);
-                  return (
-                    <div key={a.id} className="flex items-center gap-3">
-                      <label className="flex flex-1 items-center gap-2 text-sm text-slate-200">
-                        <input
-                          type="checkbox"
-                          checked={Boolean(entry)}
-                          onChange={() => toggleArtist(i, a.id)}
-                        />
-                        {a.name}
-                      </label>
-                      {entry && (
-                        <select
-                          className={`${inputClass} max-w-[9rem]`}
-                          value={entry.role}
-                          onChange={(e) => setRole(i, a.id, Number(e.target.value) as ArtistRole)}
-                        >
-                          <option value={ArtistRole.Featured}>Featured</option>
-                          <option value={ArtistRole.Collab}>Collab</option>
-                        </select>
-                      )}
-                    </div>
-                  );
-                })}
+            {/* New-track fields (title / ISRC / feats). Hidden once a catalog song is picked. */}
+            {!track.songId && (
+              <div className="mt-2 space-y-2 pl-7">
+                <input
+                  className={`${inputClass} max-w-[16rem]`}
+                  value={track.isrc}
+                  onChange={(e) => update(i, { isrc: e.target.value })}
+                  placeholder="ISRC (optional)"
+                />
+                <SongArtistsEditor
+                  artists={artists}
+                  value={track.artists}
+                  onChange={(next) => update(i, { artists: next })}
+                  mainArtistId={mainArtistId}
+                />
+                <div>
+                  <span className="mr-2 text-xs text-slate-500">or</span>
+                  <SongPicker
+                    excludeIds={chosenIds}
+                    placeholder="Pick an existing song from the catalog…"
+                    onSelect={(s) => update(i, { songId: s.id, title: s.title })}
+                  />
+                </div>
               </div>
             )}
           </div>
         ))}
 
-        {value.length === 0 && (
+        {rows.length === 0 && (
           <p className="rounded-lg border border-dashed border-edge px-3 py-2 text-sm text-slate-500">
             No tracks yet — an album can be created empty and filled in later.
           </p>

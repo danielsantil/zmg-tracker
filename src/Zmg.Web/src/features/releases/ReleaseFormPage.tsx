@@ -70,27 +70,32 @@ export default function ReleaseFormPage() {
     setErrors([]);
     setWarnings([]);
 
-    // Client-side guards mirror the API 400s (create only).
+    // Client-side guards mirror the API 400s (create only). A row is valid if it's an existing
+    // catalog song (songId) or a new title.
     if (!isEdit) {
-      const named = tracks.filter((t) => (t.title ?? '').trim());
-      if (type === ReleaseType.Single && named.length !== 1) {
-        setErrors(['A single must have exactly one track with a title.']);
+      const filled = tracks.filter((t) => t.songId || (t.title ?? '').trim());
+      if (type === ReleaseType.Single && filled.length !== 1) {
+        setErrors(['A single must have exactly one track.']);
         return;
       }
-      if (tracks.some((t) => !(t.title ?? '').trim())) {
-        setErrors(['Every track needs a title.']);
+      if (tracks.some((t) => !t.songId && !(t.title ?? '').trim())) {
+        setErrors(['Every new track needs a title (or pick an existing song).']);
         return;
       }
     }
 
     setSaving(true);
     try {
-      const cleanedTracks: TrackInput[] = tracks.map((t) => ({
-        songId: null,
-        title: (t.title ?? '').trim(),
-        isrc: (t.isrc ?? '').trim() || null,
-        artists: t.artists && t.artists.length > 0 ? t.artists : null,
-      }));
+      const cleanedTracks: TrackInput[] = tracks.map((t) =>
+        t.songId
+          ? { songId: t.songId, title: null, isrc: null, artists: null }
+          : {
+              songId: null,
+              title: (t.title ?? '').trim(),
+              isrc: (t.isrc ?? '').trim() || null,
+              artists: t.artists && t.artists.length > 0 ? t.artists : null,
+            },
+      );
 
       const input = {
         title,
@@ -213,8 +218,8 @@ export default function ReleaseFormPage() {
         {/* Tracks are set at create only; editing them happens via the release detail (and the catalog). */}
         {!isEdit && (
           <TracksEditor
+            key={type}
             type={type}
-            value={tracks}
             onChange={setTracks}
             artists={artists}
             mainArtistId={mainArtistId}

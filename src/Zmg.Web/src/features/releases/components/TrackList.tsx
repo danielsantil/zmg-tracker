@@ -1,18 +1,19 @@
 import type { TrackDto } from '@/types';
 import { InlineAddForm } from '@/components';
+import { SongPicker } from '@/features/catalog/components/SongPicker';
 import { TrackRow } from './TrackRow';
 
 /**
- * The release's tracklist (v2.0). Renders for both types: an album shows full controls (add /
- * reorder / focus / remove), a single shows its one row read-only (its track is fixed at create).
- * Archived releases are read-only too. Quick-add stays title-only (new inline song) until M13's
- * existing-song picker.
+ * The release's tracklist (v2.0). Renders for both types: an album shows full controls (add a new
+ * track or an existing catalog song, reorder, focus, remove); a single shows its one row read-only
+ * (its track is fixed at create). Archived releases are read-only too.
  */
 export function TrackList({
   tracks,
   isSingle,
   readOnly = false,
   onAdd,
+  onAddExisting,
   onToggleFocus,
   onDelete,
   onMove,
@@ -21,6 +22,7 @@ export function TrackList({
   isSingle: boolean;
   readOnly?: boolean;
   onAdd: (title: string) => void;
+  onAddExisting: (songId: string) => void;
   onToggleFocus: (t: TrackDto) => void;
   onDelete: (t: TrackDto) => void;
   onMove: (t: TrackDto, dir: -1 | 1) => void;
@@ -55,7 +57,15 @@ export function TrackList({
           </ul>
         )}
 
-        {showControls && <InlineAddForm addLabel="+ Add track" placeholder="New track title" onAdd={onAdd} />}
+        {showControls && (
+          <>
+            <InlineAddForm addLabel="+ Add track" placeholder="New track title" onAdd={onAdd} />
+            <div className="border-t border-edge px-3 py-2">
+              <p className="mb-1 text-xs text-slate-500">…or add an existing song from the catalog</p>
+              <SongPicker excludeIds={tracks.map((t) => t.songId)} onSelect={(s) => onAddExisting(s.id)} />
+            </div>
+          </>
+        )}
       </div>
     </section>
   );

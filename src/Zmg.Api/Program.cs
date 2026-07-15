@@ -11,6 +11,7 @@ builder.Services.AddDbContext<ZmgDbContext>(options => options.UseSqlite(connect
 
 builder.Services.AddScoped<IArtistService, ArtistService>();
 builder.Services.AddScoped<IReleaseService, ReleaseService>();
+builder.Services.AddScoped<ISongService, SongService>();
 builder.Services.AddScoped<IPendingService, PendingService>();
 builder.Services.AddScoped<ITrackService, TrackService>();
 builder.Services.AddScoped<ITemplateService, TemplateService>();
@@ -44,6 +45,7 @@ if (app.Environment.IsDevelopment())
 app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
 app.MapArtistEndpoints();
 app.MapReleaseEndpoints();
+app.MapSongEndpoints();
 app.MapTaskEndpoints();
 app.MapTemplateEndpoints();
 app.MapTrackEndpoints();

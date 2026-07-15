@@ -1,6 +1,7 @@
 import { artistsApi } from './artists';
 import { pendingApi } from './pending';
 import { releasesApi } from './releases';
+import { songsApi } from './songs';
 import { tasksApi } from './tasks';
 import { templatesApi } from './templates';
 import { tracksApi } from './tracks';
@@ -13,6 +14,7 @@ import { tracksApi } from './tracks';
 export const api = {
   artists: artistsApi,
   releases: releasesApi,
+  songs: songsApi,
   tasks: tasksApi,
   templates: templatesApi,
   tracks: tracksApi,

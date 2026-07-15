@@ -5,6 +5,8 @@ import ArchivedReleases from './features/releases/ArchivedReleasesPage';
 import Artists from './features/artists/ArtistsPage';
 import ReleaseForm from './features/releases/ReleaseFormPage';
 import ReleaseDetail from './features/releases/ReleaseDetailPage';
+import Catalog from './features/catalog/CatalogPage';
+import SongDetail from './features/catalog/SongDetailPage';
 import Templates from './features/templates/TemplatesPage';
 
 function Nav() {
@@ -24,6 +26,9 @@ function Nav() {
         </NavLink>
         <NavLink to="/releases" className={link}>
           All Releases
+        </NavLink>
+        <NavLink to="/catalog" className={link}>
+          Catalog
         </NavLink>
         <NavLink to="/artists" className={link}>
           Artists
@@ -45,6 +50,8 @@ export default function App() {
           <Route path="/" element={<Home />} />
           <Route path="/releases" element={<AllReleases />} />
           <Route path="/releases/archived" element={<ArchivedReleases />} />
+          <Route path="/catalog" element={<Catalog />} />
+          <Route path="/catalog/:id" element={<SongDetail />} />
           <Route path="/artists" element={<Artists />} />
           <Route path="/templates" element={<Templates />} />
           <Route path="/releases/new" element={<ReleaseForm />} />
