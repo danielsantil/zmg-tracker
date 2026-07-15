@@ -62,8 +62,10 @@ public sealed class ArtistService(ZmgDbContext db) : IArtistService
         var artist = await db.Artists.FindAsync(id);
         if (artist is null) return OperationResult.NotFound();
 
+        // Blocked if the artist is the main artist of any release or song (both are Restrict FKs).
         var releaseCount = await db.Releases.CountAsync(r => r.MainArtistId == id);
-        var validation = Validation.ValidateArtistDelete(releaseCount);
+        var songCount = await db.Songs.CountAsync(s => s.MainArtistId == id);
+        var validation = Validation.ValidateArtistDelete(releaseCount + songCount);
         if (!validation.IsValid)
             return OperationResult.Conflict(validation.Errors);
 

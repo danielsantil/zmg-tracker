@@ -1,25 +1,20 @@
-import type { TrackDto } from '@/types';
+import type { TrackDto, TrackInput } from '@/types';
 import { request } from './client';
 
-// Tracks (album support)
+// Tracks (v2.0: a Release↔Song join, addressed by songId, all under the release group).
 export const tracksApi = {
-  add: (releaseId: string, input: { title: string }) =>
+  add: (releaseId: string, input: TrackInput) =>
     request<TrackDto>(`/api/releases/${releaseId}/tracks`, {
       method: 'POST',
       body: JSON.stringify(input),
     }),
-  update: (id: string, input: { title: string; isFocusTrack: boolean }) =>
-    request<TrackDto>(`/api/tracks/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(input),
-    }),
-  toggleFocus: (id: string) =>
-    request<TrackDto>(`/api/tracks/${id}/focus`, { method: 'PATCH' }),
-  reorder: (releaseId: string, input: { orderedTrackIds: string[] }) =>
+  toggleFocus: (releaseId: string, songId: string) =>
+    request<TrackDto>(`/api/releases/${releaseId}/tracks/${songId}/focus`, { method: 'PATCH' }),
+  reorder: (releaseId: string, input: { orderedSongIds: string[] }) =>
     request<void>(`/api/releases/${releaseId}/tracks/order`, {
       method: 'PUT',
       body: JSON.stringify(input),
     }),
-  delete: (id: string) =>
-    request<void>(`/api/tracks/${id}`, { method: 'DELETE' }),
+  delete: (releaseId: string, songId: string) =>
+    request<void>(`/api/releases/${releaseId}/tracks/${songId}`, { method: 'DELETE' }),
 };

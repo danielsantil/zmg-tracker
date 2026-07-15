@@ -8,11 +8,17 @@ lists; read **this** for current state and the cross-cutting knowledge the plans
 - [build-plan-1.0.md](build-plan-1.0.md) — frozen v1 brief (M0–M5). Shipped.
 - [build-plan-1.1.md](build-plan-1.1.md) — singles improvements (M6–M10). Shipped.
 - [build-plan-1.2.md](build-plan-1.2.md) — archived releases (M11). Shipped.
+- [build-plan-2.0.md](build-plan-2.0.md) — songs & catalog (M12–M15). **M12 shipped; M13–M15 next.**
 
 Newer plan versions go in new `build-plan-N.N.md` files; older ones stay frozen.
 
-**Current state:** v1.2 done and verified. Tests green (`dotnet test` — domain 40 / API 54).
-Next work is in [Backlog / next steps](#backlog--next-steps).
+**Current state:** v2.0 **M12** done and verified (Song data model + hard schema reset). Tests green
+(`dotnet test` — domain 44 / API 59). Next work is **M13 (Catalog)** — see the build plan — then the
+rest of [Backlog / next steps](#backlog--next-steps).
+
+> ⚠️ **M12 is a hard schema reset with no migration.** Any existing local `src/Zmg.Api/zmg.db` from
+> v1.x must be deleted before running — the fresh `InitialCreate` won't apply on top of the old schema.
+> Delete it (`rm src/Zmg.Api/zmg.db*`) and startup will recreate a seeded db.
 
 ---
 
@@ -39,6 +45,19 @@ running API + browser SPA.
 
 **Post-M10 fix:** the soft UPC/ISRC warning was a hover-only `title` tooltip (dead on touch); it's
 now a tappable button with a dismissable popover ([IdentifierWarning.tsx](src/Zmg.Web/src/components/IdentifierWarning.tsx)).
+
+**v2.0 (M12) — Song data model, hard schema reset & backend rebuild.** A first-class **Song**
+([Song.cs](src/Zmg.Domain/Entities/Song.cs)) — title, main artist (copied from the release at
+inline creation, then independent), ISRC, feats/collabs ([SongArtist.cs](src/Zmg.Domain/Entities/SongArtist.cs),
+replaces the deleted `ReleaseArtist`), and its own `ArchivedAt`/`DeletedAt` columns (lifecycle wired
+in M15). **`Track` became a pure Release↔Song join** with composite PK `(ReleaseId, SongId)` — no
+surrogate id, structurally blocks a song twice on one release, endpoints re-keyed to
+`/api/releases/{releaseId}/tracks/{songId}` (the old `/api/tracks/{id}` group is gone). **Release lost
+`Isrc` and `FeaturedArtists`**; `NeedsWarning` is UPC-only. `CreateAsync` now materialises the inline
+Tracks section (new inline songs and/or existing catalog songs); the create form's **Tracks section**
+([TracksEditor.tsx](src/Zmg.Web/src/features/releases/components/TracksEditor.tsx)) ships new-track
+rows only (existing-song picker is M13). Auto-distribute simplified to **past-date-only** (identifiers
+no longer imply distribution). Verified end-to-end via the running API + browser SPA.
 
 ---
 
@@ -68,6 +87,23 @@ now a tappable button with a dismissable popover ([IdentifierWarning.tsx](src/Zm
 - **Web is organized by feature folder** (`src/Zmg.Web/src/features/{home,releases,artists,templates}`),
   not flat `pages/` — an earlier refactor (#1). Shared UI in `components/`, API client in `api/`,
   types in `types/`.
+- **Song vs Release (v2.0).** A **Song** is the creative work (title, ISRC, feats/collabs, main
+  artist); a **Release** is the commercial package (UPC, cover, tasks). They link through `Track`, so
+  one song can sit on a single *and* an album. A song's **UPCs and release date are derived** from its
+  links, never stored. **Type is fixed at create** (determines the checklist) and PUT rejects a change
+  with 409. A single is fixed at one track; an album has zero+. Song fields are edited only on the
+  catalog detail page (M13) — release-detail track rows just reorder/focus/remove.
+- **Hard schema reset, no migration (v2.0).** M12 deleted all v1.x migrations and regenerated a single
+  `InitialCreate`; there is intentionally **no upgrade path** from a v1.x db. Delete any local `zmg.db`.
+  Template/task `HasData` seeding carried over unchanged (proven by the green seed tests).
+- **EF tooling must match the runtime (EF 8).** v2.0 needs no further migrations, so nothing is pinned
+  in-repo. **If** you ever regenerate one, use a `dotnet-ef` on the 8.x line — a 10.x-generated
+  migration builds fine but silently fails at runtime (`no such table: __EFMigrationsHistory` on the
+  history insert). Install matching tooling first, e.g. `dotnet tool install --global dotnet-ef --version 8.0.11`.
+- **Track query filter (v2.0).** A join between two soft-filtered entities needs its own filter
+  (`t.Release!.DeletedAt == null && t.Song!.DeletedAt == null`) so a stale join vanishes with either
+  parent; it also silences EF's required-nav-to-filtered-entity advisory for `Track`. The same benign
+  advisory still logs for `Release→ReleaseTask` and now `Song→SongArtist` (expected).
 
 ## Run
 
@@ -101,8 +137,20 @@ tests/Zmg.Api.Tests      integration tests (WebApplicationFactory + in-memory SQ
 
 ## Backlog / next steps
 
+- **v2.0 remainder — M13–M15** (see [build-plan-2.0.md](build-plan-2.0.md)):
+  - **M13 — Catalog.** Songs API (`GET/PUT /api/songs`, list/detail/search), `/catalog` + `/catalog/{id}`
+    pages, nav item, the existing-song **picker** wired into TracksEditor + the album add-row, track rows
+    linking into the catalog, singles surfacing their one song. *(M12 already ships the backend support
+    for linking existing songs — the picker UI is what's missing.)*
+  - **M14 — Pending rework.** Split `MissingIdentifier` → `MissingUpc` (release) + `MissingIsrc` (song),
+    add `EmptyAlbum`; per-song distributed flag; collapsible `PendingSection` that scrolls past 4 items.
+    *(M12 left `PendingKind.MissingIdentifier` as a UPC-only compile-fix — the full split is M14.)*
+  - **M15 — Archive cascade & Catalog Archive.** Song archive/delete lifecycle, release-archive cascade
+    to exclusively-linked upcoming songs, `/catalog/archived`. *(Song `ArchivedAt`/`DeletedAt` columns +
+    the `IsArchived`/archived-add-409 guards already exist from M12.)*
 - **Phase 2 — DSP stats** (the reason this exists over Notion/Trello): hang streaming/revenue data off
-  the stable Artist / Release / Track ids and UPC/ISRC columns. Needs a schema pass.
+  the stable Artist / Release / **Song** / Track ids and UPC/ISRC columns. The v2.0 Song ids are its
+  foundation.
 - **Per-track task fan-out** on albums: registrations that repeat per track are single "per track"
   tasks today. Decide after the first real album.
 - **Verify the Docker image** on a machine with the daemon running (`docker build -t zmg-tracker .`) —

@@ -5,7 +5,8 @@ using Zmg.Domain.Enums;
 
 namespace Zmg.Api.Tests;
 
-/// <summary>M7 — UPC/ISRC round-trip, the soft identifier warning, and past-date backfill auto-check.</summary>
+/// <summary>M7 (v2.0: UPC-only) — UPC round-trip, the soft identifier warning, and past-date backfill
+/// auto-check. ISRC moved to the song (see catalog tests, M13).</summary>
 public class ReleaseIdentifierApiTests(ZmgApiFactory factory) : IClassFixture<ZmgApiFactory>
 {
     private async Task<ArtistDto> CreateArtist(HttpClient client, string name)
@@ -16,10 +17,11 @@ public class ReleaseIdentifierApiTests(ZmgApiFactory factory) : IClassFixture<Zm
     }
 
     private async Task<ReleaseDetailDto> CreateRelease(
-        HttpClient client, Guid artistId, string title, DateOnly date, string? upc = null, string? isrc = null)
+        HttpClient client, Guid artistId, string title, DateOnly date, string? upc = null)
     {
         var res = await client.PostAsJsonAsync("/api/releases", new ReleaseInput(
-            title, ReleaseType.Single, date, artistId, null, null, null, Upc: upc, Isrc: isrc));
+            title, ReleaseType.Single, date, artistId, null, null,
+            new List<TrackInput> { new(null, "Track 1", null, null) }, Upc: upc));
         res.EnsureSuccessStatusCode();
         return (await res.Content.ReadFromJsonAsync<CreatedWithWarnings<ReleaseDetailDto>>())!.Data;
     }
@@ -28,36 +30,34 @@ public class ReleaseIdentifierApiTests(ZmgApiFactory factory) : IClassFixture<Zm
         detail.Phases.SelectMany(p => p.Tasks).Single(t => t.Title == SeedData.DistributeToDspsTitle);
 
     [Fact]
-    public async Task Upc_and_isrc_round_trip_on_create_and_update()
+    public async Task Upc_round_trips_on_create_and_update()
     {
         var client = factory.CreateClient();
         var artist = await CreateArtist(client, "Identifier Artist");
 
         var created = await CreateRelease(client, artist.Id, "IdSong", new DateOnly(2026, 8, 14),
-            upc: "0123456789012", isrc: "US-ABC-26-00001");
+            upc: "0123456789012");
         Assert.Equal("0123456789012", created.Upc);
-        Assert.Equal("US-ABC-26-00001", created.Isrc);
 
         var upd = await client.PutAsJsonAsync($"/api/releases/{created.Id}", new ReleaseInput(
             "IdSong", ReleaseType.Single, new DateOnly(2026, 8, 14), artist.Id, null, null, null,
-            Upc: "9999999999999", Isrc: "US-ABC-26-99999"));
+            Upc: "9999999999999"));
         upd.EnsureSuccessStatusCode();
         var updated = (await upd.Content.ReadFromJsonAsync<CreatedWithWarnings<ReleaseDetailDto>>())!.Data;
         Assert.Equal("9999999999999", updated.Upc);
-        Assert.Equal("US-ABC-26-99999", updated.Isrc);
     }
 
     [Fact]
-    public async Task NeedsIdentifierWarning_only_after_distribution_and_clears_when_ids_filled()
+    public async Task NeedsIdentifierWarning_only_after_distribution_and_clears_when_upc_filled()
     {
         var client = factory.CreateClient();
         var artist = await CreateArtist(client, "Warning Artist");
 
-        // Future release, blank ids: silent until distributed.
+        // Future release, blank UPC: silent until distributed.
         var created = await CreateRelease(client, artist.Id, "WarnSong", new DateOnly(2026, 8, 14));
         Assert.False(created.NeedsIdentifierWarning);
 
-        // Check "Distribute to DSPs" — now a blank id surfaces the warning.
+        // Check "Distribute to DSPs" — now a blank UPC surfaces the warning.
         var distribute = DistributeTask(created);
         await client.PatchAsync($"/api/tasks/{distribute.Id}/toggle", null);
 
@@ -68,10 +68,10 @@ public class ReleaseIdentifierApiTests(ZmgApiFactory factory) : IClassFixture<Zm
         var list = await client.GetFromJsonAsync<List<ReleaseListItemDto>>($"/api/releases?artistId={artist.Id}");
         Assert.True(list!.Single(r => r.Id == created.Id).NeedsIdentifierWarning);
 
-        // Fill both ids: warning clears.
+        // Fill the UPC: warning clears.
         var upd = await client.PutAsJsonAsync($"/api/releases/{created.Id}", new ReleaseInput(
             "WarnSong", ReleaseType.Single, new DateOnly(2026, 8, 14), artist.Id, null, null, null,
-            Upc: "0123456789012", Isrc: "US-ABC-26-00001"));
+            Upc: "0123456789012"));
         upd.EnsureSuccessStatusCode();
         var filled = (await upd.Content.ReadFromJsonAsync<CreatedWithWarnings<ReleaseDetailDto>>())!.Data;
         Assert.False(filled.NeedsIdentifierWarning);
@@ -90,7 +90,7 @@ public class ReleaseIdentifierApiTests(ZmgApiFactory factory) : IClassFixture<Zm
         Assert.True(distribute.IsDone);
         Assert.Equal(1, created.DoneTasks);
 
-        // Blank ids on an already-distributed release surface the warning.
+        // Blank UPC on an already-distributed release surfaces the warning.
         Assert.True(created.NeedsIdentifierWarning);
     }
 }

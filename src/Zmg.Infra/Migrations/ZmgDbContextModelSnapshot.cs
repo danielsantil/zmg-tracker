@@ -78,9 +78,6 @@ namespace Zmg.Infra.Migrations
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("Isrc")
-                        .HasColumnType("TEXT");
-
                     b.Property<Guid>("MainArtistId")
                         .HasColumnType("TEXT");
 
@@ -105,24 +102,6 @@ namespace Zmg.Infra.Migrations
                     b.HasIndex("MainArtistId");
 
                     b.ToTable("Releases");
-                });
-
-            modelBuilder.Entity("Zmg.Domain.Entities.ReleaseArtist", b =>
-                {
-                    b.Property<Guid>("ReleaseId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid>("ArtistId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("Role")
-                        .HasColumnType("INTEGER");
-
-                    b.HasKey("ReleaseId", "ArtistId");
-
-                    b.HasIndex("ArtistId");
-
-                    b.ToTable("ReleaseArtists");
                 });
 
             modelBuilder.Entity("Zmg.Domain.Entities.ReleaseTask", b =>
@@ -167,6 +146,55 @@ namespace Zmg.Infra.Migrations
                     b.HasIndex("ReleaseId");
 
                     b.ToTable("ReleaseTasks");
+                });
+
+            modelBuilder.Entity("Zmg.Domain.Entities.Song", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("ArchivedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Isrc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("MainArtistId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MainArtistId");
+
+                    b.HasIndex("Title");
+
+                    b.ToTable("Songs");
+                });
+
+            modelBuilder.Entity("Zmg.Domain.Entities.SongArtist", b =>
+                {
+                    b.Property<Guid>("SongId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ArtistId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Role")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("SongId", "ArtistId");
+
+                    b.HasIndex("ArtistId");
+
+                    b.ToTable("SongArtists");
                 });
 
             modelBuilder.Entity("Zmg.Domain.Entities.TemplateTask", b =>
@@ -789,26 +817,21 @@ namespace Zmg.Infra.Migrations
 
             modelBuilder.Entity("Zmg.Domain.Entities.Track", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
+                    b.Property<Guid>("ReleaseId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("SongId")
                         .HasColumnType("TEXT");
 
                     b.Property<bool>("IsFocusTrack")
                         .HasColumnType("INTEGER");
 
-                    b.Property<Guid>("ReleaseId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
                     b.Property<int>("TrackNumber")
                         .HasColumnType("INTEGER");
 
-                    b.HasKey("Id");
+                    b.HasKey("ReleaseId", "SongId");
 
-                    b.HasIndex("ReleaseId");
+                    b.HasIndex("SongId");
 
                     b.ToTable("Tracks");
                 });
@@ -824,25 +847,6 @@ namespace Zmg.Infra.Migrations
                     b.Navigation("MainArtist");
                 });
 
-            modelBuilder.Entity("Zmg.Domain.Entities.ReleaseArtist", b =>
-                {
-                    b.HasOne("Zmg.Domain.Entities.Artist", "Artist")
-                        .WithMany("ReleaseCredits")
-                        .HasForeignKey("ArtistId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Zmg.Domain.Entities.Release", "Release")
-                        .WithMany("FeaturedArtists")
-                        .HasForeignKey("ReleaseId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Artist");
-
-                    b.Navigation("Release");
-                });
-
             modelBuilder.Entity("Zmg.Domain.Entities.ReleaseTask", b =>
                 {
                     b.HasOne("Zmg.Domain.Entities.Release", "Release")
@@ -852,6 +856,36 @@ namespace Zmg.Infra.Migrations
                         .IsRequired();
 
                     b.Navigation("Release");
+                });
+
+            modelBuilder.Entity("Zmg.Domain.Entities.Song", b =>
+                {
+                    b.HasOne("Zmg.Domain.Entities.Artist", "MainArtist")
+                        .WithMany("Songs")
+                        .HasForeignKey("MainArtistId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("MainArtist");
+                });
+
+            modelBuilder.Entity("Zmg.Domain.Entities.SongArtist", b =>
+                {
+                    b.HasOne("Zmg.Domain.Entities.Artist", "Artist")
+                        .WithMany("SongCredits")
+                        .HasForeignKey("ArtistId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Zmg.Domain.Entities.Song", "Song")
+                        .WithMany("Artists")
+                        .HasForeignKey("SongId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Artist");
+
+                    b.Navigation("Song");
                 });
 
             modelBuilder.Entity("Zmg.Domain.Entities.TemplateTask", b =>
@@ -873,14 +907,24 @@ namespace Zmg.Infra.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Zmg.Domain.Entities.Song", "Song")
+                        .WithMany("ReleaseLinks")
+                        .HasForeignKey("SongId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.Navigation("Release");
+
+                    b.Navigation("Song");
                 });
 
             modelBuilder.Entity("Zmg.Domain.Entities.Artist", b =>
                 {
-                    b.Navigation("ReleaseCredits");
-
                     b.Navigation("Releases");
+
+                    b.Navigation("SongCredits");
+
+                    b.Navigation("Songs");
                 });
 
             modelBuilder.Entity("Zmg.Domain.Entities.ChecklistTemplate", b =>
@@ -890,11 +934,16 @@ namespace Zmg.Infra.Migrations
 
             modelBuilder.Entity("Zmg.Domain.Entities.Release", b =>
                 {
-                    b.Navigation("FeaturedArtists");
-
                     b.Navigation("Tasks");
 
                     b.Navigation("Tracks");
+                });
+
+            modelBuilder.Entity("Zmg.Domain.Entities.Song", b =>
+                {
+                    b.Navigation("Artists");
+
+                    b.Navigation("ReleaseLinks");
                 });
 #pragma warning restore 612, 618
         }

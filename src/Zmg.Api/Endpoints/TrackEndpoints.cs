@@ -5,35 +5,30 @@ using Zmg.Api.Services.Interfaces;
 namespace Zmg.Api.Endpoints;
 
 /// <summary>
-/// Album track list (M4). Tracks belong to a release (albums in practice; the UI only
-/// surfaces the list for album releases). Ordering is by TrackNumber, which stays 1-based
-/// and contiguous; reorder rewrites it from the given id order. Logic lives in ITrackService.
+/// Album track list (v2.0). Tracks are a Release↔Song join addressed by songId, all under the
+/// release group. Ordering is by TrackNumber (1-based, contiguous); reorder rewrites it from the
+/// given songId order. Singles are fixed at one track. Logic lives in ITrackService.
 /// </summary>
 public static class TrackEndpoints
 {
     public static void MapTrackEndpoints(this IEndpointRouteBuilder app)
     {
-        var releaseGroup = app.MapGroup("/api/releases").WithTags("Tracks");
-        var trackGroup = app.MapGroup("/api/tracks").WithTags("Tracks");
+        var group = app.MapGroup("/api/releases").WithTags("Tracks");
 
-        // Add a track to a release, appended after the current last track.
-        releaseGroup.MapPost("/{releaseId:guid}/tracks", async (Guid releaseId, AddTrackInput input, ITrackService tracks) =>
-            (await tracks.AddAsync(releaseId, input)).ToCreated(t => $"/api/tracks/{t.Id}"));
-
-        // Rename and/or set the focus-track flag.
-        trackGroup.MapPut("/{id:guid}", async (Guid id, UpdateTrackInput input, ITrackService tracks) =>
-            (await tracks.UpdateAsync(id, input)).ToOk());
+        // Add a track (existing catalog song or new inline song), appended after the last track.
+        group.MapPost("/{releaseId:guid}/tracks", async (Guid releaseId, TrackInput input, ITrackService tracks) =>
+            (await tracks.AddAsync(releaseId, input)).ToCreated(t => $"/api/releases/{releaseId}/tracks/{t.SongId}"));
 
         // Toggle the focus-track flag (the quick daily action).
-        trackGroup.MapPatch("/{id:guid}/focus", async (Guid id, ITrackService tracks) =>
-            (await tracks.ToggleFocusAsync(id)).ToOk());
+        group.MapPatch("/{releaseId:guid}/tracks/{songId:guid}/focus", async (Guid releaseId, Guid songId, ITrackService tracks) =>
+            (await tracks.ToggleFocusAsync(releaseId, songId)).ToOk());
 
-        // Reorder tracks; TrackNumber follows the given id order (1-based).
-        releaseGroup.MapPut("/{releaseId:guid}/tracks/order", async (Guid releaseId, ReorderTracksInput input, ITrackService tracks) =>
+        // Reorder tracks; TrackNumber follows the given songId order (1-based).
+        group.MapPut("/{releaseId:guid}/tracks/order", async (Guid releaseId, ReorderTracksInput input, ITrackService tracks) =>
             (await tracks.ReorderAsync(releaseId, input)).ToNoContent());
 
-        // Delete a track and close the gap in numbering.
-        trackGroup.MapDelete("/{id:guid}", async (Guid id, ITrackService tracks) =>
-            (await tracks.DeleteAsync(id)).ToNoContent());
+        // Remove a track (the join only; the song survives) and close the gap in numbering.
+        group.MapDelete("/{releaseId:guid}/tracks/{songId:guid}", async (Guid releaseId, Guid songId, ITrackService tracks) =>
+            (await tracks.DeleteAsync(releaseId, songId)).ToNoContent());
     }
 }

@@ -1,4 +1,13 @@
+using Zmg.Domain.Enums;
+
 namespace Zmg.Domain;
+
+/// <summary>
+/// One track a release is being created with: either an existing catalog song (<paramref name="ExistingSongId"/>)
+/// or a brand-new song (<paramref name="NewTitle"/>). Exactly one must be set. Pure input to
+/// <see cref="Validation.ValidateReleaseTracks"/>; existence/archived checks stay in the service.
+/// </summary>
+public readonly record struct TrackSpec(Guid? ExistingSongId, string? NewTitle);
 
 /// <summary>
 /// Outcome of a validation pass. Errors are hard failures (400/409); warnings advise
@@ -48,13 +57,13 @@ public static class Validation
         return result;
     }
 
-    /// <summary>Hard rule: an artist with releases can't be deleted.</summary>
-    public static ValidationResult ValidateArtistDelete(int releaseCount)
+    /// <summary>Hard rule: an artist who is the main artist of any release or song can't be deleted.</summary>
+    public static ValidationResult ValidateArtistDelete(int dependentCount)
     {
         var result = new ValidationResult();
-        if (releaseCount > 0)
+        if (dependentCount > 0)
         {
-            result.Error("Can't delete an artist that has releases.");
+            result.Error("Can't delete an artist that has releases or songs.");
         }
         return result;
     }
@@ -107,12 +116,65 @@ public static class Validation
         return result;
     }
 
-    /// <summary>A track title must be non-empty (albums only in practice).</summary>
-    public static ValidationResult ValidateTrackTitle(string? title)
+    /// <summary>
+    /// Song create/rename rules (v2.0). Title required; a main artist is required. The optional
+    /// existing-title set (same main artist) drives the non-blocking duplicate-title warning —
+    /// pass an empty set to skip it (e.g. editing a song whose title didn't change).
+    /// </summary>
+    public static ValidationResult ValidateSong(
+        string? title,
+        Guid mainArtistId,
+        bool mainArtistExists,
+        IEnumerable<string> otherTitlesForSameArtist)
     {
         var result = new ValidationResult();
+
         if (string.IsNullOrWhiteSpace(title))
-            result.Error("Track title is required.");
+            result.Error("Song title is required.");
+
+        if (mainArtistId == Guid.Empty)
+            result.Error("A main artist is required.");
+        else if (!mainArtistExists)
+            result.Error("The selected main artist does not exist.");
+
+        if (!string.IsNullOrWhiteSpace(title) &&
+            otherTitlesForSameArtist.Any(t =>
+                string.Equals(t?.Trim(), title.Trim(), StringComparison.OrdinalIgnoreCase)))
+        {
+            result.Warn("A song with this title already exists for this artist — consider picking it from the catalog.");
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// The inline Tracks section a release is created with (v2.0). Pure structural rules only —
+    /// existence/archived checks stay in the service. A single must have exactly one track; an album
+    /// may have zero or more. Each spec must set exactly one of existing-song-id / new-title, no song
+    /// may appear twice, and new titles must be non-blank.
+    /// </summary>
+    public static ValidationResult ValidateReleaseTracks(ReleaseType type, IReadOnlyList<TrackSpec> tracks)
+    {
+        var result = new ValidationResult();
+
+        if (type == ReleaseType.Single && tracks.Count != 1)
+            result.Error("A single must have exactly one track.");
+
+        foreach (var spec in tracks)
+        {
+            var hasId = spec.ExistingSongId is { } id && id != Guid.Empty;
+            var hasTitle = !string.IsNullOrWhiteSpace(spec.NewTitle);
+            if (hasId == hasTitle) // both or neither
+                result.Error("Each track must be either an existing song or a new title, not both or neither.");
+        }
+
+        var duplicateIds = tracks
+            .Where(t => t.ExistingSongId is { } id && id != Guid.Empty)
+            .GroupBy(t => t.ExistingSongId!.Value)
+            .Any(g => g.Count() > 1);
+        if (duplicateIds)
+            result.Error("The same song can't appear twice on a release.");
+
         return result;
     }
 

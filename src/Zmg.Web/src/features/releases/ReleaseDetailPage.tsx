@@ -150,57 +150,48 @@ export default function ReleaseDetailPage() {
 
   async function addTrack(title: string) {
     try {
-      const created = await api.tracks.add(id!, { title });
+      const created = await api.tracks.add(id!, { songId: null, title, isrc: null, artists: null });
       setTracks((ts) => [...ts, created]);
     } catch (e) {
       showToast(e instanceof ApiError ? e.message : 'Could not add track.');
     }
   }
 
-  async function renameTrack(track: TrackDto, title: string) {
-    try {
-      const saved = await api.tracks.update(track.id, { title, isFocusTrack: track.isFocusTrack });
-      setTracks((ts) => ts.map((t) => (t.id === saved.id ? saved : t)));
-    } catch (e) {
-      showToast(e instanceof ApiError ? e.message : 'Could not save track.');
-    }
-  }
-
   // Optimistic focus toggle: flip locally, revert + toast on failure.
   async function toggleFocus(track: TrackDto) {
     const optimistic = { ...track, isFocusTrack: !track.isFocusTrack };
-    setTracks((ts) => ts.map((t) => (t.id === track.id ? optimistic : t)));
+    setTracks((ts) => ts.map((t) => (t.songId === track.songId ? optimistic : t)));
     try {
-      const saved = await api.tracks.toggleFocus(track.id);
-      setTracks((ts) => ts.map((t) => (t.id === saved.id ? saved : t)));
+      const saved = await api.tracks.toggleFocus(id!, track.songId);
+      setTracks((ts) => ts.map((t) => (t.songId === saved.songId ? saved : t)));
     } catch (e) {
-      setTracks((ts) => ts.map((t) => (t.id === track.id ? track : t)));
+      setTracks((ts) => ts.map((t) => (t.songId === track.songId ? track : t)));
       showToast(e instanceof ApiError ? e.message : 'Could not save — reverted.');
     }
   }
 
   async function removeTrack(track: TrackDto) {
-    if (!confirm(`Delete track "${track.title}"?`)) return;
+    if (!confirm(`Remove "${track.title}" from this release? The song stays in the catalog.`)) return;
     const prev = tracks;
     // Drop it and renumber locally to mirror the server's contiguous numbering.
     setTracks((ts) =>
       ts
-        .filter((t) => t.id !== track.id)
+        .filter((t) => t.songId !== track.songId)
         .sort((a, b) => a.trackNumber - b.trackNumber)
         .map((t, i) => ({ ...t, trackNumber: i + 1 })),
     );
     try {
-      await api.tracks.delete(track.id);
+      await api.tracks.delete(id!, track.songId);
     } catch (e) {
       setTracks(prev);
-      showToast(e instanceof ApiError ? e.message : 'Could not delete track.');
+      showToast(e instanceof ApiError ? e.message : 'Could not remove track.');
     }
   }
 
   // Move a track up/down; persist the release's new track order.
   async function moveTrack(track: TrackDto, dir: -1 | 1) {
     const list = [...orderedTracks];
-    const i = list.findIndex((t) => t.id === track.id);
+    const i = list.findIndex((t) => t.songId === track.songId);
     const j = i + dir;
     if (j < 0 || j >= list.length) return;
     [list[i], list[j]] = [list[j], list[i]];
@@ -209,7 +200,7 @@ export default function ReleaseDetailPage() {
     const prev = tracks;
     setTracks(renumbered);
     try {
-      await api.tracks.reorder(id!, { orderedTrackIds: list.map((t) => t.id) });
+      await api.tracks.reorder(id!, { orderedSongIds: list.map((t) => t.songId) });
     } catch (e) {
       setTracks(prev);
       showToast(e instanceof ApiError ? e.message : 'Could not reorder.');
@@ -267,19 +258,17 @@ export default function ReleaseDetailPage() {
         </p>
       )}
 
-      {release.type === ReleaseType.Album && (
-        <div className="mb-6">
-          <TrackList
-            tracks={orderedTracks}
-            readOnly={readOnly}
-            onAdd={addTrack}
-            onRename={renameTrack}
-            onToggleFocus={toggleFocus}
-            onDelete={removeTrack}
-            onMove={moveTrack}
-          />
-        </div>
-      )}
+      <div className="mb-6">
+        <TrackList
+          tracks={orderedTracks}
+          isSingle={release.type === ReleaseType.Single}
+          readOnly={readOnly}
+          onAdd={addTrack}
+          onToggleFocus={toggleFocus}
+          onDelete={removeTrack}
+          onMove={moveTrack}
+        />
+      </div>
 
       <div className="space-y-3">
         {PHASE_ORDER.map((phase) => (

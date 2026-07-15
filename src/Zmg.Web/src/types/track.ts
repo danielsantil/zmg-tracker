@@ -1,6 +1,20 @@
+import type { SongArtistDto, SongArtistInput } from './song';
+
+// A track is a Release↔Song join (v2.0), addressed by songId. Title/ISRC/artists come from the song.
 export interface TrackDto {
-  id: string;
+  songId: string;
   trackNumber: number;
   title: string;
+  isrc: string | null;
   isFocusTrack: boolean;
+  artists: SongArtistDto[];
+}
+
+// One row in the create-form Tracks section / add-track payload: exactly one of songId (existing
+// catalog song) or title (new inline song). ISRC/artists apply only to a new song.
+export interface TrackInput {
+  songId: string | null;
+  title: string | null;
+  isrc: string | null;
+  artists: SongArtistInput[] | null;
 }

@@ -17,9 +17,9 @@ public class Release
     public string? CoverUrl { get; set; }
     public string? Notes { get; set; }
 
-    /// <summary>Release identifiers (v1.1). Optional free text, no format validation; blank until DSP distribution.</summary>
+    /// <summary>Release identifier (v1.1). Optional free text, no format validation; blank until DSP distribution.
+    /// ISRC moved to <see cref="Song"/> in v2.0 — a release keeps only its UPC.</summary>
     public string? Upc { get; set; }
-    public string? Isrc { get; set; }
 
     /// <summary>
     /// Archive lifecycle (v1.2). <see cref="ArchivedAt"/> is set when a release is archived (terminal,
@@ -32,29 +32,16 @@ public class Release
     /// <summary>True while the release is archived (and not removed).</summary>
     public bool IsArchived => ArchivedAt is not null;
 
-    public List<ReleaseArtist> FeaturedArtists { get; set; } = new();
     public List<ReleaseTask> Tasks { get; set; } = new();
     public List<Track> Tracks { get; set; } = new();
-    
+
     /// <summary>True once the release's "Distribute to DSPs" task is checked.</summary>
     public bool IsDistributed => Tasks.Any(t => t is { Title: SeedData.DistributeToDspsTitle, IsDone: true });
 
     /// <summary>
-    /// Whether a soft identifier warning should show: distributed, and UPC or ISRC still blank.
-    /// Advisory only — never blocks a save.
+    /// Whether a soft identifier warning should show: distributed, and the UPC still blank (v2.0 —
+    /// ISRC now hangs off the song, so the release-level warning is UPC-only). Advisory, never blocks.
     /// </summary>
-    public static bool NeedsWarning(bool distributed, string? upc, string? isrc) =>
-        distributed && (string.IsNullOrWhiteSpace(upc) || string.IsNullOrWhiteSpace(isrc));
-
-    /// <summary>
-    /// A human label for which identifiers are missing (e.g. "Missing UPC, ISRC"), or null when both
-    /// are present. Independent of distribution state; callers gate on <see cref="NeedsWarning"/>.
-    /// </summary>
-    public string? MissingLabel()
-    {
-        var missing = new List<string>(2);
-        if (string.IsNullOrWhiteSpace(Upc)) missing.Add("UPC");
-        if (string.IsNullOrWhiteSpace(Isrc)) missing.Add("ISRC");
-        return missing.Count == 0 ? null : "Missing " + string.Join(", ", missing);
-    }
+    public static bool NeedsWarning(bool distributed, string? upc) =>
+        distributed && string.IsNullOrWhiteSpace(upc);
 }

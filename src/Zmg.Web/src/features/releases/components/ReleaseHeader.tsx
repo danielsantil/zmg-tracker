@@ -30,15 +30,10 @@ export function ReleaseHeader({
             {release.title} <span className="text-slate-400">— {release.mainArtistName}</span>
           </h1>
           <div className="flex items-center gap-1.5">
-            {release.needsIdentifierWarning && <IdentifierWarning upc={release.upc} isrc={release.isrc} />}
+            {release.needsIdentifierWarning && <IdentifierWarning />}
             <StatusBadge status={release.status} />
           </div>
         </div>
-        {release.featuredArtists.length > 0 && (
-          <p className="mt-0.5 text-sm text-slate-400">
-            feat. {release.featuredArtists.map((f) => f.name).join(', ')}
-          </p>
-        )}
         <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-400">
           <TypeBadge type={release.type} />
           <span className="whitespace-nowrap">{release.releaseDate}</span>

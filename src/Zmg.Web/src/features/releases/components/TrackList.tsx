@@ -2,27 +2,37 @@ import type { TrackDto } from '@/types';
 import { InlineAddForm } from '@/components';
 import { TrackRow } from './TrackRow';
 
+/**
+ * The release's tracklist (v2.0). Renders for both types: an album shows full controls (add /
+ * reorder / focus / remove), a single shows its one row read-only (its track is fixed at create).
+ * Archived releases are read-only too. Quick-add stays title-only (new inline song) until M13's
+ * existing-song picker.
+ */
 export function TrackList({
   tracks,
+  isSingle,
   readOnly = false,
   onAdd,
-  onRename,
   onToggleFocus,
   onDelete,
   onMove,
 }: {
   tracks: TrackDto[];
+  isSingle: boolean;
   readOnly?: boolean;
   onAdd: (title: string) => void;
-  onRename: (t: TrackDto, title: string) => void;
   onToggleFocus: (t: TrackDto) => void;
   onDelete: (t: TrackDto) => void;
   onMove: (t: TrackDto, dir: -1 | 1) => void;
 }) {
+  // Singles are fixed at one track; only albums (that aren't archived) get add/remove/reorder.
+  const showControls = !isSingle && !readOnly;
+
   return (
     <section className="overflow-hidden rounded-xl border border-edge bg-panel">
       <div className="px-4 py-3 font-semibold text-white">
-        Tracklist <span className="text-sm font-normal text-slate-400">({tracks.length})</span>
+        {isSingle ? 'Song' : 'Tracklist'}{' '}
+        <span className="text-sm font-normal text-slate-400">({tracks.length})</span>
       </div>
 
       <div className="border-t border-edge">
@@ -32,12 +42,11 @@ export function TrackList({
           <ul>
             {tracks.map((t, i) => (
               <TrackRow
-                key={t.id}
+                key={t.songId}
                 track={t}
                 isFirst={i === 0}
                 isLast={i === tracks.length - 1}
-                readOnly={readOnly}
-                onRename={onRename}
+                showControls={showControls}
                 onToggleFocus={onToggleFocus}
                 onDelete={onDelete}
                 onMove={onMove}
@@ -46,7 +55,7 @@ export function TrackList({
           </ul>
         )}
 
-        {!readOnly && <InlineAddForm addLabel="+ Add track" placeholder="New track title" onAdd={onAdd} />}
+        {showControls && <InlineAddForm addLabel="+ Add track" placeholder="New track title" onAdd={onAdd} />}
       </div>
     </section>
   );

@@ -1,11 +1,6 @@
-import type { ArtistRole, ReleaseType } from './enums';
+import type { ReleaseType } from './enums';
 import type { PhaseGroup } from './task';
-import type { TrackDto } from './track';
-
-export interface ReleaseArtistInput {
-  artistId: string;
-  role: ArtistRole;
-}
+import type { TrackDto, TrackInput } from './track';
 
 export interface ReleaseInput {
   title: string;
@@ -14,9 +9,8 @@ export interface ReleaseInput {
   mainArtistId: string;
   coverUrl: string | null;
   notes: string | null;
-  featuredArtists: ReleaseArtistInput[];
+  tracks: TrackInput[] | null; // create-only; ignored on update
   upc: string | null;
-  isrc: string | null;
 }
 
 export interface ReleaseListItem {
@@ -31,14 +25,7 @@ export interface ReleaseListItem {
   totalTasks: number;
   status: string;
   upc: string | null;
-  isrc: string | null;
   needsIdentifierWarning: boolean;
-}
-
-export interface FeaturedArtist {
-  artistId: string;
-  name: string;
-  role: ArtistRole;
 }
 
 export interface ReleaseDetail {
@@ -51,13 +38,11 @@ export interface ReleaseDetail {
   coverUrl: string | null;
   notes: string | null;
   status: string;
-  featuredArtists: FeaturedArtist[];
   doneTasks: number;
   totalTasks: number;
   phases: PhaseGroup[];
   tracks: TrackDto[];
   upc: string | null;
-  isrc: string | null;
   needsIdentifierWarning: boolean;
   isArchived: boolean;
 }
