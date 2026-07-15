@@ -3,27 +3,33 @@ using Zmg.Domain.Enums;
 
 namespace Zmg.Domain;
 
-/// <summary>One thing the user should act on soon. Data-keyed, not tied to specific task titles.</summary>
+/// <summary>
+/// One thing the user should act on soon. Data-keyed, not tied to specific task titles.
+/// An action is owned by either a release (<see cref="ReleaseId"/>) or a song (<see cref="SongId"/>);
+/// <see cref="Subject"/> is that owner's display name (release title / song title).
+/// </summary>
 public record PendingAction(
-    Guid ReleaseId,
-    string ReleaseTitle,
-    string ArtistName,
     PendingKind Kind,
-    Guid? TaskId,
     string Label,
+    string Subject,
+    string ArtistName,
+    Guid? ReleaseId,
+    Guid? SongId,
+    Guid? TaskId,
     int? DaysToRelease);
 
 /// <summary>
-/// The pending-actions engine (v1.1 M10). Pure and reused by <c>GET /api/pending</c> (aggregate)
-/// and the release-detail "Needs attention" block. Keyed off data (a task's timeframe, a distributed
-/// release's blank ids), so adding a timeframe to any task later makes it participate with no code change.
+/// The pending-actions engine (v1.1 M10; reworked v2.0 M14). Pure and reused by <c>GET /api/pending</c>
+/// (aggregate) and the release-detail "Needs attention" block. Keyed off data (a task's timeframe, a
+/// distributed release's blank UPC, a distributed song's blank ISRC, an under-filled album), so adding a
+/// timeframe to any task later makes it participate with no code change.
 /// </summary>
 public static class PendingActions
 {
     /// <summary>
-    /// Pending actions for a single release, already in per-release order (task-due items first in phase
-    /// order, then the single missing-identifier item). The aggregate ordering across releases is applied
-    /// by <see cref="Order"/>.
+    /// Release-owned pending actions: task-due items (in phase order), a missing-UPC nag once distributed,
+    /// and an empty-album nag. Song-owned ISRC actions come from <see cref="ComputeForSong"/>. The aggregate
+    /// ordering across owners is applied by <see cref="Order"/>.
     /// </summary>
     public static List<PendingAction> Compute(Release release, DateOnly today)
     {
@@ -41,18 +47,47 @@ public static class PendingActions
             if (today >= windowOpens && release.ReleaseDate >= today)
             {
                 result.Add(new PendingAction(
-                    release.Id, release.Title, artistName,
-                    PendingKind.TaskDue, t.Id, t.Title, daysToRelease));
+                    PendingKind.TaskDue, t.Title, release.Title, artistName,
+                    release.Id, null, t.Id, daysToRelease));
             }
         }
 
-        // 2. Missing identifier — one action per release once distributed with a blank UPC.
-        // v2.0: ISRC moved to the song, so this is UPC-only here; the ISRC nag is reworked in M14.
+        // 2. Missing UPC — one action per release once distributed with a blank UPC.
         if (release.IsDistributed && string.IsNullOrWhiteSpace(release.Upc))
         {
             result.Add(new PendingAction(
-                release.Id, release.Title, artistName,
-                PendingKind.MissingIdentifier, null, "Missing UPC", null));
+                PendingKind.MissingUpc, "Missing UPC", release.Title, artistName,
+                release.Id, null, null, null));
+        }
+
+        // 3. Empty album — every non-archived album with fewer than two tracks (released ones included);
+        // the nag persists until the tracks exist. Singles never qualify (they carry exactly one track).
+        if (release is { Type: ReleaseType.Album, IsArchived: false } && release.Tracks.Count < 2)
+        {
+            var label = release.Tracks.Count == 0 ? "Album is empty" : "Album has only 1 track";
+            result.Add(new PendingAction(
+                PendingKind.EmptyAlbum, label, release.Title, artistName,
+                release.Id, null, null, null));
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Song-owned pending action: a missing ISRC once the song is distributed. A song counts as distributed
+    /// when any linked, non-deleted, non-archived release has its "Distribute to DSPs" task checked — the
+    /// caller precomputes that flag, so this yields exactly one action per song, never per release.
+    /// </summary>
+    public static List<PendingAction> ComputeForSong(Song song, bool hasDistributedRelease)
+    {
+        var result = new List<PendingAction>();
+
+        if (hasDistributedRelease && !song.IsArchived && string.IsNullOrWhiteSpace(song.Isrc))
+        {
+            result.Add(new PendingAction(
+                PendingKind.MissingIsrc, "Missing ISRC", song.Title,
+                song.MainArtist?.Name ?? string.Empty,
+                null, song.Id, null, null));
         }
 
         return result;
@@ -60,7 +95,7 @@ public static class PendingActions
 
     /// <summary>
     /// Global ordering for the aggregate list: all task-due items first, nearest release date on top
-    /// (ascending days-to-release); then all missing-identifier (data) items, grouped by release.
+    /// (ascending days-to-release); then the data kinds (missing UPC/ISRC, empty album) by subject.
     /// </summary>
     public static List<PendingAction> Order(IEnumerable<PendingAction> actions)
     {
@@ -69,8 +104,8 @@ public static class PendingActions
             .Where(a => a.Kind == PendingKind.TaskDue)
             .OrderBy(a => a.DaysToRelease)
             .Concat(list
-                .Where(a => a.Kind == PendingKind.MissingIdentifier)
-                .OrderBy(a => a.ReleaseTitle, StringComparer.OrdinalIgnoreCase))
+                .Where(a => a.Kind != PendingKind.TaskDue)
+                .OrderBy(a => a.Subject, StringComparer.OrdinalIgnoreCase))
             .ToList();
     }
 }

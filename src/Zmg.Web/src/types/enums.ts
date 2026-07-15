@@ -15,8 +15,10 @@ export enum ArtistRole {
   Collab = 1,
 }
 
-// Pending-actions engine (M10). Enum serialized as int by the API.
+// Pending-actions engine (M10; reworked M14). Enum serialized as int by the API.
 export enum PendingKind {
   TaskDue = 0,
-  MissingIdentifier = 1,
+  MissingUpc = 1,
+  MissingIsrc = 2,
+  EmptyAlbum = 3,
 }
