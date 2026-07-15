@@ -42,6 +42,6 @@ internal static class SongMapping
         var artists = song.Artists
             .Select(a => new SongArtistDto(a.ArtistId, a.Artist?.Name ?? string.Empty, a.Role))
             .ToList();
-        return new TrackDto(song.Id, track.TrackNumber, song.Title, song.Isrc, track.IsFocusTrack, artists);
+        return new TrackDto(song.Id, track.TrackNumber, song.Title, song.Isrc, track.IsFocusTrack, song.IsArchived, artists);
     }
 }

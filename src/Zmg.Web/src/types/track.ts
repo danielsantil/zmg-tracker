@@ -7,6 +7,7 @@ export interface TrackDto {
   title: string;
   isrc: string | null;
   isFocusTrack: boolean;
+  isSongArchived: boolean; // badge on archived-release detail (M15)
   artists: SongArtistDto[];
 }
 

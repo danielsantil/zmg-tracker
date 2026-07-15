@@ -21,6 +21,7 @@ public sealed class SongService(ZmgDbContext db) : ISongService
     public async Task<IReadOnlyList<SongListItemDto>> ListAsync(string? q, string? scope)
     {
         var isArchived = string.Equals(scope, "archived", StringComparison.OrdinalIgnoreCase);
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
         var query = db.Songs.AsQueryable();
         query = isArchived ? query.Where(s => s.ArchivedAt != null) : query.Where(s => s.ArchivedAt == null);
@@ -43,7 +44,15 @@ public sealed class SongService(ZmgDbContext db) : ISongService
                     .Min(),
                 s.Isrc,
                 s.ReleaseLinks.Count,
-                s.ArchivedAt != null))
+                s.ArchivedAt != null,
+                // CanArchive (M15): an active, non-orphan song that manual-archive would accept — no link
+                // to an active (non-archived) release and none released (past-dated). Orphans get Delete.
+                s.ArchivedAt == null
+                    && s.ReleaseLinks.Any()
+                    && !s.ReleaseLinks.Any(t => t.Release!.ArchivedAt == null)
+                    && !s.ReleaseLinks.Any(t => t.Release!.ReleaseDate < today),
+                // IsOrphan (M15): no (non-deleted) release links.
+                !s.ReleaseLinks.Any()))
             .ToListAsync();
     }
 
@@ -66,6 +75,8 @@ public sealed class SongService(ZmgDbContext db) : ISongService
     {
         var song = await db.Songs.Include(s => s.Artists).FirstOrDefaultAsync(s => s.Id == id);
         if (song is null) return OperationResult<SongDetailDto>.NotFound();
+        if (song.IsArchived)
+            return OperationResult<SongDetailDto>.Conflict(new[] { "Archived songs are read-only." });
 
         var mainArtistExists = input.MainArtistId != Guid.Empty
             && await db.Artists.AnyAsync(a => a.Id == input.MainArtistId);
@@ -98,6 +109,46 @@ public sealed class SongService(ZmgDbContext db) : ISongService
             .Include(s => s.ReleaseLinks).ThenInclude(t => t.Release).ThenInclude(r => r!.MainArtist)
             .FirstAsync(s => s.Id == id);
         return OperationResult<SongDetailDto>.Success(ToDetail(updated), validation.Warnings);
+    }
+
+    // Manual archive (M15): a terminal, non-restorable state — mirrors the release lifecycle. In practice
+    // this applies mostly to orphans; songs on active releases archive via the release-archive cascade.
+    public async Task<OperationResult> ArchiveAsync(Guid id)
+    {
+        var song = await db.Songs
+            .Include(s => s.ReleaseLinks).ThenInclude(t => t.Release)
+            .FirstOrDefaultAsync(s => s.Id == id);
+        if (song is null) return OperationResult.NotFound();
+        if (song.IsArchived) return OperationResult.Conflict(new[] { "Song is already archived." });
+
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        if (song.ReleaseLinks.Any(t => t.Release is { ArchivedAt: null }))
+            return OperationResult.Conflict(new[] { "Song is on an active release — archive flows through the release." });
+        if (song.ReleaseLinks.Any(t => t.Release is not null && t.Release.ReleaseDate < today))
+            return OperationResult.Conflict(new[] { "A released song can't be archived." });
+
+        song.ArchivedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync();
+        return OperationResult.Success();
+    }
+
+    // Soft delete (M15): allowed only for an archived song or an orphan (never released). Songs are never
+    // hard-deleted — the row is stamped DeletedAt and hidden by the global query filter; the Track query
+    // filter drops any stale join rows with it.
+    public async Task<OperationResult> DeleteAsync(Guid id)
+    {
+        var song = await db.Songs
+            .Include(s => s.ReleaseLinks)
+            .FirstOrDefaultAsync(s => s.Id == id);
+        if (song is null) return OperationResult.NotFound();
+
+        var isOrphan = song.ReleaseLinks.Count == 0;
+        if (!song.IsArchived && !isOrphan)
+            return OperationResult.Conflict(new[] { "Only archived or never-released songs can be removed." });
+
+        song.DeletedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync();
+        return OperationResult.Success();
     }
 
     private static SongDetailDto ToDetail(Song song)

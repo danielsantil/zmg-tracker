@@ -229,10 +229,14 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
     }
 
     // Archive (v1.2): a terminal, non-restorable state. Only a release still to come (releaseDate >= today)
-    // can be archived, and never twice.
+    // can be archived, and never twice. v2.0 M15: archiving cascades to the release's exclusively-linked
+    // upcoming songs (see SongArchival.ShouldArchive) — released songs and songs shared with an active
+    // release stay put.
     public async Task<OperationResult> ArchiveAsync(Guid id)
     {
-        var release = await db.Releases.FindAsync(id);
+        var release = await db.Releases
+            .Include(r => r.Tracks).ThenInclude(t => t.Song).ThenInclude(s => s!.ReleaseLinks).ThenInclude(t => t.Release)
+            .FirstOrDefaultAsync(r => r.Id == id);
         if (release is null) return OperationResult.NotFound();
 
         if (release.IsArchived)
@@ -242,7 +246,16 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
         if (release.ReleaseDate < today)
             return OperationResult.Conflict(new[] { "Only releases dated today or later can be archived." });
 
-        release.ArchivedAt = DateTime.UtcNow;
+        var now = DateTime.UtcNow;
+        release.ArchivedAt = now;
+
+        // Cascade: pull each exclusively-linked upcoming song into the archive alongside the release.
+        foreach (var song in release.Tracks.Select(t => t.Song).OfType<Song>())
+        {
+            if (SongArchival.ShouldArchive(song, release.Id, today))
+                song.ArchivedAt = now;
+        }
+
         await db.SaveChangesAsync();
         return OperationResult.Success();
     }
