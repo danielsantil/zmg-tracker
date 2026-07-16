@@ -86,29 +86,10 @@ export default function SongDetailPage() {
   return (
     <div className="mx-auto max-w-xl">
       <button onClick={goBack} className="mb-4 text-sm text-slate-400 hover:text-slate-200">
-        ‹ Catalog
+        ‹ Back
       </button>
 
       <h1 className="mb-6 text-2xl font-semibold text-white">Song</h1>
-
-      {errors.length > 0 && (
-        <ul className="mb-4 rounded-lg bg-red-500/10 px-4 py-2 text-sm text-red-300">
-          {errors.map((msg) => (
-            <li key={msg}>{msg}</li>
-          ))}
-        </ul>
-      )}
-
-      {warnings.length > 0 && (
-        <div className="mb-4 rounded-lg bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
-          <p className="font-medium">Saved with warnings:</p>
-          <ul className="ml-4 list-disc">
-            {warnings.map((msg) => (
-              <li key={msg}>{msg}</li>
-            ))}
-          </ul>
-        </div>
-      )}
 
       {archived && (
         <div className="mb-4 rounded-lg border border-edge bg-panel/50 px-4 py-2.5 text-sm text-slate-300">
@@ -161,6 +142,25 @@ export default function SongDetailPage() {
           />
         </Field>
 
+      {errors.length > 0 && (
+        <ul className="mb-4 rounded-lg bg-red-500/10 px-4 py-2 text-sm text-red-300">
+          {errors.map((msg) => (
+            <li key={msg}>{msg}</li>
+          ))}
+        </ul>
+      )}
+
+      {warnings.length > 0 && (
+        <div className="mb-4 rounded-lg bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+          <p className="font-medium">Saved with warnings:</p>
+          <ul className="ml-4 list-disc">
+            {warnings.map((msg) => (
+              <li key={msg}>{msg}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      
         {!archived && (
           <div className="flex gap-2">
             <Button onClick={save} disabled={saving}>
@@ -193,7 +193,7 @@ export default function SongDetailPage() {
                     </span>
                     <span className="shrink-0 text-xs text-slate-400">
                       {r.releaseDate}
-                      {r.upc && <span className="ml-2">UPC {r.upc}</span>}
+                      {r.upc && <span className="ml-2"><b>UPC: {r.upc}</b></span>}
                     </span>
                   </Link>
                 </li>

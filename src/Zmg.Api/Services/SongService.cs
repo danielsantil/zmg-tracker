@@ -61,7 +61,8 @@ public sealed class SongService(ZmgDbContext db) : ISongService
         var song = await db.Songs
             .Include(s => s.MainArtist)
             .Include(s => s.Artists).ThenInclude(a => a.Artist)
-            .Include(s => s.ReleaseLinks).ThenInclude(t => t.Release).ThenInclude(r => r!.MainArtist)
+            .Include(s => s.ReleaseLinks.Where(x => x.Release!.ArchivedAt == null))
+            .ThenInclude(t => t.Release).ThenInclude(r => r!.MainArtist)
             .FirstOrDefaultAsync(s => s.Id == id);
         if (song is null) return OperationResult<SongDetailDto>.NotFound();
 
@@ -106,7 +107,8 @@ public sealed class SongService(ZmgDbContext db) : ISongService
         var updated = await db.Songs
             .Include(s => s.MainArtist)
             .Include(s => s.Artists).ThenInclude(x => x.Artist)
-            .Include(s => s.ReleaseLinks).ThenInclude(t => t.Release).ThenInclude(r => r!.MainArtist)
+            .Include(s => s.ReleaseLinks.Where(x => x.Release!.ArchivedAt == null))
+            .ThenInclude(t => t.Release).ThenInclude(r => r!.MainArtist)
             .FirstAsync(s => s.Id == id);
         return OperationResult<SongDetailDto>.Success(ToDetail(updated), validation.Warnings);
     }

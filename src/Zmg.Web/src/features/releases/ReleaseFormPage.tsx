@@ -90,11 +90,11 @@ export default function ReleaseFormPage() {
         t.songId
           ? { songId: t.songId, title: null, isrc: null, artists: null }
           : {
-              songId: null,
-              title: (t.title ?? '').trim(),
-              isrc: (t.isrc ?? '').trim() || null,
-              artists: t.artists && t.artists.length > 0 ? t.artists : null,
-            },
+            songId: null,
+            title: (t.title ?? '').trim(),
+            isrc: (t.isrc ?? '').trim() || null,
+            artists: t.artists && t.artists.length > 0 ? t.artists : null,
+          },
       );
 
       const input = {
@@ -136,33 +136,6 @@ export default function ReleaseFormPage() {
   return (
     <div className="mx-auto max-w-xl">
       <h1 className="mb-6 text-2xl font-semibold text-white">{isEdit ? 'Edit release' : 'New release'}</h1>
-
-      {errors.length > 0 && (
-        <ul className="mb-4 rounded-lg bg-red-500/10 px-4 py-2 text-sm text-red-300">
-          {errors.map((msg) => (
-            <li key={msg}>{msg}</li>
-          ))}
-        </ul>
-      )}
-
-      {warnings.length > 0 && (
-        <div className="mb-4 rounded-lg bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
-          <p className="font-medium">Saved with warnings:</p>
-          <ul className="ml-4 list-disc">
-            {warnings.map((msg) => (
-              <li key={msg}>{msg}</li>
-            ))}
-          </ul>
-          <div className="mt-3 flex gap-2">
-            <Button variant="ghost" onClick={goBack}>
-              Go back
-            </Button>
-            <Button variant="ghost" onClick={() => setWarnings([])}>
-              Keep editing
-            </Button>
-          </div>
-        </div>
-      )}
 
       <form onSubmit={submit} className="space-y-4">
         <Field label="Title">
@@ -224,6 +197,33 @@ export default function ReleaseFormPage() {
             artists={artists}
             mainArtistId={mainArtistId}
           />
+        )}
+
+        {errors.length > 0 && (
+          <ul className="mb-4 rounded-lg bg-red-500/10 px-4 py-2 text-sm text-red-300">
+            {errors.map((msg) => (
+              <li key={msg}>{msg}</li>
+            ))}
+          </ul>
+        )}
+
+        {warnings.length > 0 && (
+          <div className="mb-4 rounded-lg bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+            <p className="font-medium">Saved with warnings:</p>
+            <ul className="ml-4 list-disc">
+              {warnings.map((msg) => (
+                <li key={msg}>{msg}</li>
+              ))}
+            </ul>
+            <div className="mt-3 flex gap-2">
+              <Button variant="ghost" onClick={goBack}>
+                Go back
+              </Button>
+              <Button variant="ghost" onClick={() => setWarnings([])}>
+                Keep editing
+              </Button>
+            </div>
+          </div>
         )}
 
         <div className="flex gap-2">

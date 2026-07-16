@@ -26,7 +26,7 @@ function Nav() {
           Home
         </NavLink>
         <NavLink to="/releases" className={link}>
-          All Releases
+          Releases
         </NavLink>
         <NavLink to="/catalog" className={link}>
           Catalog

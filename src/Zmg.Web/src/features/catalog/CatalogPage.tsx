@@ -86,7 +86,6 @@ export default function CatalogPage() {
               <tr>
                 <th className="px-4 py-3 font-medium">Name</th>
                 <th className="px-4 py-3 font-medium">Main Artist</th>
-                <th className="px-4 py-3 font-medium">Release Date</th>
                 <th className="px-4 py-3 font-medium">Action</th>
               </tr>
             </thead>
@@ -99,7 +98,6 @@ export default function CatalogPage() {
                 >
                   <td className="px-4 py-3 font-medium text-white">{s.title}</td>
                   <td className="px-4 py-3 text-slate-300">{s.mainArtistName}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-slate-300">{s.releaseDate ?? '—'}</td>
                   <td className="px-4 py-3">
                     {s.isOrphan ? (
                       <Button
