@@ -33,8 +33,7 @@ export function ReleaseCard({
               {r.title}
             </button>
             <div className="flex items-center gap-1.5">
-              {r.isEmptyAlbum && <SoftWarning label="Album is empty" />}
-              {r.needsIdentifierWarning && <SoftWarning label="Missing UPC" />}
+              <SoftWarning warnings={r.warnings} />
               <StatusBadge status={r.status} />
             </div>
           </div>

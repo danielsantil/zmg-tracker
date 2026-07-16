@@ -55,18 +55,18 @@ public class ReleaseIdentifierApiTests(ZmgApiFactory factory) : IClassFixture<Zm
 
         // Future release, blank UPC: silent until distributed.
         var created = await CreateRelease(client, artist.Id, "WarnSong", new DateOnly(2026, 8, 14));
-        Assert.False(created.NeedsIdentifierWarning);
+        Assert.DoesNotContain(ReleaseWarnings.MissingUpc, created.Warnings);
 
         // Check "Distribute to DSPs" — now a blank UPC surfaces the warning.
         var distribute = DistributeTask(created);
         await client.PatchAsync($"/api/tasks/{distribute.Id}/toggle", null);
 
         var afterDistribute = await client.GetFromJsonAsync<ReleaseDetailDto>($"/api/releases/{created.Id}");
-        Assert.True(afterDistribute!.NeedsIdentifierWarning);
+        Assert.Contains(ReleaseWarnings.MissingUpc, afterDistribute!.Warnings);
 
         // The list flag agrees without an extra fetch.
         var list = await client.GetFromJsonAsync<List<ReleaseListItemDto>>($"/api/releases?artistId={artist.Id}");
-        Assert.True(list!.Single(r => r.Id == created.Id).NeedsIdentifierWarning);
+        Assert.Contains(ReleaseWarnings.MissingUpc, list!.Single(r => r.Id == created.Id).Warnings);
 
         // Fill the UPC: warning clears.
         var upd = await client.PutAsJsonAsync($"/api/releases/{created.Id}", new ReleaseInput(
@@ -74,7 +74,7 @@ public class ReleaseIdentifierApiTests(ZmgApiFactory factory) : IClassFixture<Zm
             Upc: "0123456789012"));
         upd.EnsureSuccessStatusCode();
         var filled = (await upd.Content.ReadFromJsonAsync<CreatedWithWarnings<ReleaseDetailDto>>())!.Data;
-        Assert.False(filled.NeedsIdentifierWarning);
+        Assert.DoesNotContain(ReleaseWarnings.MissingUpc, filled.Warnings);
     }
 
     [Fact]
@@ -91,6 +91,6 @@ public class ReleaseIdentifierApiTests(ZmgApiFactory factory) : IClassFixture<Zm
         Assert.Equal(1, created.DoneTasks);
 
         // Blank UPC on an already-distributed release surfaces the warning.
-        Assert.True(created.NeedsIdentifierWarning);
+        Assert.Contains(ReleaseWarnings.MissingUpc, created.Warnings);
     }
 }

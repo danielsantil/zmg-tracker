@@ -150,8 +150,7 @@ export default function AllReleasesPage() {
                       >
                         {r.title}
                       </Link>
-                      {r.isEmptyAlbum && <SoftWarning label="Album is empty" />}
-                      {r.needsIdentifierWarning && <SoftWarning label="Missing UPC" />}
+                      <SoftWarning warnings={r.warnings} />
                     </div>
                     <div className="text-xs text-slate-400">{r.mainArtistName}</div>
                   </td>

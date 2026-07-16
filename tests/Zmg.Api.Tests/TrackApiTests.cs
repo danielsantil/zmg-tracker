@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using Zmg.Api.Contracts;
+using Zmg.Domain;
 using Zmg.Domain.Enums;
 
 namespace Zmg.Api.Tests;
@@ -46,34 +47,39 @@ public class TrackApiTests(ZmgApiFactory factory) : IClassFixture<ZmgApiFactory>
     // ---- Empty-album advisory ----
 
     [Fact]
-    public async Task Empty_album_flags_the_advisory_until_a_track_is_added()
+    public async Task Album_warning_shifts_from_empty_to_one_track_to_clear_as_tracks_are_added()
     {
         var client = factory.CreateClient();
         var album = await CreateAlbum(client, "Empty Album Advisory Artist", "Empty Album Advisory");
 
-        // Fresh album with no tracks → flagged on the detail and in the list.
-        Assert.True(album.IsEmptyAlbum);
+        // Fresh album with no tracks → "Album is empty", on the detail and in the list.
+        Assert.Contains(ReleaseWarnings.AlbumIsEmpty, album.Warnings);
         var listed = (await client.GetFromJsonAsync<List<ReleaseListItemDto>>("/api/releases?scope=all"))!
             .Single(r => r.Id == album.Id);
-        Assert.True(listed.IsEmptyAlbum);
+        Assert.Contains(ReleaseWarnings.AlbumIsEmpty, listed.Warnings);
 
+        // One track → "Album has only 1 track".
         await AddTrack(client, album.Id, NewTrack("First Track"));
+        var oneTrack = await client.GetFromJsonAsync<ReleaseDetailDto>($"/api/releases/{album.Id}");
+        Assert.Contains(ReleaseWarnings.AlbumHasOneTrack, oneTrack!.Warnings);
+        Assert.DoesNotContain(ReleaseWarnings.AlbumIsEmpty, oneTrack.Warnings);
 
-        var afterDetail = await client.GetFromJsonAsync<ReleaseDetailDto>($"/api/releases/{album.Id}");
-        Assert.False(afterDetail!.IsEmptyAlbum);
-        var afterListed = (await client.GetFromJsonAsync<List<ReleaseListItemDto>>("/api/releases?scope=all"))!
-            .Single(r => r.Id == album.Id);
-        Assert.False(afterListed.IsEmptyAlbum);
+        // Two tracks → no album warning.
+        await AddTrack(client, album.Id, NewTrack("Second Track"));
+        var full = await client.GetFromJsonAsync<ReleaseDetailDto>($"/api/releases/{album.Id}");
+        Assert.DoesNotContain(ReleaseWarnings.AlbumHasOneTrack, full!.Warnings);
+        Assert.DoesNotContain(ReleaseWarnings.AlbumIsEmpty, full.Warnings);
     }
 
     [Fact]
-    public async Task Single_is_never_flagged_as_an_empty_album()
+    public async Task Single_never_reports_an_album_warning()
     {
         var client = factory.CreateClient();
         var artist = await CreateArtist(client, "Single Never Empty Artist");
         var single = await Create(client, artist.Id, "Solo", ReleaseType.Single,
             new List<TrackInput> { NewTrack("Only Track") });
-        Assert.False(single.IsEmptyAlbum);
+        Assert.DoesNotContain(ReleaseWarnings.AlbumIsEmpty, single.Warnings);
+        Assert.DoesNotContain(ReleaseWarnings.AlbumHasOneTrack, single.Warnings);
     }
 
     // ---- Create-form inline tracks ----

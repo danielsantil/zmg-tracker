@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 
 /**
- * Soft advisory glyph for a release — a missing UPC after DSP distribution (v1.1 M7; UPC-only in
- * v2.0 — ISRC moved to the song) or an empty album. Amber, never a red error, never blocking. It's a
- * real button so the message is reachable by tap on mobile (a hover-only `title` was invisible on
- * touch devices); clicking toggles a small popover, positioned `fixed` from the button rect so it
- * escapes any `overflow-hidden` ancestor, dismissed by tapping the backdrop. Callers gate on the
- * relevant flag and pass the fixed `label`.
+ * Soft advisory glyph for a release. A single amber icon carries every warning the release has
+ * (e.g. "Missing UPC", "Album is empty"); clicking lists them all. Never a red error, never
+ * blocking. It's a real button so the messages are reachable by tap on mobile (a hover-only `title`
+ * was invisible on touch devices); the popover is positioned `fixed` from the button rect so it
+ * escapes any `overflow-hidden` ancestor, dismissed by tapping the backdrop. Renders nothing when
+ * there are no warnings, so callers can drop it in unconditionally.
  */
-export function SoftWarning({ label }: { label: string }) {
+export function SoftWarning({ warnings }: { warnings: string[] }) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<React.CSSProperties | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
@@ -36,13 +36,16 @@ export function SoftWarning({ label }: { label: string }) {
     };
   }, [open]);
 
+  if (warnings.length === 0) return null;
+  const summary = warnings.join(', ');
+
   return (
     <>
       <button
         ref={btnRef}
         type="button"
-        aria-label={label}
-        title={label}
+        aria-label={summary}
+        title={summary}
         onClick={(e) => {
           e.stopPropagation();
           e.preventDefault();
@@ -66,7 +69,11 @@ export function SoftWarning({ label }: { label: string }) {
             style={pos}
             className="z-30 whitespace-nowrap rounded-lg border border-edge bg-panel px-3 py-2 text-sm text-amber-300 shadow-lg"
           >
-            {label}
+            <ul className="space-y-0.5">
+              {warnings.map((w) => (
+                <li key={w}>{w}</li>
+              ))}
+            </ul>
           </div>
         </>
       )}

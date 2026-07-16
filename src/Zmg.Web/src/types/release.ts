@@ -25,8 +25,7 @@ export interface ReleaseListItem {
   totalTasks: number;
   status: string;
   upc: string | null;
-  needsIdentifierWarning: boolean;
-  isEmptyAlbum: boolean;
+  warnings: string[]; // soft advisories (e.g. "Missing UPC", "Album is empty")
 }
 
 export interface ReleaseDetail {
@@ -44,8 +43,7 @@ export interface ReleaseDetail {
   phases: PhaseGroup[];
   tracks: TrackDto[];
   upc: string | null;
-  needsIdentifierWarning: boolean;
-  isEmptyAlbum: boolean;
+  warnings: string[]; // soft advisories (e.g. "Missing UPC", "Album is empty")
   isArchived: boolean;
 }
 

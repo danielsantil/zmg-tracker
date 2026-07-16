@@ -30,8 +30,7 @@ export function ReleaseHeader({
             {release.title} <span className="text-slate-400">— {release.mainArtistName}</span>
           </h1>
           <div className="flex items-center gap-1.5">
-            {release.isEmptyAlbum && <SoftWarning label="Album is empty" />}
-            {release.needsIdentifierWarning && <SoftWarning label="Missing UPC" />}
+            <SoftWarning warnings={release.warnings} />
             <StatusBadge status={release.status} />
           </div>
         </div>

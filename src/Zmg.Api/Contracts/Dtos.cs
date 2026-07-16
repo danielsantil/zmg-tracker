@@ -77,8 +77,7 @@ public record ReleaseListItemDto(
     int TotalTasks,
     string Status,
     string? Upc,
-    bool NeedsIdentifierWarning,
-    bool IsEmptyAlbum);
+    List<string> Warnings);
 
 public record ReleaseDetailDto(
     Guid Id,
@@ -95,8 +94,7 @@ public record ReleaseDetailDto(
     List<PhaseGroupDto> Phases,
     List<TrackDto> Tracks,
     string? Upc,
-    bool NeedsIdentifierWarning,
-    bool IsEmptyAlbum,
+    List<string> Warnings,
     bool IsArchived);
 
 // Titles of the songs that would cascade-archive alongside this release (M15 cascade preview).

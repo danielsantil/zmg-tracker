@@ -64,7 +64,7 @@ public static class PendingActions
         // the nag persists until the tracks exist. Singles never qualify (they carry exactly one track).
         if (release is { Type: ReleaseType.Album, IsArchived: false } && release.Tracks.Count < 2)
         {
-            var label = release.Tracks.Count == 0 ? "Album is empty" : "Album has only 1 track";
+            var label = release.Tracks.Count == 0 ? ReleaseWarnings.AlbumIsEmpty : ReleaseWarnings.AlbumHasOneTrack;
             result.Add(new PendingAction(
                 PendingKind.EmptyAlbum, label, release.Title, artistName,
                 release.Id, null, null, null));
