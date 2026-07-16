@@ -5,6 +5,7 @@ import type { Artist, ReleaseListItem } from '@/types';
 import { ReleaseType } from '@/types';
 import { Button, IdentifierWarning, StatusBadge, TypeBadge, inputClass } from '@/components';
 import { todayIso } from '@/lib/format';
+import { archiveReleaseConfirmMessage } from './archiveConfirm';
 
 export default function AllReleasesPage() {
   const navigate = useNavigate();
@@ -46,7 +47,7 @@ export default function AllReleasesPage() {
   const hasFilters = useMemo(() => artistId || type || status || q, [artistId, type, status, q]);
 
   async function archive(r: ReleaseListItem) {
-    if (!confirm(`Archive "${r.title}"? Archived releases are read-only and can't be restored.`)) return;
+    if (!confirm(await archiveReleaseConfirmMessage(r.id, r.title))) return;
     try {
       await api.releases.archive(r.id);
       loadReleases();

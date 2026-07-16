@@ -26,6 +26,10 @@ public static class ReleaseEndpoints
         group.MapPut("/{id:guid}", async (Guid id, ReleaseInput input, IReleaseService releases) =>
             (await releases.UpdateAsync(id, input)).ToOkWithWarnings());
 
+        // Preview which songs would cascade-archive with this release, so the UI can warn first (2.0).
+        group.MapGet("/{id:guid}/archive-preview", async (Guid id, IReleaseService releases) =>
+            (await releases.GetArchivePreviewAsync(id)).ToOk());
+
         // Archive a release (terminal, non-restorable; only for releaseDate >= today). v1.2.
         group.MapPost("/{id:guid}/archive", async (Guid id, IReleaseService releases) =>
             (await releases.ArchiveAsync(id)).ToNoContent());

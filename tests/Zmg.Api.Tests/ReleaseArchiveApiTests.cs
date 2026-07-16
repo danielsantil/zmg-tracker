@@ -112,6 +112,44 @@ public class ReleaseArchiveApiTests
     }
 
     [Fact]
+    public async Task Archive_preview_lists_an_exclusive_upcoming_song()
+    {
+        using var factory = new ZmgApiFactory();
+        var client = factory.CreateClient();
+        var artist = await CreateArtist(client, "Preview Artist");
+        var id = await CreateRelease(client, artist, "Preview Single", Today.AddDays(30));
+
+        var preview = await client.GetFromJsonAsync<ArchivePreviewDto>($"/api/releases/{id}/archive-preview");
+        Assert.Equal(new[] { "Track 1" }, preview!.SongsToArchive);
+    }
+
+    [Fact]
+    public async Task Archive_preview_excludes_a_previously_released_song()
+    {
+        using var factory = new ZmgApiFactory();
+        var client = factory.CreateClient();
+        var artist = await CreateArtist(client, "Shared Preview Artist");
+
+        // A future single carries a song…
+        var single = await client.PostAsJsonAsync("/api/releases", new ReleaseInput(
+            "Future Single", ReleaseType.Single, Today.AddDays(30), artist, null, null,
+            new List<TrackInput> { new(null, "Shared Song", null, null) }));
+        var songId = (await single.Content.ReadFromJsonAsync<CreatedWithWarnings<ReleaseDetailDto>>())!
+            .Data.Tracks.Single().SongId;
+
+        // …that already came out on a past-dated album → the song is "released", so it must not cascade.
+        var album = await client.PostAsJsonAsync("/api/releases", new ReleaseInput(
+            "Past Album", ReleaseType.Album, Today.AddDays(-10), artist, null, null, null));
+        var albumId = (await album.Content.ReadFromJsonAsync<CreatedWithWarnings<ReleaseDetailDto>>())!.Data.Id;
+        (await client.PostAsJsonAsync($"/api/releases/{albumId}/tracks",
+            new TrackInput(songId, null, null, null))).EnsureSuccessStatusCode();
+
+        var singleId = (await List(client, "all"))!.Single(r => r.Title == "Future Single").Id;
+        var preview = await client.GetFromJsonAsync<ArchivePreviewDto>($"/api/releases/{singleId}/archive-preview");
+        Assert.Empty(preview!.SongsToArchive);
+    }
+
+    [Fact]
     public async Task Archived_release_contributes_no_pending_actions()
     {
         using var factory = new ZmgApiFactory();

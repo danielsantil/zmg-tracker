@@ -7,6 +7,7 @@ import { Button, inputClass } from '@/components';
 import { PendingSection } from './components/PendingSection';
 import { ReleaseCard } from './components/ReleaseCard';
 import { EmptyState } from './components/EmptyState';
+import { archiveReleaseConfirmMessage } from '../releases/archiveConfirm';
 
 export default function HomePage() {
   const navigate = useNavigate();
@@ -52,7 +53,7 @@ export default function HomePage() {
   const hasFilters = useMemo(() => artistId || type || status, [artistId, type, status]);
 
   async function archive(r: ReleaseListItem) {
-    if (!confirm(`Archive "${r.title}"? Archived releases are read-only and can't be restored.`)) return;
+    if (!confirm(await archiveReleaseConfirmMessage(r.id, r.title))) return;
     try {
       await api.releases.archive(r.id);
       load();

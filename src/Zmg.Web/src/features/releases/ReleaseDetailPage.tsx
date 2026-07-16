@@ -13,6 +13,7 @@ import { NeedsAttention } from './components/NeedsAttention';
 import { PhaseSection } from './components/PhaseSection';
 import { TrackList } from './components/TrackList';
 import { SongCard } from './components/SongCard';
+import { archiveReleaseConfirmMessage } from './archiveConfirm';
 import type { TaskPatch } from './components/TaskRow';
 
 export default function ReleaseDetailPage() {
@@ -218,7 +219,7 @@ export default function ReleaseDetailPage() {
   }
 
   async function archive(r: ReleaseDetailModel) {
-    if (!confirm(`Archive "${r.title}"? Archived releases are read-only and can't be restored.`)) return;
+    if (!confirm(await archiveReleaseConfirmMessage(r.id, r.title))) return;
     try {
       await api.releases.archive(r.id);
       load();

@@ -97,6 +97,9 @@ public record ReleaseDetailDto(
     bool NeedsIdentifierWarning,
     bool IsArchived);
 
+// Titles of the songs that would cascade-archive alongside this release (M15 cascade preview).
+public record ArchivePreviewDto(List<string> SongsToArchive);
+
 public record PhaseGroupDto(Phase Phase, int Done, int Total, List<ReleaseTaskDto> Tasks);
 
 public record ReleaseTaskDto(

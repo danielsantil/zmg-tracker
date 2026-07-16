@@ -228,6 +228,27 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
         return OperationResult<ReleaseDetailDto>.Success(ToDetail(updated), validation.Warnings);
     }
 
+    // Preview the archive cascade (2.0 improvement): the titles of the songs that would archive alongside
+    // this release, so the UI can warn before confirming. Same rule as ArchiveAsync — released songs and
+    // songs shared with an active release are excluded. Read-only; nothing is persisted here.
+    public async Task<OperationResult<ArchivePreviewDto>> GetArchivePreviewAsync(Guid id)
+    {
+        var release = await db.Releases
+            .Include(r => r.Tracks).ThenInclude(t => t.Song).ThenInclude(s => s!.ReleaseLinks).ThenInclude(t => t.Release)
+            .FirstOrDefaultAsync(r => r.Id == id);
+        if (release is null) return OperationResult<ArchivePreviewDto>.NotFound();
+
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var titles = release.Tracks
+            .Select(t => t.Song)
+            .OfType<Song>()
+            .Where(s => SongArchival.ShouldArchive(s, release.Id, today))
+            .Select(s => s.Title)
+            .ToList();
+
+        return OperationResult<ArchivePreviewDto>.Success(new ArchivePreviewDto(titles));
+    }
+
     // Archive (v1.2): a terminal, non-restorable state. Only a release still to come (releaseDate >= today)
     // can be archived, and never twice. v2.0 M15: archiving cascades to the release's exclusively-linked
     // upcoming songs (see SongArchival.ShouldArchive) — released songs and songs shared with an active

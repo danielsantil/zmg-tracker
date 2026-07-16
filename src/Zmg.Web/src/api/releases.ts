@@ -35,6 +35,9 @@ export const releasesApi = {
       method: 'PUT',
       body: JSON.stringify(input),
     }),
+  // Preview the songs that would cascade-archive with this release (2.0).
+  archivePreview: (id: string) =>
+    request<{ songsToArchive: string[] }>(`/api/releases/${id}/archive-preview`),
   // Archive a release (terminal, non-restorable). v1.2.
   archive: (id: string) =>
     request<void>(`/api/releases/${id}/archive`, { method: 'POST' }),
