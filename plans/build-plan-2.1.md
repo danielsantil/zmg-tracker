@@ -89,4 +89,4 @@ Run the app and drive each flow at desktop and mobile widths:
 2. **Unified tracklist:** create form and detail page show identical rows and ↑/↓ reorder; no kebab; reorder/focus/remove behave as before.
 3. **Saved toast:** edit a song, Save → green ✓ "Saved." toast, auto-dismiss ~3s; error path → still red.
 4. **Confirm dialog:** delete and archive (with cascade songs) → custom dialog, red Delete / amber Archive, cascade list rendered; Cancel/Escape/backdrop abort; forced failure → red error toast.
-5. `npm run build` / oxlint clean; no `window.confirm`/`window.alert` remain.
+5. `npm run build` / `npm run lint` clean; no `window.confirm`/`window.alert` remain.

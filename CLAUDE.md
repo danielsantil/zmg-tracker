@@ -41,7 +41,7 @@ dotnet run --project src/Zmg.Api
 cd src/Zmg.Web && npm install && npm run dev
 
 # Lint / typecheck / build the SPA
-cd src/Zmg.Web && npm run lint        # oxlint
+cd src/Zmg.Web && npm run lint        # eslint (flat config: eslint.config.js)
 cd src/Zmg.Web && npm run build       # tsc -b && vite build → outputs to ../Zmg.Api/wwwroot
 
 # Production-style single process: build SPA into wwwroot, then run API on :5274

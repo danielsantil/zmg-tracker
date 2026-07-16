@@ -57,8 +57,8 @@ lifecycle — split from **Release** (UPC, cover, tasks); they link through a pu
 auto-distribute is past-date-only. **Catalog** (`SongService`/`SongEndpoints`): `/catalog` list +
 `/catalog/:id` detail with a **derived** release date/UPC list (earliest non-archived link, null for
 orphans), always-editable song fields (rename-clash → non-blocking warning), an **artist-drift hint**,
-and a debounced [`SongPicker`](src/Zmg.Web/src/features/catalog/components/SongPicker.tsx) wired into the
-create-form Tracks section + album add-row; a single collapses to a compact `SongCard`. **Pending
+and a debounced `SongPicker` wired into the create-form Tracks section + album add-row (replaced by
+`SongPickerModal` in M18); a single collapses to a compact `SongCard`. **Pending
 rework:** `MissingIdentifier` split into release-owned **`MissingUpc`** + song-owned **`MissingIsrc`**,
 plus an **`EmptyAlbum`** kind; `PendingAction` carries nullable `ReleaseId`/`SongId` + a generic
 `Subject`; one action per song ([`PendingActions.ComputeForSong`](src/Zmg.Domain/PendingActions.cs));
@@ -85,108 +85,33 @@ Then **release warnings were consolidated**: the per-warning DTO booleans collap
 lists them all on click. Tests green (domain 62 / API 95); a live `dotnet run` smoke test stays blocked
 by the documented EF-tooling migration issue below, not by any of these changes.
 
-**v2.1 (M16) — Modal primitive + custom confirm dialog.** The app's first real overlay:
-[`Modal`](src/Zmg.Web/src/components/Modal.tsx) portals to `<body>` (bottom sheet on mobile, centered card
-from `sm` up; Escape/backdrop close, body scroll-lock, panel focused on open). On top of it,
-[`ConfirmDialog`](src/Zmg.Web/src/components/ConfirmDialog.tsx) +
-[`ConfirmProvider`/`useConfirm`](src/Zmg.Web/src/hooks/useConfirm.tsx) give a promise-based
-`confirm(opts) => Promise<boolean>` from one dialog instance mounted at the `App.tsx` root, so call sites
-still read `if (!(await confirm({...}))) return;`. **All 13 `confirm()` and 7 `alert()` calls are gone** —
-alerts became red error toasts, which meant `useToast` + `<Toast>` also landed on Home, All/Archived
-Releases, Catalog, Archived Songs, and Artists. New amber **`archive` Button variant** (terminal but not
-destructive) now on every archive action — Home card, All Releases, release detail, Catalog — with red kept
-for deletes; `MenuItem`'s boolean `danger` became `tone: 'default' | 'danger' | 'archive'` to match (3 call
-sites updated). `archiveConfirm.ts` → **`.tsx`**: `archiveReleaseConfirmMessage` (a `\n`-joined string) is now
-`archiveReleaseConfirm`, returning a whole `ConfirmOptions` with a `ReactNode` body that renders the cascade
-songs as a real `<ul>` — it returns the full options rather than just the body because the title/label/variant
-were identical at all three call sites. Verified: `tsc -b` + `npm run build` clean, `dotnet test` green
-(62/95), and — contrary to the note below — `dotnet run` now boots fine and serves the SPA + API on :5274
-(`/` and `/api/releases` both 200), with the amber utilities confirmed in the CSS bundle. The interactive
-click-through (sheet vs. card, Escape/backdrop) is **not** yet done — no browser automation here.
-
-**v2.1 (M17) — toast variants.** [`Toast`](src/Zmg.Web/src/components/Toast.tsx) gains
-`variant: 'success' | 'error' | 'info'` (emerald + ✓ / red / slate), and `useToast`'s
-`showToast(msg, variant = 'error')` stores `{ message, variant }` — **`error` stays the default**, so the many
-revert/failure callers (and M16's `alert`→toast replacements) keep their red with no edit. The hook still
-returns `toast` as a plain string and adds `toastVariant`, so the only change at the 9 render sites is passing
-`variant={toastVariant}`. The actual fix: `SongDetailPage`'s post-save `showToast('Saved.', 'success')` is now
-green — it was a red pop-up that read as failure. The slide-in is a real `toast-in` keyframe in
-`tailwind.config.js` (not an arbitrary value) because the toast centers via `-translate-x-1/2` and an
-**animation transform replaces the class's rather than composing with it** — both frames must carry
-`translate(-50%)` or the toast jumps to the right edge mid-animation. Gated behind `motion-safe:`; also picked up
-`role="status"`/`aria-live` and `mb-[env(safe-area-inset-bottom)]`. Verified: `npm run build` clean, `dotnet test`
-green (62/95), and all three variant classes + the emitted keyframe confirmed in the CSS bundle. Click-through
-still pending, same as M16.
-
-**v2.1 (M18) — `SongPickerModal` + unified `Tracklist`.** The inline `SongPicker` is gone, replaced by
-[`SongPickerModal`](src/Zmg.Web/src/features/catalog/components/SongPickerModal.tsx) on M16's `Modal`:
-it **browses on open** (`api.songs.list({ artistId })`, no typing — the "I forgot the title" case) and every
-query stays artist-scoped, so another artist's songs can't be linked; typing debounces at 250ms but browse-on-open
-is immediate (the delay is `term ? 250 : 0`). No backend change — `artistId` filtering already existed.
-[`Tracklist`](src/Zmg.Web/src/features/releases/components/Tracklist.tsx) is now the **one** album tracklist for
-both contexts (row + ↑/↓ + ✕, `ml-3` before ✕); `TrackRow.tsx` and its kebab are deleted, and `onToggleFocus` is
-**optional** because the focus track only exists once a release is saved. Two adapters keep persistence where it
-was: `ReleaseDetailPage` maps `TrackDto[]`→rows keyed by `songId` (a `track(row)` lookup feeds the existing
-optimistic `api.tracks.*` handlers), and `TracksEditor` maps its local `EditorRow[]`, putting a new song's
-title/ISRC/feats in a per-row **"Details (optional)"** disclosure. Two decisions worth knowing: **the single keeps
-its own fixed one-row editor** (it's not a list — nothing to reorder, no add row) and only swaps the inline picker
-for the modal; and **`TrackList.tsx` → `Tracklist.tsx` had to be a `git mv`** — macOS is case-insensitive, so the
-two names are the same file and writing one silently overwrote the other. Also fixed a regression this milestone
-would have introduced: `InlineAddForm`'s buttons had no `type`, harmless on the detail page but inside the create
-form's `<form>` they default to `submit` — "+ Add track" would have saved the release. Verified: `npm run build`
-clean, `dotnet test` green (62/95), and the app boots (`/` 200) with `GET /api/songs?artistId=…` returning the
-artist's songs unfiltered and `&q=` filtering within that scope.
-
-**v2.1 — browser click-through + one fix (post-M18).** The interactive verification outstanding for M16–M18 is
-now done in a browser (in-app browser driving `:5274`, dev db seeded with **two** artists so cross-artist scoping
-is observable): **Modal** — centered card at desktop (measured rect centre = viewport centre) and a full-width
-bottom sheet below `sm`; **Escape** and **backdrop click** both close it and release the body scroll-lock.
-**ConfirmDialog** — the catalog delete confirm shows the red `danger` button and deletes end-to-end (song gone
-from `/api/songs`). **M17 toast** — the post-save song toast is the green `bg-emerald-600/90` "✓ Saved." with
-`role="status"` + the `toast-in` keyframe. **M18 `SongPickerModal`** — browses on open, and with two artists
-seeded the picker for Aurora's release lists **only** Aurora's songs (Bruno's excluded, confirming the artist
-scope in the UI, not just the API), with `&q=` narrowing within that scope. Cross-artist exclusion is therefore
-confirmed at both the API and UI layers. **Fix found in the process:** `Modal`'s `panel.focus()` effect ran after
-the child mounted and stole focus back from `SongPickerModal`'s `autoFocus` search input, so "browse on open, just
-type" silently didn't — focus landed on the dialog `<div>`. Guarded it (`if (!panel.current?.contains(document.activeElement))`)
-so a child that already claimed focus keeps it, while a dialog with no focusable child (ConfirmDialog) still gets
-panel focus. Re-verified in the browser: the search input now holds focus on open. `npm run build` + `dotnet test`
-green (62/95).
-
-**v2.1 — add-time track details on the release detail page (post-M18).** M18 deliberately kept a new song's
-ISRC/feats **create-only** (a per-row "Details (optional)" disclosure in `TracksEditor`), so the detail-page
-tracklist's "+ Add track" captured a title only and created the song bare — you then set ISRC/feats on the
-catalog song page. That round-trip was friction, so the detail page now collects them at add time. New
-[`NewTrackForm`](src/Zmg.Web/src/features/releases/components/NewTrackForm.tsx): a title field with a "Details
-(optional)" disclosure (ISRC + the shared `SongArtistsEditor` feats control) that submits the whole song in one
-`api.tracks.add` call — the backend already accepted `Isrc`/`Artists` on `TrackInput`
-([`TrackService`](src/Zmg.Api/Services/TrackService.cs) → `SongMapping.NewSong`), so **no backend change**.
-`Tracklist`'s `onAddNew` is now `(draft: NewTrackDraft) => void` (title + isrc + artists) for both contexts, and it
-renders `NewTrackForm` **only when passed the full `artists` list** (the detail page does; the create form doesn't,
-so it keeps its title-only `InlineAddForm` + per-row disclosure — that flow is unchanged and was regression-tested).
-`ReleaseDetailPage` fetches `api.artists.list()` for the feats control. This is a deliberate, narrow exception to
-"song fields are edited only on the catalog page": it's **creation-time** entry from the tracklist, not ongoing
-editing of an existing song — release-detail rows still only reorder/focus/remove. Verified in-browser end-to-end:
-adding "Duet in the Dark" with an ISRC + a Bruno feat on Aurora's album persisted both (`/api/releases/{id}` shows
-the ISRC and the featured artist), the row shows its ISRC, and the create-form album add still works. `npm run
-build` + `dotnet test` green (62/95).
-
-**v2.1 — song-title uniqueness per artist + immutable main artist (bugfix round).** Song titles are now
-**unique per main artist** (among active/non-archived songs), enforced as a hard rule instead of the old
-non-blocking warning — the warning was surfacing in the song **detail** form where there's no release context,
-which never made sense. [`Validation.ValidateSong`](src/Zmg.Domain/Validation.cs) now returns an **error**
-(`Validation.DuplicateSongTitleMessage`, a shared const) on a clash; enforced everywhere a song is minted:
-`SongService` create/rename (400), `ReleaseService.CreateAsync` inline tracks (also catches two identical new
-titles in one request), and `TrackService.AddAsync` (the detail-page "+ Add track" path, which previously had
-**no** check at all — the reported bug). On the detail page, a duplicate `api.tracks.add` opens a **"Song already
-exists" `Modal`** ([`ReleaseDetailPage`](src/Zmg.Web/src/features/releases/ReleaseDetailPage.tsx)) offering *Add
-existing song* (looks the clash up via `api.songs.list({ artistId, q })`; hidden when it's already on the release)
-or *Change the name* — and `NewTrackForm`'s `onAdd` now resolves `false` to keep the form open with the typed
-values. **Main artist is immutable after creation** ([`SongService.UpdateAsync`](src/Zmg.Api/Services/SongService.cs)
-409s on a change; a song may already be on that artist's releases) — the detail page renders it as a read-only field.
-Dead "Saved with warnings" UI dropped from both song pages (songs no longer emit warnings). Two API-test helpers that
-reused a fixed `"Track 1"` title per artist now derive it from the release title. Verified in-browser end-to-end
-(both modal branches, read-only main artist). `dotnet test` green (domain 62 / API 99); SPA typechecks + builds.
+**v2.1 (M16–M18) — UX refinements + follow-on integrity fixes.** The app's overlay layer plus a catalog-integrity
+pass. **Overlays (M16):** [`Modal`](src/Zmg.Web/src/components/Modal.tsx) portals to `<body>` (bottom sheet on
+mobile, centered card from `sm`; Escape/backdrop close, body scroll-lock, panel focus **guarded** so a child's
+`autoFocus` keeps it — a focus-steal that had defeated the picker's search input); on it,
+[`ConfirmDialog`](src/Zmg.Web/src/components/ConfirmDialog.tsx) + [`ConfirmProvider`](src/Zmg.Web/src/hooks/ConfirmProvider.tsx)/[`useConfirm`](src/Zmg.Web/src/hooks/useConfirm.ts)
+give a promise-based `confirm(opts) => Promise<boolean>` from one instance at the `App.tsx` root — **all 13
+`confirm()` + 7 `alert()` calls are gone** (alerts → red error toasts; `archiveConfirm.tsx` returns full
+`ConfirmOptions` with a `ReactNode` cascade-song `<ul>`). **Toasts (M17):** [`Toast`](src/Zmg.Web/src/components/Toast.tsx)
+gained `variant: success|error|info` (`error` stays the default so failure callers don't change), fixing
+`SongDetailPage`'s post-save toast to a green "✓ Saved."; slide-in via a real `toast-in` keyframe in
+`tailwind.config.js` (both frames must carry `translate(-50%)` or the centered toast jumps). New amber **`archive`
+Button/`MenuItem` variant** (terminal ≠ destructive) on every archive action, red kept for deletes. **Tracklist
+(M18):** the inline `SongPicker` became [`SongPickerModal`](src/Zmg.Web/src/features/catalog/components/SongPickerModal.tsx)
+(browses on open, always artist-scoped) and the album list unified into one
+[`Tracklist`](src/Zmg.Web/src/features/releases/components/Tracklist.tsx) for create form + detail (deleting
+`TrackRow` + its kebab; `onToggleFocus` optional). **Follow-ons:** a new-song row collects ISRC/feats at add time via
+[`NewTrackForm`](src/Zmg.Web/src/features/releases/components/NewTrackForm.tsx) (no backend change — `TrackInput`
+already carried them); **song titles became unique per main artist** — [`Validation.ValidateSong`](src/Zmg.Domain/Validation.cs)
+now errors (was a soft warning), enforced across `SongService` create/rename, `ReleaseService.CreateAsync` inline
+tracks, and `TrackService.AddAsync`, with a "Song already exists" modal on the detail page offering *Add existing* /
+*Change the name*; and a song's **main artist is immutable** ([`SongService.UpdateAsync`](src/Zmg.Api/Services/SongService.cs)
+409s, detail renders it read-only). **Tooling:** oxlint → **ESLint 9** (flat `eslint.config.js`; oxlint's native
+binding never installed), which meant splitting non-component exports into their own modules (`emptyTrack` →
+`trackInput.ts`; the confirm context/hook `useConfirm.ts` apart from `ConfirmProvider.tsx`) for clean Fast-Refresh
+boundaries. Browser-verified end-to-end (sheet vs. card + Escape/backdrop, cross-artist picker scope at API **and**
+UI with a two-artist seed, both duplicate-modal branches, read-only main artist); `dotnet test` green (domain 62 /
+API 99), `npm run lint`/`build` clean.
 
 ---
 
@@ -245,6 +170,13 @@ reused a fixed `"Track 1"` title per artist now derive it from the release title
   one exception is **creation**: adding a *new* song from a tracklist may set its title/ISRC/feats at add
   time (create form's per-row disclosure, and the detail page's `NewTrackForm`), since that's the song's
   birth, not later editing.
+- **Song titles are unique per main artist; a song's main artist is immutable (v2.1).** A title must be
+  unique among an artist's active (non-archived) songs — a **hard error** in pure `Validation.ValidateSong`
+  (shared `DuplicateSongTitleMessage`), enforced at *every* mint path (song create/rename,
+  `ReleaseService.CreateAsync` inline tracks, `TrackService.AddAsync`), never a soft warning. The
+  release-detail "+ Add track" surfaces a clash as a modal offering the existing song or a rename. A song's
+  **main artist can't change after creation** (`SongService.UpdateAsync` 409s) — it may already sit on that
+  artist's releases; the catalog detail renders it read-only.
 - **Hard schema reset, no migration (v2.0).** M12 deleted all v1.x migrations and regenerated a single
   `InitialCreate`; there is intentionally **no upgrade path** from a v1.x db. Delete any local `zmg.db`.
   Template/task `HasData` seeding carried over unchanged (proven by the green seed tests).
@@ -289,18 +221,14 @@ tests/Zmg.Api.Tests      integration tests (WebApplicationFactory + in-memory SQ
 
 ## Backlog / next steps
 
-- **build-plan-2.1 (M16–M18) — UX refinements. Fully shipped and browser-verified** (M16 `Modal`/confirm,
-  M17 toast variants, M18 `SongPickerModal` + unified `Tracklist`) — see the journal entries above.
-  - The interactive click-through (sheet vs. card, Escape/backdrop, red-delete confirm, green "Saved." toast,
-    picker browse-on-open) is **done** in a browser, and cross-artist picker scoping is **confirmed** at both
-    the API and UI layers with a two-artist seed. A focus-steal in `Modal` (defeated `SongPickerModal`'s
-    `autoFocus`) was found and fixed in the same pass.
-  - Not driven in the browser: the archive-confirm cascade list specifically (needs a release with dormant
-    cascading songs) — the underlying `ConfirmDialog`/`Modal` and the `ReactNode` body are otherwise verified.
-- **v2.0 is fully shipped (M12–M15).** See the journal above and [build-plan-2.0.md](build-plan-2.0.md).
-- **Phase 2 — DSP stats** (the reason this exists over Notion/Trello): hang streaming/revenue data off
-  the stable Artist / Release / **Song** / Track ids and UPC/ISRC columns. The v2.0 Song ids are its
-  foundation.
+- **Shipped:** v2.0 (M12–M15) and **build-plan-2.1 (M16–M18)** — overlays/confirm, toast variants,
+  `SongPickerModal` + unified `Tracklist`, plus the song-uniqueness/immutable-artist integrity fixes and the
+  ESLint migration. All browser-verified; see the journal. One thing never driven in the browser: the
+  archive-confirm cascade *list* specifically (needs a release with dormant cascading songs) — the underlying
+  `ConfirmDialog`/`Modal` + `ReactNode` body are otherwise verified.
+- **Phase 2 — DSP stats (next up)** (the reason this exists over Notion/Trello): hang streaming/revenue data
+  off the stable Artist / Release / **Song** / Track ids and UPC/ISRC columns. The v2.0 Song ids are its
+  foundation. No build plan yet — write `build-plan-3.0.md` when it starts.
 - **Per-track task fan-out** on albums: registrations that repeat per track are single "per track"
   tasks today. Decide after the first real album.
 - **Verify the Docker image** on a machine with the daemon running (`docker build -t zmg-tracker .`) —
@@ -308,6 +236,7 @@ tests/Zmg.Api.Tests      integration tests (WebApplicationFactory + in-memory SQ
 - Deferred: un-archive/restore and hard-delete/purge (archives are terminal by rule); auth for hosted
   deploys; absolute per-task due dates (v1.1 only added timeframe *ranges*).
 
-**Env note:** `npm run lint` fails locally — oxlint's native binding (`oxlint.darwin-universal.node`)
-is missing, same class as the Vite 8 rolldown binding (Vite is pinned to 7.x for that reason). Use
-`tsc --noEmit` + `npm run build` to typecheck until it resolves.
+**Env note:** the linter is **ESLint** (flat config `src/Zmg.Web/eslint.config.js`) — `npm run lint`
+runs clean. It replaced oxlint, whose native binding never installed locally (`@oxlint/binding-darwin-x64`
+missing — the npm optional-deps bug, same class as the Vite 8 rolldown binding, which is why Vite stays
+pinned to 7.x).
