@@ -2,11 +2,13 @@
 
 Per-release checklist tracker for Zion Music Group. Turns the repeatable
 pre/release/post checklist into a per-release progress tracker across artists,
-for both singles and albums. See [build-plan.md](build-plan.md) for the full brief.
+for both singles and albums. See [plans/PROGRESS.md](plans/PROGRESS.md) for current
+state and the [plans/build-plan-*.md](plans/) files for per-milestone briefs.
 
-**Status:** v1 complete (M0–M5). Skeleton, artists + releases CRUD, seeded checklist
-templates, the release-detail checklist engine, template management, album track lists,
-and the polish pass (mobile, filters, empty states, Dockerfile) are all in.
+**Status:** v2.0 complete (M12–M15) — first-class songs, the catalog, the Release/Song
+`Track` join, pending-actions rework, and the archive cascade, plus a round of post-v2.0
+UX improvements. Next up is build-plan-2.1 (M16–M18, UX refinements). See
+[plans/PROGRESS.md](plans/PROGRESS.md) for the running journal.
 
 ## Stack
 
@@ -17,8 +19,9 @@ and the polish pass (mobile, filters, empty states, Dockerfile) are all in.
 ## Layout
 
 ```
-src/Zmg.Domain   Entities, enums, template-copy / progress / status / validation. No I/O.
-src/Zmg.Api      Minimal API, EF Core + SQLite, migrations, seeds both templates.
+src/Zmg.Domain   Entities, enums, template-copy / progress / status / warnings / validation. No I/O.
+src/Zmg.Infra    ZmgDbContext + EF Core migrations (SQLite); seeds both templates.
+src/Zmg.Api      Minimal API — endpoints + services over the domain and DbContext.
 src/Zmg.Web      React + Vite + Tailwind SPA.
 tests/Zmg.Domain.Tests   xUnit unit tests (copy, progress, status, validation, seed).
 tests/Zmg.Api.Tests      Integration tests (WebApplicationFactory + SQLite in-memory).
