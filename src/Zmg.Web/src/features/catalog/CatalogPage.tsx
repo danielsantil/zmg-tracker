@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api, ApiError } from '@/api';
 import type { Artist, SongListItem } from '@/types';
-import { Button, inputClass } from '@/components';
+import { Button, Toast, inputClass } from '@/components';
+import { useConfirm } from '@/hooks/useConfirm';
+import { useToast } from '@/hooks/useToast';
 
 /**
  * The catalog (M13): every song, searchable by title, ordered by title. Release Date is derived
@@ -11,6 +13,8 @@ import { Button, inputClass } from '@/components';
  */
 export default function CatalogPage() {
   const navigate = useNavigate();
+  const confirm = useConfirm();
+  const { toast, showToast } = useToast();
   const [songs, setSongs] = useState<SongListItem[]>([]);
   const [artists, setArtists] = useState<Artist[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,22 +45,38 @@ export default function CatalogPage() {
   const hasFilters = useMemo(() => q || artistId, [q, artistId]);
 
   async function archive(s: SongListItem) {
-    if (!confirm(`Archive "${s.title}"? Archived songs are read-only and can't be restored.`)) return;
+    if (
+      !(await confirm({
+        title: `Archive "${s.title}"?`,
+        body: <p>Archived songs are read-only and can't be restored.</p>,
+        confirmLabel: 'Archive',
+        confirmVariant: 'archive',
+      }))
+    )
+      return;
     try {
       await api.songs.archive(s.id);
       load();
     } catch (e) {
-      alert(e instanceof ApiError ? e.message : 'Failed to archive.');
+      showToast(e instanceof ApiError ? e.message : 'Failed to archive.');
     }
   }
 
   async function remove(s: SongListItem) {
-    if (!confirm(`This song was never released — delete it from the catalog? This can't be undone.`)) return;
+    if (
+      !(await confirm({
+        title: `Delete "${s.title}" from the catalog?`,
+        body: <p>This song was never released. This can't be undone.</p>,
+        confirmLabel: 'Delete',
+        confirmVariant: 'danger',
+      }))
+    )
+      return;
     try {
       await api.songs.delete(s.id);
       load();
     } catch (e) {
-      alert(e instanceof ApiError ? e.message : 'Failed to delete.');
+      showToast(e instanceof ApiError ? e.message : 'Failed to delete.');
     }
   }
 
@@ -141,6 +161,7 @@ export default function CatalogPage() {
                       </Button>
                     ) : s.canArchive ? (
                       <Button
+                        variant="archive"
                         onClick={(e) => {
                           e.stopPropagation();
                           archive(s);
@@ -158,6 +179,8 @@ export default function CatalogPage() {
           </table>
         </div>
       )}
+
+      <Toast message={toast} />
     </div>
   );
 }

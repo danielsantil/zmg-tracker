@@ -72,20 +72,23 @@ export function RowMenu({
   );
 }
 
+/** `tone` mirrors the Button variants: red for hard deletes, amber for archive. */
 export function MenuItem({
   children,
   onClick,
-  danger,
+  tone = 'default',
 }: {
   children: ReactNode;
   onClick: () => void;
-  danger?: boolean;
+  tone?: 'default' | 'danger' | 'archive';
 }) {
+  const tones = {
+    default: 'text-slate-200',
+    danger: 'text-red-300',
+    archive: 'text-amber-300',
+  };
   return (
-    <button
-      className={`block w-full px-3 py-2 text-left hover:bg-edge ${danger ? 'text-red-300' : 'text-slate-200'}`}
-      onClick={onClick}
-    >
+    <button className={`block w-full px-3 py-2 text-left hover:bg-edge ${tones[tone]}`} onClick={onClick}>
       {children}
     </button>
   );

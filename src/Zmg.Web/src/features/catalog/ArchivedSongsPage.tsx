@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api, ApiError } from '@/api';
 import type { SongListItem } from '@/types';
-import { Button } from '@/components';
+import { Button, Toast } from '@/components';
+import { useConfirm } from '@/hooks/useConfirm';
+import { useToast } from '@/hooks/useToast';
 
 /**
  * Archived Songs (M15) — the terminal, read-only bucket, mirroring Archived Releases. Table is
@@ -11,6 +13,8 @@ import { Button } from '@/components';
  */
 export default function ArchivedSongsPage() {
   const navigate = useNavigate();
+  const confirm = useConfirm();
+  const { toast, showToast } = useToast();
   const [songs, setSongs] = useState<SongListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -30,12 +34,20 @@ export default function ArchivedSongsPage() {
   }, []);
 
   async function remove(s: SongListItem) {
-    if (!confirm(`Delete "${s.title}"? This can't be undone.`)) return;
+    if (
+      !(await confirm({
+        title: `Delete "${s.title}"?`,
+        body: <p>This can't be undone.</p>,
+        confirmLabel: 'Delete',
+        confirmVariant: 'danger',
+      }))
+    )
+      return;
     try {
       await api.songs.delete(s.id);
       load();
     } catch (e) {
-      alert(e instanceof ApiError ? e.message : 'Failed to delete.');
+      showToast(e instanceof ApiError ? e.message : 'Failed to delete.');
     }
   }
 
@@ -101,6 +113,8 @@ export default function ArchivedSongsPage() {
           </table>
         </div>
       )}
+
+      <Toast message={toast} />
     </div>
   );
 }

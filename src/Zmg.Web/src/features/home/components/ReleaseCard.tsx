@@ -51,7 +51,7 @@ export function ReleaseCard({
           <Button variant="ghost" onClick={onEdit}>
             Edit
           </Button>
-          <Button variant="ghost" onClick={onArchive}>
+          <Button variant="archive" onClick={onArchive}>
             Archive
           </Button>
         </div>

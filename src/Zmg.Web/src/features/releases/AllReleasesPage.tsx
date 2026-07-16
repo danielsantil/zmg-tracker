@@ -3,12 +3,16 @@ import { Link, useNavigate } from 'react-router-dom';
 import { api, ApiError } from '@/api';
 import type { Artist, ReleaseListItem } from '@/types';
 import { ReleaseType } from '@/types';
-import { Button, SoftWarning, StatusBadge, TypeBadge, inputClass } from '@/components';
+import { Button, SoftWarning, StatusBadge, Toast, TypeBadge, inputClass } from '@/components';
+import { useConfirm } from '@/hooks/useConfirm';
+import { useToast } from '@/hooks/useToast';
 import { todayIso } from '@/lib/format';
-import { archiveReleaseConfirmMessage } from './archiveConfirm';
+import { archiveReleaseConfirm } from './archiveConfirm';
 
 export default function AllReleasesPage() {
   const navigate = useNavigate();
+  const confirm = useConfirm();
+  const { toast, showToast } = useToast();
   const [releases, setReleases] = useState<ReleaseListItem[]>([]);
   const [artists, setArtists] = useState<Artist[]>([]);
   const [loading, setLoading] = useState(true);
@@ -47,12 +51,12 @@ export default function AllReleasesPage() {
   const hasFilters = useMemo(() => artistId || type || status || q, [artistId, type, status, q]);
 
   async function archive(r: ReleaseListItem) {
-    if (!confirm(await archiveReleaseConfirmMessage(r.id, r.title))) return;
+    if (!(await confirm(await archiveReleaseConfirm(r.id, r.title)))) return;
     try {
       await api.releases.archive(r.id);
       loadReleases();
     } catch (e) {
-      alert(e instanceof ApiError ? e.message : 'Failed to archive.');
+      showToast(e instanceof ApiError ? e.message : 'Failed to archive.');
     }
   }
 
@@ -165,7 +169,7 @@ export default function AllReleasesPage() {
                     {/* Archive is only allowed for releases still to come (releaseDate >= today). */}
                     {r.releaseDate >= today && (
                       <Button
-                        variant="ghost"
+                        variant="archive"
                         onClick={(e) => {
                           e.stopPropagation();
                           archive(r);
@@ -181,6 +185,8 @@ export default function AllReleasesPage() {
           </table>
         </div>
       )}
+
+      <Toast message={toast} />
     </div>
   );
 }

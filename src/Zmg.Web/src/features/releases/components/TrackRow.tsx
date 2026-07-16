@@ -65,7 +65,7 @@ export function TrackRow({
                 {!isLast && (
                   <MenuItem onClick={() => { close(); onMove(track, 1); }}>Move down</MenuItem>
                 )}
-                <MenuItem danger onClick={() => { close(); onDelete(track); }}>
+                <MenuItem tone="danger" onClick={() => { close(); onDelete(track); }}>
                   Remove from release
                 </MenuItem>
               </>

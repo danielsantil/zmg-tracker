@@ -3,6 +3,7 @@ import { api, ApiError } from '@/api';
 import type { Template, TemplateTaskDto } from '@/types';
 import { Phase, ReleaseType } from '@/types';
 import { Toast } from '@/components';
+import { useConfirm } from '@/hooks/useConfirm';
 import { useToast } from '@/hooks/useToast';
 import { PHASE_ORDER } from '@/lib/phase';
 import { TemplatePhaseSection } from './components/TemplatePhaseSection';
@@ -14,6 +15,7 @@ const TYPE_TABS: { type: ReleaseType; label: string }[] = [
 ];
 
 export default function TemplatesPage() {
+  const confirm = useConfirm();
   const [templates, setTemplates] = useState<Template[]>([]);
   const [tab, setTab] = useState<ReleaseType>(ReleaseType.Single);
   const [tasks, setTasks] = useState<TemplateTaskDto[]>([]);
@@ -83,7 +85,14 @@ export default function TemplatesPage() {
   }
 
   async function removeTask(task: TemplateTaskDto) {
-    if (!confirm(`Delete template task "${task.title}"?`)) return;
+    if (
+      !(await confirm({
+        title: `Delete template task "${task.title}"?`,
+        confirmLabel: 'Delete',
+        confirmVariant: 'danger',
+      }))
+    )
+      return;
     const prev = tasks;
     setTasks((ts) => ts.filter((t) => t.id !== task.id));
     try {

@@ -4,6 +4,7 @@ import { api, ApiError } from '@/api';
 import type { PendingAction, ReleaseDetail as ReleaseDetailModel, ReleaseTaskDto, TrackDto } from '@/types';
 import { Phase, ReleaseType } from '@/types';
 import { Button, Toast } from '@/components';
+import { useConfirm } from '@/hooks/useConfirm';
 import { useToast } from '@/hooks/useToast';
 import { useBackNavigation } from '@/hooks/useBackNavigation';
 import { PHASE_ORDER } from '@/lib/phase';
@@ -13,13 +14,14 @@ import { NeedsAttention } from './components/NeedsAttention';
 import { PhaseSection } from './components/PhaseSection';
 import { TrackList } from './components/TrackList';
 import { SongCard } from './components/SongCard';
-import { archiveReleaseConfirmMessage } from './archiveConfirm';
+import { archiveReleaseConfirm } from './archiveConfirm';
 import type { TaskPatch } from './components/TaskRow';
 
 export default function ReleaseDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const goBack = useBackNavigation();
+  const confirm = useConfirm();
 
   const [release, setRelease] = useState<ReleaseDetailModel | null>(null);
   const [tasks, setTasks] = useState<ReleaseTaskDto[]>([]);
@@ -115,7 +117,14 @@ export default function ReleaseDetailPage() {
   }
 
   async function removeTask(task: ReleaseTaskDto) {
-    if (!confirm(`Delete task "${task.title}"?`)) return;
+    if (
+      !(await confirm({
+        title: `Delete task "${task.title}"?`,
+        confirmLabel: 'Delete',
+        confirmVariant: 'danger',
+      }))
+    )
+      return;
     const prev = tasks;
     setTasks((ts) => ts.filter((t) => t.id !== task.id));
     try {
@@ -184,7 +193,15 @@ export default function ReleaseDetailPage() {
   }
 
   async function removeTrack(track: TrackDto) {
-    if (!confirm(`Remove "${track.title}" from this release? The song stays in the catalog.`)) return;
+    if (
+      !(await confirm({
+        title: `Remove "${track.title}" from this release?`,
+        body: <p>The song stays in the catalog.</p>,
+        confirmLabel: 'Remove',
+        confirmVariant: 'danger',
+      }))
+    )
+      return;
     const prev = tracks;
     // Drop it and renumber locally to mirror the server's contiguous numbering.
     setTracks((ts) =>
@@ -222,7 +239,7 @@ export default function ReleaseDetailPage() {
   }
 
   async function archive(r: ReleaseDetailModel) {
-    if (!confirm(await archiveReleaseConfirmMessage(r.id, r.title))) return;
+    if (!(await confirm(await archiveReleaseConfirm(r.id, r.title)))) return;
     try {
       await api.releases.archive(r.id);
       load();
@@ -254,7 +271,7 @@ export default function ReleaseDetailPage() {
               Edit
             </Button>
             {canArchive && (
-              <Button variant="ghost" onClick={() => archive(release)}>
+              <Button variant="archive" onClick={() => archive(release)}>
                 Archive
               </Button>
             )}

@@ -1,10 +1,14 @@
 import { useEffect, useState } from 'react';
 import { api, ApiError } from '@/api';
 import type { Artist } from '@/types';
-import { Button } from '@/components';
+import { Button, Toast } from '@/components';
+import { useConfirm } from '@/hooks/useConfirm';
+import { useToast } from '@/hooks/useToast';
 import { ArtistForm } from './components/ArtistForm';
 
 export default function ArtistsPage() {
+  const confirm = useConfirm();
+  const { toast, showToast } = useToast();
   const [artists, setArtists] = useState<Artist[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Artist | null>(null);
@@ -24,12 +28,19 @@ export default function ArtistsPage() {
   }, []);
 
   async function remove(a: Artist) {
-    if (!confirm(`Delete artist "${a.name}"?`)) return;
+    if (
+      !(await confirm({
+        title: `Delete artist "${a.name}"?`,
+        confirmLabel: 'Delete',
+        confirmVariant: 'danger',
+      }))
+    )
+      return;
     try {
       await api.artists.delete(a.id);
       load();
     } catch (e) {
-      alert(e instanceof ApiError ? e.message : 'Failed to delete artist.');
+      showToast(e instanceof ApiError ? e.message : 'Failed to delete artist.');
     }
   }
 
@@ -96,6 +107,8 @@ export default function ArtistsPage() {
           ))}
         </div>
       )}
+
+      <Toast message={toast} />
     </div>
   );
 }

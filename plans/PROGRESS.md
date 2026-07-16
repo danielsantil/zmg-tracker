@@ -9,15 +9,15 @@ lists; read **this** for current state and the cross-cutting knowledge the plans
 - [build-plan-1.1.md](build-plan-1.1.md) — singles improvements (M6–M10). Shipped.
 - [build-plan-1.2.md](build-plan-1.2.md) — archived releases (M11). Shipped.
 - [build-plan-2.0.md](build-plan-2.0.md) — songs & catalog (M12–M15). **M12–M15 shipped — v2.0 complete.**
-- [build-plan-2.1.md](build-plan-2.1.md) — UX refinements (M16–M18). **Planned, not started** — see [Backlog](#backlog--next-steps).
+- [build-plan-2.1.md](build-plan-2.1.md) — UX refinements (M16–M18). **M16 shipped; M17–M18 next** — see [Backlog](#backlog--next-steps).
 
 Newer plan versions go in new `build-plan-N.N.md` files; older ones stay frozen.
 
 **Current state:** **build-plan-2.0 fully shipped** (M12–M15) — songs, catalog, pending rework, and the
-archive cascade — plus a round of post-v2.0 UX/feature improvements (see the journal). Tests green
-(`dotnet test` — domain 62 / API 95). Next work is **[build-plan-2.1](build-plan-2.1.md) (M16–M18) —
-UX refinements**, planned and approved but not yet started (see [Backlog / next steps](#backlog--next-steps));
-Phase 2 (DSP stats) follows.
+archive cascade — plus a round of post-v2.0 UX/feature improvements, and now **M16** of
+[build-plan-2.1](build-plan-2.1.md) (the `Modal`/confirm-dialog primitives). Tests green (`dotnet test` —
+domain 62 / API 95). Next work is **M17 (toast variants) → M18 (`SongPickerModal` + unified `Tracklist`)**
+(see [Backlog / next steps](#backlog--next-steps)); Phase 2 (DSP stats) follows.
 
 > ⚠️ **M12 is a hard schema reset with no migration.** Any existing local `src/Zmg.Api/zmg.db` from
 > v1.x must be deleted before running — the fresh `InitialCreate` won't apply on top of the old schema.
@@ -84,6 +84,25 @@ Then **release warnings were consolidated**: the per-warning DTO booleans collap
 lists them all on click. Tests green (domain 62 / API 95); a live `dotnet run` smoke test stays blocked
 by the documented EF-tooling migration issue below, not by any of these changes.
 
+**v2.1 (M16) — Modal primitive + custom confirm dialog.** The app's first real overlay:
+[`Modal`](src/Zmg.Web/src/components/Modal.tsx) portals to `<body>` (bottom sheet on mobile, centered card
+from `sm` up; Escape/backdrop close, body scroll-lock, panel focused on open). On top of it,
+[`ConfirmDialog`](src/Zmg.Web/src/components/ConfirmDialog.tsx) +
+[`ConfirmProvider`/`useConfirm`](src/Zmg.Web/src/hooks/useConfirm.tsx) give a promise-based
+`confirm(opts) => Promise<boolean>` from one dialog instance mounted at the `App.tsx` root, so call sites
+still read `if (!(await confirm({...}))) return;`. **All 13 `confirm()` and 7 `alert()` calls are gone** —
+alerts became red error toasts, which meant `useToast` + `<Toast>` also landed on Home, All/Archived
+Releases, Catalog, Archived Songs, and Artists. New amber **`archive` Button variant** (terminal but not
+destructive) now on every archive action — Home card, All Releases, release detail, Catalog — with red kept
+for deletes; `MenuItem`'s boolean `danger` became `tone: 'default' | 'danger' | 'archive'` to match (3 call
+sites updated). `archiveConfirm.ts` → **`.tsx`**: `archiveReleaseConfirmMessage` (a `\n`-joined string) is now
+`archiveReleaseConfirm`, returning a whole `ConfirmOptions` with a `ReactNode` body that renders the cascade
+songs as a real `<ul>` — it returns the full options rather than just the body because the title/label/variant
+were identical at all three call sites. Verified: `tsc -b` + `npm run build` clean, `dotnet test` green
+(62/95), and — contrary to the note below — `dotnet run` now boots fine and serves the SPA + API on :5274
+(`/` and `/api/releases` both 200), with the amber utilities confirmed in the CSS bundle. The interactive
+click-through (sheet vs. card, Escape/backdrop) is **not** yet done — no browser automation here.
+
 ---
 
 ## Cross-cutting decisions (not in any single plan)
@@ -111,6 +130,10 @@ by the documented EF-tooling migration issue below, not by any of these changes.
   `ReleaseWarnings.Compute` and rendered by a single `SoftWarning` icon that lists them all. Add a new
   advisory *there*, not as another DTO boolean. Distinct from `CreatedWithWarnings` (create/update
   *validation* warnings).
+- **No native dialogs (M16).** `window.confirm`/`window.alert` are banned app-wide: ask with
+  `useConfirm()`'s `confirm(opts)` (one `<ConfirmDialog>` under the root `ConfirmProvider`), report failures
+  with an error toast. Overlays build on `components/Modal.tsx` rather than hand-rolling a backdrop.
+  Destructive intent is colour-coded: red `danger` for hard deletes, amber `archive` for archiving.
 - **Enums serialize as integers** (System.Text.Json default); the TS layer mirrors (`ReleaseType.Single
   = 0`, …). Change both sides together. `erasableSyntaxOnly` is disabled in `tsconfig.app.json` so TS
   `enum`s compile.
@@ -167,16 +190,10 @@ tests/Zmg.Api.Tests      integration tests (WebApplicationFactory + in-memory SQ
 
 ## Backlog / next steps
 
-- **build-plan-2.1 (M16–M18) — UX refinements. Approved, not started.** Four UX rough edges from v2.0,
-  with mockups approved. Build in order (M16 → M17 → M18):
-  - **M16 — shared `Modal` primitive + custom confirm dialog.** New `components/Modal.tsx` (portal,
-    backdrop, Escape/backdrop-dismiss, bottom-sheet on mobile / centered card on desktop);
-    `components/ConfirmDialog.tsx` + `hooks/useConfirm.tsx` (promise-based `confirm(opts)`), with a
-    `ConfirmProvider` at the `App.tsx` root. Replace **all** `window.confirm`/`window.alert` (~13 sites)
-    with `useConfirm` / error toast. Add an amber **`archive`** `Button` variant (distinct from red
-    `danger`) and standardize **every** Archive button/action to it; delete keeps red. Refactor
-    [`archiveReleaseConfirmMessage`](src/Zmg.Web/src/features/releases/archiveConfirm.ts) to return a
-    `ReactNode` body (bulleted cascade list) instead of `\n`-joined text.
+- **build-plan-2.1 (M16–M18) — UX refinements. M16 shipped; M17 → M18 next.**
+  - **M16 — shared `Modal` primitive + custom confirm dialog. Shipped** — see the journal entry above.
+    Outstanding: the interactive click-through from the plan's Verification list (bottom sheet vs.
+    centered card, Escape/backdrop dismiss, cascade list in the archive confirm).
   - **M17 — Toast variants.** `Toast`/`useToast` gain `variant: 'success' | 'error' | 'info'` (default
     `error` so existing callers keep red). The post-save "Saved." in `SongDetailPage` becomes green
     success — fixing the current red-pop-up-that-looks-like-failure.

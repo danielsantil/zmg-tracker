@@ -1,4 +1,5 @@
 import { NavLink, Route, Routes } from 'react-router-dom';
+import { ConfirmProvider } from './hooks/useConfirm';
 import Home from './features/home/HomePage';
 import AllReleases from './features/releases/AllReleasesPage';
 import ArchivedReleases from './features/releases/ArchivedReleasesPage';
@@ -45,24 +46,26 @@ function Nav() {
 
 export default function App() {
   return (
-    <div className="min-h-screen">
-      <Nav />
-      <main className="mx-auto max-w-5xl px-4 py-6">
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/releases" element={<AllReleases />} />
-          <Route path="/releases/archived" element={<ArchivedReleases />} />
-          <Route path="/catalog" element={<Catalog />} />
-          <Route path="/catalog/new" element={<SongForm />} />
-          <Route path="/catalog/archived" element={<ArchivedSongs />} />
-          <Route path="/catalog/:id" element={<SongDetail />} />
-          <Route path="/artists" element={<Artists />} />
-          <Route path="/templates" element={<Templates />} />
-          <Route path="/releases/new" element={<ReleaseForm />} />
-          <Route path="/releases/:id" element={<ReleaseDetail />} />
-          <Route path="/releases/:id/edit" element={<ReleaseForm />} />
-        </Routes>
-      </main>
-    </div>
+    <ConfirmProvider>
+      <div className="min-h-screen">
+        <Nav />
+        <main className="mx-auto max-w-5xl px-4 py-6">
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/releases" element={<AllReleases />} />
+            <Route path="/releases/archived" element={<ArchivedReleases />} />
+            <Route path="/catalog" element={<Catalog />} />
+            <Route path="/catalog/new" element={<SongForm />} />
+            <Route path="/catalog/archived" element={<ArchivedSongs />} />
+            <Route path="/catalog/:id" element={<SongDetail />} />
+            <Route path="/artists" element={<Artists />} />
+            <Route path="/templates" element={<Templates />} />
+            <Route path="/releases/new" element={<ReleaseForm />} />
+            <Route path="/releases/:id" element={<ReleaseDetail />} />
+            <Route path="/releases/:id/edit" element={<ReleaseForm />} />
+          </Routes>
+        </main>
+      </div>
+    </ConfirmProvider>
   );
 }

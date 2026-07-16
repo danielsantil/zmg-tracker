@@ -3,14 +3,18 @@ import { useNavigate } from 'react-router-dom';
 import { api, ApiError } from '@/api';
 import type { Artist, PendingAction, ReleaseListItem } from '@/types';
 import { ReleaseType } from '@/types';
-import { Button, inputClass } from '@/components';
+import { Button, inputClass, Toast } from '@/components';
+import { useConfirm } from '@/hooks/useConfirm';
+import { useToast } from '@/hooks/useToast';
 import { PendingSection } from './components/PendingSection';
 import { ReleaseCard } from './components/ReleaseCard';
 import { EmptyState } from './components/EmptyState';
-import { archiveReleaseConfirmMessage } from '../releases/archiveConfirm';
+import { archiveReleaseConfirm } from '../releases/archiveConfirm';
 
 export default function HomePage() {
   const navigate = useNavigate();
+  const confirm = useConfirm();
+  const { toast, showToast } = useToast();
   const [releases, setReleases] = useState<ReleaseListItem[]>([]);
   const [artists, setArtists] = useState<Artist[]>([]);
   const [pending, setPending] = useState<PendingAction[]>([]);
@@ -53,12 +57,12 @@ export default function HomePage() {
   const hasFilters = useMemo(() => artistId || type || status, [artistId, type, status]);
 
   async function archive(r: ReleaseListItem) {
-    if (!confirm(await archiveReleaseConfirmMessage(r.id, r.title))) return;
+    if (!(await confirm(await archiveReleaseConfirm(r.id, r.title)))) return;
     try {
       await api.releases.archive(r.id);
       load();
     } catch (e) {
-      alert(e instanceof ApiError ? e.message : 'Failed to archive.');
+      showToast(e instanceof ApiError ? e.message : 'Failed to archive.');
     }
   }
 
@@ -126,6 +130,8 @@ export default function HomePage() {
           ))}
         </div>
       )}
+
+      <Toast message={toast} />
     </div>
   );
 }

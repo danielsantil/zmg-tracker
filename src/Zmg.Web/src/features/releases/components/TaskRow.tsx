@@ -116,7 +116,7 @@ export function TaskRow({
                 {!isLast && (
                   <MenuItem onClick={() => { close(); onMove(task, 1); }}>Move down</MenuItem>
                 )}
-                <MenuItem danger onClick={() => { close(); onDelete(task); }}>
+                <MenuItem tone="danger" onClick={() => { close(); onDelete(task); }}>
                   Delete
                 </MenuItem>
               </>

@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api, ApiError } from '@/api';
 import type { ReleaseListItem } from '@/types';
-import { Button, StatusBadge, TypeBadge } from '@/components';
+import { Button, StatusBadge, Toast, TypeBadge } from '@/components';
+import { useConfirm } from '@/hooks/useConfirm';
+import { useToast } from '@/hooks/useToast';
 
 /**
  * Archived Releases (v1.2) — the terminal, read-only bucket. Same table design as All Releases
@@ -12,6 +14,8 @@ import { Button, StatusBadge, TypeBadge } from '@/components';
  */
 export default function ArchivedReleasesPage() {
   const navigate = useNavigate();
+  const confirm = useConfirm();
+  const { toast, showToast } = useToast();
   const [releases, setReleases] = useState<ReleaseListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -31,12 +35,20 @@ export default function ArchivedReleasesPage() {
   }, []);
 
   async function remove(r: ReleaseListItem) {
-    if (!confirm(`Delete "${r.title}"? This can't be undone.`)) return;
+    if (
+      !(await confirm({
+        title: `Delete "${r.title}"?`,
+        body: <p>This can't be undone.</p>,
+        confirmLabel: 'Delete',
+        confirmVariant: 'danger',
+      }))
+    )
+      return;
     try {
       await api.releases.delete(r.id);
       load();
     } catch (e) {
-      alert(e instanceof ApiError ? e.message : 'Failed to delete.');
+      showToast(e instanceof ApiError ? e.message : 'Failed to delete.');
     }
   }
 
@@ -110,6 +122,8 @@ export default function ArchivedReleasesPage() {
           </table>
         </div>
       )}
+
+      <Toast message={toast} />
     </div>
   );
 }
