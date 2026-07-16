@@ -15,6 +15,7 @@ export default function AllReleasesPage() {
 
   const [artistId, setArtistId] = useState('');
   const [type, setType] = useState('');
+  const [status, setStatus] = useState('');
   const [q, setQ] = useState('');
   const today = todayIso();
 
@@ -25,6 +26,7 @@ export default function AllReleasesPage() {
       scope: 'all',
       artistId: artistId || undefined,
       type: type === '' ? undefined : (Number(type) as ReleaseType),
+      status: status || undefined,
       q: q.trim() || undefined,
     }).then(setReleases).catch((e) => setError(e instanceof ApiError ? e.message : 'Failed to load releases.'))
       .finally(() => setLoading(false));
@@ -39,9 +41,9 @@ export default function AllReleasesPage() {
     const t = setTimeout(loadReleases, q ? 250 : 0);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [artistId, type, q]);
+  }, [artistId, type, status, q]);
 
-  const hasFilters = useMemo(() => artistId || type || q, [artistId, type, q]);
+  const hasFilters = useMemo(() => artistId || type || status || q, [artistId, type, status, q]);
 
   async function archive(r: ReleaseListItem) {
     if (!confirm(`Archive "${r.title}"? Archived releases are read-only and can't be restored.`)) return;
@@ -83,12 +85,19 @@ export default function AllReleasesPage() {
           <option value="0">Single</option>
           <option value="1">Album</option>
         </select>
+        <select className={`${inputClass} max-w-[10rem]`} value={status} onChange={(e) => setStatus(e.target.value)}>
+          <option value="">All statuses</option>
+          <option value="Upcoming">Upcoming</option>
+          <option value="Released">Released</option>
+          <option value="Complete">Complete</option>
+        </select>
         {hasFilters && (
           <Button
             variant="ghost"
             onClick={() => {
               setArtistId('');
               setType('');
+              setStatus('');
               setQ('');
             }}
           >
