@@ -12,10 +12,9 @@ lists; read **this** for current state and the cross-cutting knowledge the plans
 
 Newer plan versions go in new `build-plan-N.N.md` files; older ones stay frozen.
 
-**Current state:** v2.0 **M15** done — **build-plan-2.0 fully shipped**, plus a round of **2.0 UX
-improvements** (see the journal). Song archive lifecycle with a release-archive cascade and the Catalog
-archive pages, on top of M14 (pending rework), M13 (catalog) and M12 (song data model). Tests green
-(`dotnet test` — domain 56 / API 93). Next work is the
+**Current state:** **build-plan-2.0 fully shipped** (M12–M15) — songs, catalog, pending rework, and the
+archive cascade — plus a round of post-v2.0 UX/feature improvements (see the journal). Tests green
+(`dotnet test` — domain 62 / API 95). Next work is the
 [Backlog / next steps](#backlog--next-steps) (Phase 2 — DSP stats).
 
 > ⚠️ **M12 is a hard schema reset with no migration.** Any existing local `src/Zmg.Api/zmg.db` from
@@ -45,88 +44,43 @@ today`, not-twice), `DELETE /api/releases/{id}` repurposed to a guarded soft-del
 on Home cards + All Releases rows, and a read-only archived detail. Verified end-to-end via the
 running API + browser SPA.
 
-**Post-M10 fix:** the soft UPC/ISRC warning was a hover-only `title` tooltip (dead on touch); it's
-now a tappable button with a dismissable popover ([IdentifierWarning.tsx](src/Zmg.Web/src/components/IdentifierWarning.tsx)).
+**v2.0 (M12–M15) — songs, catalog, pending rework & archive cascade.** A first-class **Song**
+([Song.cs](src/Zmg.Domain/Entities/Song.cs)) — title, main artist, ISRC, feats/collabs
+([SongArtist.cs](src/Zmg.Domain/Entities/SongArtist.cs), replacing `ReleaseArtist`), own archive
+lifecycle — split from **Release** (UPC, cover, tasks); they link through a pure **`Track` join**
+(composite PK `(ReleaseId, SongId)`, endpoints `/api/releases/{releaseId}/tracks/{songId}`; the old
+`/api/tracks/{id}` group is gone). **Hard schema reset:** all v1.x migrations dropped for one
+`InitialCreate`, no upgrade path; Release lost `Isrc`/`FeaturedArtists` (UPC-only warning);
+auto-distribute is past-date-only. **Catalog** (`SongService`/`SongEndpoints`): `/catalog` list +
+`/catalog/:id` detail with a **derived** release date/UPC list (earliest non-archived link, null for
+orphans), always-editable song fields (rename-clash → non-blocking warning), an **artist-drift hint**,
+and a debounced [`SongPicker`](src/Zmg.Web/src/features/catalog/components/SongPicker.tsx) wired into the
+create-form Tracks section + album add-row; a single collapses to a compact `SongCard`. **Pending
+rework:** `MissingIdentifier` split into release-owned **`MissingUpc`** + song-owned **`MissingIsrc`**,
+plus an **`EmptyAlbum`** kind; `PendingAction` carries nullable `ReleaseId`/`SongId` + a generic
+`Subject`; one action per song ([`PendingActions.ComputeForSong`](src/Zmg.Domain/PendingActions.cs));
+`PendingSection` is collapsible with per-kind routing. **Archive cascade:** archiving a release cascades
+to its dormant songs (pure [`SongArchival.ShouldArchive`](src/Zmg.Domain/SongArchival.cs) — not archived,
+never released, no remaining active link; released/shared songs stay put); manual
+`POST /api/songs/{id}/archive` + soft-delete `DELETE /api/songs/{id}` (archived or orphan only),
+`PUT /api/songs/{id}` 409s when archived, and read-only archived Catalog pages
+([`ArchivedSongsPage`](src/Zmg.Web/src/features/catalog/ArchivedSongsPage.tsx)). Shipped green — see
+[build-plan-2.0.md](build-plan-2.0.md).
 
-**v2.0 (M12) — Song data model, hard schema reset & backend rebuild.** A first-class **Song**
-([Song.cs](src/Zmg.Domain/Entities/Song.cs)) — title, main artist (copied from the release at
-inline creation, then independent), ISRC, feats/collabs ([SongArtist.cs](src/Zmg.Domain/Entities/SongArtist.cs),
-replaces the deleted `ReleaseArtist`), and its own `ArchivedAt`/`DeletedAt` columns (lifecycle wired
-in M15). **`Track` became a pure Release↔Song join** with composite PK `(ReleaseId, SongId)` — no
-surrogate id, structurally blocks a song twice on one release, endpoints re-keyed to
-`/api/releases/{releaseId}/tracks/{songId}` (the old `/api/tracks/{id}` group is gone). **Release lost
-`Isrc` and `FeaturedArtists`**; `NeedsWarning` is UPC-only. `CreateAsync` now materialises the inline
-Tracks section (new inline songs and/or existing catalog songs); the create form's **Tracks section**
-([TracksEditor.tsx](src/Zmg.Web/src/features/releases/components/TracksEditor.tsx)) ships new-track
-rows only (existing-song picker is M13). Auto-distribute simplified to **past-date-only** (identifiers
-no longer imply distribution). Verified end-to-end via the running API + browser SPA.
-
-**v2.0 (M13) — Catalog.** New `SongService`/`SongEndpoints` (`GET /api/songs?q=&scope=`,
-`GET/PUT /api/songs/{id}`): list ordered by title with a **derived** release date (earliest
-non-archived link, null for orphans), detail exposing every linked release so the page derives the
-UPC list, and always-editable song fields (title / main artist / ISRC / feats-collabs; a rename
-clashing with an active same-artist song returns the non-blocking warning). Frontend: **Catalog** nav
-+ `/catalog` list + `/catalog/:id` detail
-([SongDetailPage](src/Zmg.Web/src/features/catalog/SongDetailPage.tsx)) with the **artist-drift hint**
-(song's main artist ≠ a linked release's — informational, never blocks). Shared
-[SongArtistsEditor](src/Zmg.Web/src/features/catalog/components/SongArtistsEditor.tsx) (extracted from
-the release-form block) and [SongPicker](src/Zmg.Web/src/features/catalog/components/SongPicker.tsx)
-(debounced catalog search) — the picker is wired into the create-form Tracks section (per-row
-"New | From catalog") and the album add-row on the release detail. Track rows link into the catalog;
-a **single** swaps its one-row tracklist for a compact
-[SongCard](src/Zmg.Web/src/features/releases/components/SongCard.tsx). Verified end-to-end
-(list/detail/edit, double-link UPCs, drift hint, existing-song linking, single card) via API + SPA.
-
-**v2.0 (M14) — Pending actions rework.** `PendingKind.MissingIdentifier` split into **`MissingUpc`**
-(release-owned) + **`MissingIsrc`** (song-owned), plus a new **`EmptyAlbum`** kind (every non-archived
-album with < 2 tracks — released ones included, label "Album is empty" / "…only 1 track"). `PendingAction`
-now carries nullable `ReleaseId`/`SongId` and a generic `Subject` (release title *or* song title); the old
-`ReleaseTitle` is gone. New pure [`PendingActions.ComputeForSong`](src/Zmg.Domain/PendingActions.cs) —
-a song is "distributed" (→ needs ISRC) when **any** linked non-archived release has its Distribute-to-DSPs
-task checked, yielding **one action per song**, not per release. [`PendingService`](src/Zmg.Api/Services/PendingService.cs)
-adds a second query over active songs for the ISRC flag; `ListByReleaseIdAsync` rolls up its own songs'
-`MissingIsrc` rows. Frontend: [`PendingSection`](src/Zmg.Web/src/features/home/components/PendingSection.tsx)
-became **collapsible** (PhaseSection-style) with a ~4-row `overflow-y-auto` scroll; per-kind routing
-(`MissingIsrc → /catalog/{songId}`, `MissingUpc → …/edit`, `TaskDue`/`EmptyAlbum → /releases/{id}`) in
-both `PendingSection` and `NeedsAttention`. Verified via the full test suite (domain 50 / API 74 — the API
-tests run the real app + EF `Migrate()`) + `tsc`/`vite build`; a live `dotnet run` smoke test is blocked
-by the documented EF-tooling migration issue (see below), not by this change.
-
-**v2.0 (M15) — Archive cascade & Catalog Archive.** Songs got the release lifecycle verbatim
-(`Active → Archived (terminal, read-only) → Removed`). New pure
-[`SongArchival.ShouldArchive`](src/Zmg.Domain/SongArchival.cs) (unit-tested without EF) drives the
-**release-archive cascade**: [`ReleaseService.ArchiveAsync`](src/Zmg.Api/Services/ReleaseService.cs) now
-loads its tracks' songs (+ their links) and archives each song that is dormant — not already archived,
-never released (no past-dated link), and with no remaining active link (every other link points to an
-already-archived release). Released songs and songs shared with an active release stay put. Manual
-[`POST /api/songs/{id}/archive`](src/Zmg.Api/Endpoints/SongEndpoints.cs) (409 on active-link / released /
-already-archived — mostly orphans in practice) and soft-delete `DELETE /api/songs/{id}` (allowed iff
-archived **or** orphan). `PUT /api/songs/{id}` now 409s when archived; `SongListItemDto` gained
-**`CanArchive`/`IsOrphan`** (computed in the list projection) so the Catalog row action renders from
-backend truth; `TrackDto` gained `IsSongArchived`. Frontend: Catalog "Archived Songs →" link + per-row
-Archive/Delete action, new [`ArchivedSongsPage`](src/Zmg.Web/src/features/catalog/ArchivedSongsPage.tsx)
-(`/catalog/archived`, registered before `:id`), archived [`SongDetailPage`](src/Zmg.Web/src/features/catalog/SongDetailPage.tsx)
-is read-only (fields disabled, Save replaced by a note, release links stay live), and archived-song track
-rows show a badge. Verified via the full suite (domain 56 / API 87 — API tests run the real app + EF
-`Migrate()`, incl. the cascade end-to-end) + `tsc`/`vite build`; a live `dotnet run` smoke test is blocked
-by the documented EF-tooling migration issue below, not by this change.
-
-**v2.0 improvements (post-M15) — small UX/feature round.** Five independent changes, one commit each:
-(1) **Client-side release-form validation** — required title/date now surface as red-bordered inputs
-with inline messages before hitting the API ([`Field`](src/Zmg.Web/src/components/Field.tsx) gained an
-`error` prop; [`inputErrorClass`](src/Zmg.Web/src/components/Field.tsx)). (2) **Statuses filter on All
-Releases** — the server already honored `status`; the UI now exposes an Upcoming/Released/Complete
-dropdown. (3) **Add songs directly in the catalog** — new `POST /api/songs`
-([`SongService.CreateAsync`](src/Zmg.Api/Services/SongService.cs)) creates an orphan song with the same
-validation as an inline release song; **+ New song** button + `/catalog/new`
-([`SongFormPage`](src/Zmg.Web/src/features/catalog/SongFormPage.tsx)), guarded by the same
-at-least-one-artist rule as releases. (4) **Artist filter on the catalog** — `artistId` added to
-`GET /api/songs` (`ListAsync`) + an All-artists dropdown. (5) **Archive-cascade warning** — new
-`GET /api/releases/{id}/archive-preview` ([`GetArchivePreviewAsync`](src/Zmg.Api/Services/ReleaseService.cs))
-returns the titles of songs that would cascade-archive (same `SongArchival.ShouldArchive` rule, excluding
-released/shared songs); all three release-archive confirm dialogs list them via the shared
-[`archiveReleaseConfirmMessage`](src/Zmg.Web/src/features/releases/archiveConfirm.ts). Verified via the
-full suite (domain 56 / API 93 — 6 new API tests) + `tsc`/`vite build`.
+**Post-v2.0 improvements.** A round of small UX/feature changes: client-side release-form validation
+(red fields for missing title/date via a `Field` `error` prop); a **Statuses filter** on All Releases;
+**add songs directly in the catalog** (`POST /api/songs` →
+[`SongService.CreateAsync`](src/Zmg.Api/Services/SongService.cs), an orphan song guarded by the
+one-artist rule; **+ New song** at `/catalog/new`); an **artist filter** on the Catalog; and an
+**archive-cascade warning** (`GET /api/releases/{id}/archive-preview` →
+[`GetArchivePreviewAsync`](src/Zmg.Api/Services/ReleaseService.cs) lists the songs that will cascade,
+surfaced in every archive confirm via [`archiveReleaseConfirmMessage`](src/Zmg.Web/src/features/releases/archiveConfirm.ts)).
+Then **release warnings were consolidated**: the per-warning DTO booleans collapsed into one
+`warnings: string[]` (pure [`ReleaseWarnings.Compute`](src/Zmg.Domain/ReleaseWarnings.cs) → "Missing UPC" /
+"Album is empty" / "Album has only 1 track"), rendered by a single amber
+[`SoftWarning`](src/Zmg.Web/src/components/SoftWarning.tsx) icon (renamed from `IdentifierWarning`) that
+lists them all on click. Tests green (domain 62 / API 95); a live `dotnet run` smoke test stays blocked
+by the documented EF-tooling migration issue below, not by any of these changes.
 
 ---
 
@@ -150,6 +104,11 @@ full suite (domain 56 / API 93 — 6 new API tests) + `tsc`/`vite build`.
   it, delete renumbers survivors. Tracklist is UI-gated to `type === Album` (endpoints aren't hard-scoped).
 - **Create/update release responses are `{ data, warnings }`** (`CreatedWithWarnings<T>`) so
   non-blocking validation warnings reach the form.
+- **Release advisories are one array, computed in one place (post-v2.0).** Soft warnings (Missing UPC,
+  empty/thin album) ship as `warnings: string[]` on the release list/detail DTOs, built by pure
+  `ReleaseWarnings.Compute` and rendered by a single `SoftWarning` icon that lists them all. Add a new
+  advisory *there*, not as another DTO boolean. Distinct from `CreatedWithWarnings` (create/update
+  *validation* warnings).
 - **Enums serialize as integers** (System.Text.Json default); the TS layer mirrors (`ReleaseType.Single
   = 0`, …). Change both sides together. `erasableSyntaxOnly` is disabled in `tsconfig.app.json` so TS
   `enum`s compile.
@@ -194,7 +153,7 @@ DB is `src/Zmg.Api/zmg.db` (git-ignored, migrated on startup). Delete it to rese
 
 ```
 src/Zmg.Domain   entities/enums, template-copy, progress, status, validation, seed,
-                 identifier-state, pending-actions  (pure, no I/O)
+                 release-warnings, song-archival, pending-actions  (pure, no I/O)
 src/Zmg.Api      minimal API: endpoints, service layer (+ interfaces), DTO contracts, extensions
 src/Zmg.Infra    EF Core + SQLite: ZmgDbContext (seeding) + migrations
 src/Zmg.Web      React + Vite + Tailwind SPA, organized by feature folder
