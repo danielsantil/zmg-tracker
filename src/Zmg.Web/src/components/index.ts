@@ -1,5 +1,5 @@
 export { Button } from './Button';
-export { Field, inputClass } from './Field';
+export { Field, inputClass, inputErrorClass } from './Field';
 export { InlineAddForm } from './InlineAddForm';
 export { IdentifierWarning } from './IdentifierWarning';
 export { MenuItem, RowMenu } from './RowMenu';

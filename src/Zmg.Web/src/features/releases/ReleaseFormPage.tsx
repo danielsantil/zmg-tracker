@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { api, ApiError } from '@/api';
 import type { Artist, TrackInput } from '@/types';
 import { ReleaseType } from '@/types';
-import { Button, Field, inputClass } from '@/components';
+import { Button, Field, inputClass, inputErrorClass } from '@/components';
 import { useBackNavigation } from '@/hooks/useBackNavigation';
 import { TracksEditor, emptyTrack } from './components/TracksEditor';
 
@@ -25,6 +25,8 @@ export default function ReleaseFormPage() {
   const [errors, setErrors] = useState<string[]>([]);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  // Per-field client-side validation (title / release date required). Populated on save.
+  const [fieldErrors, setFieldErrors] = useState<{ title?: string; releaseDate?: string }>({});
 
   const [title, setTitle] = useState('');
   const [type, setType] = useState<ReleaseType>(ReleaseType.Single);
@@ -69,6 +71,17 @@ export default function ReleaseFormPage() {
     e.preventDefault();
     setErrors([]);
     setWarnings([]);
+    setFieldErrors({});
+
+    // Required-field validation on the FE so missing title/date surface as red fields
+    // (not just an API error at the bottom).
+    const fe: { title?: string; releaseDate?: string } = {};
+    if (!title.trim()) fe.title = 'Release title is required.';
+    if (!releaseDate) fe.releaseDate = 'Release date is required.';
+    if (fe.title || fe.releaseDate) {
+      setFieldErrors(fe);
+      return;
+    }
 
     // Client-side guards mirror the API 400s (create only). A row is valid if it's an existing
     // catalog song (songId) or a new title.
@@ -138,8 +151,14 @@ export default function ReleaseFormPage() {
       <h1 className="mb-6 text-2xl font-semibold text-white">{isEdit ? 'Edit release' : 'New release'}</h1>
 
       <form onSubmit={submit} className="space-y-4">
-        <Field label="Title">
-          <input className={inputClass} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Luz" autoFocus />
+        <Field label="Title" error={fieldErrors.title}>
+          <input
+            className={`${inputClass} ${fieldErrors.title ? inputErrorClass : ''}`}
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="e.g. Luz"
+            autoFocus
+          />
         </Field>
 
         <Field label="Main artist">
@@ -164,8 +183,13 @@ export default function ReleaseFormPage() {
               <option value={ReleaseType.Album}>Album</option>
             </select>
           </Field>
-          <Field label="Release date">
-            <input type="date" className={inputClass} value={releaseDate} onChange={(e) => setReleaseDate(e.target.value)} />
+          <Field label="Release date" error={fieldErrors.releaseDate}>
+            <input
+              type="date"
+              className={`${inputClass} ${fieldErrors.releaseDate ? inputErrorClass : ''}`}
+              value={releaseDate}
+              onChange={(e) => setReleaseDate(e.target.value)}
+            />
           </Field>
         </div>
 
