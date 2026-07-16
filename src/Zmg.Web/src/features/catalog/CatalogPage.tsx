@@ -54,9 +54,12 @@ export default function CatalogPage() {
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-white">Catalog</h1>
-        <p className="text-sm text-slate-400">Every song, by title.</p>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold text-white">Catalog</h1>
+          <p className="text-sm text-slate-400">Every song, by title.</p>
+        </div>
+        <Button onClick={() => navigate('/catalog/new')}>+ New song</Button>
       </div>
 
       <div className="mb-5 flex items-center justify-between gap-3">
@@ -77,7 +80,7 @@ export default function CatalogPage() {
         <p className="text-slate-400">Loading…</p>
       ) : songs.length === 0 ? (
         <div className="rounded-xl border border-dashed border-edge bg-panel/50 p-10 text-center text-slate-400">
-          {q.trim() ? 'No songs match this search.' : 'No songs yet — create a release to add one.'}
+          {q.trim() ? 'No songs match this search.' : 'No songs yet — add one or create a release.'}
         </div>
       ) : (
         <div className="overflow-hidden rounded-xl border border-edge bg-panel">

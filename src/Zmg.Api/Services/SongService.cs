@@ -69,6 +69,35 @@ public sealed class SongService(ZmgDbContext db) : ISongService
         return OperationResult<SongDetailDto>.Success(ToDetail(song));
     }
 
+    // Create a catalog song directly (M2.0 improvement). Same rules as an inline release song, minus
+    // the release: title/main-artist validated, ISRC cleaned, feats/collabs deduped. Born an orphan
+    // (no release links). A title clashing with another active same-artist song is a non-blocking warning.
+    public async Task<OperationResult<SongDetailDto>> CreateAsync(SongCreateInput input)
+    {
+        var mainArtistExists = input.MainArtistId != Guid.Empty
+            && await db.Artists.AnyAsync(a => a.Id == input.MainArtistId);
+        var otherTitles = await db.Songs
+            .Where(s => s.MainArtistId == input.MainArtistId && s.ArchivedAt == null)
+            .Select(s => s.Title)
+            .ToListAsync();
+
+        var validation = Validation.ValidateSong(input.Title, input.MainArtistId, mainArtistExists, otherTitles);
+        if (!validation.IsValid)
+            return OperationResult<SongDetailDto>.Invalid(validation.Errors);
+
+        var song = SongMapping.NewSong(input.MainArtistId, input.Title, input.Isrc, input.Artists);
+        db.Songs.Add(song);
+        await db.SaveChangesAsync();
+
+        var created = await db.Songs
+            .Include(s => s.MainArtist)
+            .Include(s => s.Artists).ThenInclude(x => x.Artist)
+            .Include(s => s.ReleaseLinks.Where(x => x.Release!.ArchivedAt == null))
+            .ThenInclude(t => t.Release).ThenInclude(r => r!.MainArtist)
+            .FirstAsync(s => s.Id == song.Id);
+        return OperationResult<SongDetailDto>.Success(ToDetail(created), validation.Warnings);
+    }
+
     // Update: title/main-artist validated, ISRC cleaned, feat/collab artists replaced (deduped,
     // excluding the main artist). Always editable in M13 (the 409-when-archived guard is M15). A
     // rename clashing with another active song of the same main artist returns a non-blocking warning.

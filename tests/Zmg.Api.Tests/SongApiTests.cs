@@ -87,6 +87,51 @@ public class SongApiTests(ZmgApiFactory factory) : IClassFixture<ZmgApiFactory>
         Assert.DoesNotContain(results, s => s.Title == "Other Track");
     }
 
+    // ---- Create (directly in the catalog) ----
+
+    [Fact]
+    public async Task Create_adds_an_orphan_song_to_the_catalog()
+    {
+        var client = factory.CreateClient();
+        var artist = await CreateArtist(client, "Direct Song Artist");
+        var feat = await CreateArtist(client, "Direct Song Feat");
+
+        var res = await client.PostAsJsonAsync("/api/songs", new SongCreateInput(
+            "Direct Song", artist.Id, "US-DIR-26-1",
+            new List<SongArtistInput> { new(feat.Id, ArtistRole.Featured) }));
+        Assert.Equal(HttpStatusCode.Created, res.StatusCode);
+        var created = (await res.Content.ReadFromJsonAsync<CreatedWithWarnings<SongDetailDto>>())!.Data;
+
+        Assert.Equal("Direct Song", created.Title);
+        Assert.Equal("US-DIR-26-1", created.Isrc);
+        Assert.Empty(created.Releases); // born an orphan — no release links
+        Assert.Single(created.Artists, a => a.ArtistId == feat.Id);
+
+        // It shows up in the catalog list with a null (derived) release date.
+        var listed = (await ListSongs(client)).Single(s => s.Id == created.Id);
+        Assert.Null(listed.ReleaseDate);
+        Assert.True(listed.IsOrphan);
+    }
+
+    [Fact]
+    public async Task Create_with_blank_title_is_rejected()
+    {
+        var client = factory.CreateClient();
+        var artist = await CreateArtist(client, "Blank Create Artist");
+        var res = await client.PostAsJsonAsync("/api/songs",
+            new SongCreateInput("   ", artist.Id, null, null));
+        Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
+    }
+
+    [Fact]
+    public async Task Create_with_unknown_artist_is_rejected()
+    {
+        var client = factory.CreateClient();
+        var res = await client.PostAsJsonAsync("/api/songs",
+            new SongCreateInput("Homeless Song", Guid.NewGuid(), null, null));
+        Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
+    }
+
     // ---- Detail ----
 
     [Fact]

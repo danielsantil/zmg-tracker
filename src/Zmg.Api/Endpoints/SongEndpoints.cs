@@ -22,6 +22,10 @@ public static class SongEndpoints
         group.MapGet("/{id:guid}", async (Guid id, ISongService songs) =>
             (await songs.GetAsync(id)).ToOk());
 
+        // Create a catalog song directly (no release). Returns the new song + any warnings.
+        group.MapPost("", async (SongCreateInput input, ISongService songs) =>
+            (await songs.CreateAsync(input)).ToCreatedWithWarnings(s => $"/api/songs/{s.Id}"));
+
         // Edit title / main artist / ISRC / feats-collabs. Returns the updated song + any warnings.
         group.MapPut("/{id:guid}", async (Guid id, SongUpdateInput input, ISongService songs) =>
             (await songs.UpdateAsync(id, input)).ToOkWithWarnings());

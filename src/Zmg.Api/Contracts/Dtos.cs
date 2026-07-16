@@ -50,6 +50,9 @@ public record SongDetailDto(
 
 public record SongUpdateInput(string Title, Guid MainArtistId, string? Isrc, List<SongArtistInput>? Artists);
 
+// Create a catalog song directly (not through a release). Starts as an orphan (no release links).
+public record SongCreateInput(string Title, Guid MainArtistId, string? Isrc, List<SongArtistInput>? Artists);
+
 // ---- Releases ----
 // Tracks is create-only (ignored on PUT). Exactly one of SongId/Title per track.
 public record ReleaseInput(

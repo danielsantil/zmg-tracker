@@ -54,3 +54,11 @@ export interface SongUpdateInput {
   isrc: string | null;
   artists: SongArtistInput[];
 }
+
+// Create a catalog song directly (no release). Same shape as update.
+export interface SongCreateInput {
+  title: string;
+  mainArtistId: string;
+  isrc: string | null;
+  artists: SongArtistInput[];
+}
