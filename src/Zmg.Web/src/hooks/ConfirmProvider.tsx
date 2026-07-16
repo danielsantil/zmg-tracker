@@ -1,9 +1,6 @@
-import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useRef, useState, type ReactNode } from 'react';
 import { ConfirmDialog, type ConfirmOptions } from '@/components';
-
-type ConfirmFn = (options: ConfirmOptions) => Promise<boolean>;
-
-const ConfirmContext = createContext<ConfirmFn | null>(null);
+import { ConfirmContext, type ConfirmFn } from './useConfirm';
 
 /**
  * Mounts the app's one <ConfirmDialog> and exposes a promise-based `confirm(opts)` —
@@ -37,10 +34,4 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
       <ConfirmDialog options={options} onResolve={onResolve} />
     </ConfirmContext.Provider>
   );
-}
-
-export function useConfirm(): ConfirmFn {
-  const confirm = useContext(ConfirmContext);
-  if (!confirm) throw new Error('useConfirm must be used inside a <ConfirmProvider>');
-  return confirm;
 }

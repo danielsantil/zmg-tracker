@@ -23,11 +23,6 @@ function blankRow(): EditorRow {
   return { key: newKey(), songId: null, title: '', isrc: '', artists: [] };
 }
 
-// Seed one empty new-track row (used by the single's fixed row and the parent's initial state).
-export function emptyTrack(): TrackInput {
-  return { songId: null, title: '', isrc: null, artists: [] };
-}
-
 function toInput(r: EditorRow): TrackInput {
   return r.songId
     ? { songId: r.songId, title: null, isrc: null, artists: null }

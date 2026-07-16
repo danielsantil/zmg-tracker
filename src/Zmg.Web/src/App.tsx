@@ -1,5 +1,5 @@
 import { NavLink, Route, Routes } from 'react-router-dom';
-import { ConfirmProvider } from './hooks/useConfirm';
+import { ConfirmProvider } from './hooks/ConfirmProvider';
 import Home from './features/home/HomePage';
 import AllReleases from './features/releases/AllReleasesPage';
 import ArchivedReleases from './features/releases/ArchivedReleasesPage';

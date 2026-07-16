@@ -5,7 +5,8 @@ import type { Artist, TrackInput } from '@/types';
 import { ReleaseType } from '@/types';
 import { Button, Field, inputClass, inputErrorClass } from '@/components';
 import { useBackNavigation } from '@/hooks/useBackNavigation';
-import { TracksEditor, emptyTrack } from './components/TracksEditor';
+import { TracksEditor } from './components/TracksEditor';
+import { emptyTrack } from './components/trackInput';
 
 // Known seeded template sizes (build-plan.md §5.4). A template endpoint arrives in M3;
 // until then these drive the "checklist will start from N tasks" hint.
