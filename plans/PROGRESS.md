@@ -12,9 +12,10 @@ lists; read **this** for current state and the cross-cutting knowledge the plans
 
 Newer plan versions go in new `build-plan-N.N.md` files; older ones stay frozen.
 
-**Current state:** v2.0 **M15** done — **build-plan-2.0 fully shipped**. Song archive lifecycle with a
-release-archive cascade and the Catalog archive pages, on top of M14 (pending rework), M13 (catalog) and
-M12 (song data model). Tests green (`dotnet test` — domain 56 / API 87). Next work is the
+**Current state:** v2.0 **M15** done — **build-plan-2.0 fully shipped**, plus a round of **2.0 UX
+improvements** (see the journal). Song archive lifecycle with a release-archive cascade and the Catalog
+archive pages, on top of M14 (pending rework), M13 (catalog) and M12 (song data model). Tests green
+(`dotnet test` — domain 56 / API 93). Next work is the
 [Backlog / next steps](#backlog--next-steps) (Phase 2 — DSP stats).
 
 > ⚠️ **M12 is a hard schema reset with no migration.** Any existing local `src/Zmg.Api/zmg.db` from
@@ -109,6 +110,23 @@ is read-only (fields disabled, Save replaced by a note, release links stay live)
 rows show a badge. Verified via the full suite (domain 56 / API 87 — API tests run the real app + EF
 `Migrate()`, incl. the cascade end-to-end) + `tsc`/`vite build`; a live `dotnet run` smoke test is blocked
 by the documented EF-tooling migration issue below, not by this change.
+
+**v2.0 improvements (post-M15) — small UX/feature round.** Five independent changes, one commit each:
+(1) **Client-side release-form validation** — required title/date now surface as red-bordered inputs
+with inline messages before hitting the API ([`Field`](src/Zmg.Web/src/components/Field.tsx) gained an
+`error` prop; [`inputErrorClass`](src/Zmg.Web/src/components/Field.tsx)). (2) **Statuses filter on All
+Releases** — the server already honored `status`; the UI now exposes an Upcoming/Released/Complete
+dropdown. (3) **Add songs directly in the catalog** — new `POST /api/songs`
+([`SongService.CreateAsync`](src/Zmg.Api/Services/SongService.cs)) creates an orphan song with the same
+validation as an inline release song; **+ New song** button + `/catalog/new`
+([`SongFormPage`](src/Zmg.Web/src/features/catalog/SongFormPage.tsx)), guarded by the same
+at-least-one-artist rule as releases. (4) **Artist filter on the catalog** — `artistId` added to
+`GET /api/songs` (`ListAsync`) + an All-artists dropdown. (5) **Archive-cascade warning** — new
+`GET /api/releases/{id}/archive-preview` ([`GetArchivePreviewAsync`](src/Zmg.Api/Services/ReleaseService.cs))
+returns the titles of songs that would cascade-archive (same `SongArchival.ShouldArchive` rule, excluding
+released/shared songs); all three release-archive confirm dialogs list them via the shared
+[`archiveReleaseConfirmMessage`](src/Zmg.Web/src/features/releases/archiveConfirm.ts). Verified via the
+full suite (domain 56 / API 93 — 6 new API tests) + `tsc`/`vite build`.
 
 ---
 
