@@ -1,7 +1,7 @@
 export { Button } from './Button';
 export { Field, inputClass, inputErrorClass } from './Field';
 export { InlineAddForm } from './InlineAddForm';
-export { IdentifierWarning } from './IdentifierWarning';
+export { SoftWarning } from './SoftWarning';
 export { MenuItem, RowMenu } from './RowMenu';
 export { ProgressBar } from './ProgressBar';
 export { StatusBadge } from './StatusBadge';

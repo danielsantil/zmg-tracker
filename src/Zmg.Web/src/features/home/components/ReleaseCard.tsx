@@ -1,5 +1,5 @@
 import type { ReleaseListItem } from '@/types';
-import { Button, IdentifierWarning, ProgressBar, StatusBadge, TypeBadge } from '@/components';
+import { Button, ProgressBar, SoftWarning, StatusBadge, TypeBadge } from '@/components';
 import { formatCountdown } from '@/lib/format';
 
 export function ReleaseCard({
@@ -33,7 +33,8 @@ export function ReleaseCard({
               {r.title}
             </button>
             <div className="flex items-center gap-1.5">
-              {r.needsIdentifierWarning && <IdentifierWarning />}
+              {r.isEmptyAlbum && <SoftWarning label="Album is empty" />}
+              {r.needsIdentifierWarning && <SoftWarning label="Missing UPC" />}
               <StatusBadge status={r.status} />
             </div>
           </div>

@@ -52,6 +52,7 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
                 MainArtistName = r.MainArtist!.Name, r.CoverUrl, r.Upc, r.ArchivedAt,
                 Done = r.Tasks.Count(x => x.IsDone),
                 Total = r.Tasks.Count,
+                TrackCount = r.Tracks.Count,
                 Distributed = r.Tasks.Any(x => x.IsDone && x.Title == SeedData.DistributeToDspsTitle),
             })
             .ToListAsync();
@@ -65,7 +66,8 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
                     r.CoverUrl, r.Done, r.Total,
                     ReleaseStatus.Derive(r.ReleaseDate, today, progress, r.ArchivedAt != null),
                     r.Upc,
-                    Release.NeedsWarning(r.Distributed, r.Upc));
+                    Release.NeedsWarning(r.Distributed, r.Upc),
+                    Release.IsEmptyAlbumWarning(r.Type, r.TrackCount, r.ArchivedAt != null));
             })
             .Where(r => status is null || string.Equals(r.Status, status, StringComparison.OrdinalIgnoreCase))
             .ToList();
@@ -338,6 +340,7 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
             progress.Overall.Done, progress.Overall.Total, phases, tracks,
             release.Upc,
             Release.NeedsWarning(release.IsDistributed, release.Upc),
+            Release.IsEmptyAlbumWarning(release.Type, release.Tracks.Count, release.IsArchived),
             release.IsArchived);
     }
 }

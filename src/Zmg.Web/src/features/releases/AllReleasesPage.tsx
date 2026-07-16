@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { api, ApiError } from '@/api';
 import type { Artist, ReleaseListItem } from '@/types';
 import { ReleaseType } from '@/types';
-import { Button, IdentifierWarning, StatusBadge, TypeBadge, inputClass } from '@/components';
+import { Button, SoftWarning, StatusBadge, TypeBadge, inputClass } from '@/components';
 import { todayIso } from '@/lib/format';
 import { archiveReleaseConfirmMessage } from './archiveConfirm';
 
@@ -150,7 +150,8 @@ export default function AllReleasesPage() {
                       >
                         {r.title}
                       </Link>
-                      {r.needsIdentifierWarning && <IdentifierWarning />}
+                      {r.isEmptyAlbum && <SoftWarning label="Album is empty" />}
+                      {r.needsIdentifierWarning && <SoftWarning label="Missing UPC" />}
                     </div>
                     <div className="text-xs text-slate-400">{r.mainArtistName}</div>
                   </td>

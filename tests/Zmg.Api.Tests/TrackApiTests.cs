@@ -43,6 +43,39 @@ public class TrackApiTests(ZmgApiFactory factory) : IClassFixture<ZmgApiFactory>
 
     private static TrackInput NewTrack(string title) => new(null, title, null, null);
 
+    // ---- Empty-album advisory ----
+
+    [Fact]
+    public async Task Empty_album_flags_the_advisory_until_a_track_is_added()
+    {
+        var client = factory.CreateClient();
+        var album = await CreateAlbum(client, "Empty Album Advisory Artist", "Empty Album Advisory");
+
+        // Fresh album with no tracks → flagged on the detail and in the list.
+        Assert.True(album.IsEmptyAlbum);
+        var listed = (await client.GetFromJsonAsync<List<ReleaseListItemDto>>("/api/releases?scope=all"))!
+            .Single(r => r.Id == album.Id);
+        Assert.True(listed.IsEmptyAlbum);
+
+        await AddTrack(client, album.Id, NewTrack("First Track"));
+
+        var afterDetail = await client.GetFromJsonAsync<ReleaseDetailDto>($"/api/releases/{album.Id}");
+        Assert.False(afterDetail!.IsEmptyAlbum);
+        var afterListed = (await client.GetFromJsonAsync<List<ReleaseListItemDto>>("/api/releases?scope=all"))!
+            .Single(r => r.Id == album.Id);
+        Assert.False(afterListed.IsEmptyAlbum);
+    }
+
+    [Fact]
+    public async Task Single_is_never_flagged_as_an_empty_album()
+    {
+        var client = factory.CreateClient();
+        var artist = await CreateArtist(client, "Single Never Empty Artist");
+        var single = await Create(client, artist.Id, "Solo", ReleaseType.Single,
+            new List<TrackInput> { NewTrack("Only Track") });
+        Assert.False(single.IsEmptyAlbum);
+    }
+
     // ---- Create-form inline tracks ----
 
     [Fact]

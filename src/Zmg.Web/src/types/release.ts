@@ -26,6 +26,7 @@ export interface ReleaseListItem {
   status: string;
   upc: string | null;
   needsIdentifierWarning: boolean;
+  isEmptyAlbum: boolean;
 }
 
 export interface ReleaseDetail {
@@ -44,6 +45,7 @@ export interface ReleaseDetail {
   tracks: TrackDto[];
   upc: string | null;
   needsIdentifierWarning: boolean;
+  isEmptyAlbum: boolean;
   isArchived: boolean;
 }
 

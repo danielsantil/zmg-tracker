@@ -1,5 +1,5 @@
 import type { ReleaseDetail } from '@/types';
-import { IdentifierWarning, ProgressBar, StatusBadge, TypeBadge } from '@/components';
+import { ProgressBar, SoftWarning, StatusBadge, TypeBadge } from '@/components';
 import { formatCountdown } from '@/lib/format';
 
 export function ReleaseHeader({
@@ -30,7 +30,8 @@ export function ReleaseHeader({
             {release.title} <span className="text-slate-400">— {release.mainArtistName}</span>
           </h1>
           <div className="flex items-center gap-1.5">
-            {release.needsIdentifierWarning && <IdentifierWarning />}
+            {release.isEmptyAlbum && <SoftWarning label="Album is empty" />}
+            {release.needsIdentifierWarning && <SoftWarning label="Missing UPC" />}
             <StatusBadge status={release.status} />
           </div>
         </div>

@@ -41,4 +41,29 @@ public class ReleaseTests
     {
         Assert.False(Release.NeedsWarning(distributed: true, upc: "u"));
     }
+
+    [Fact]
+    public void IsEmptyAlbumWarning_fires_for_an_active_album_with_no_tracks()
+    {
+        Assert.True(Release.IsEmptyAlbumWarning(ReleaseType.Album, trackCount: 0, isArchived: false));
+    }
+
+    [Fact]
+    public void IsEmptyAlbumWarning_is_silent_once_a_track_is_added()
+    {
+        Assert.False(Release.IsEmptyAlbumWarning(ReleaseType.Album, trackCount: 1, isArchived: false));
+    }
+
+    [Fact]
+    public void IsEmptyAlbumWarning_never_fires_for_a_single()
+    {
+        // A single always has exactly one track; the empty-album advisory is album-only.
+        Assert.False(Release.IsEmptyAlbumWarning(ReleaseType.Single, trackCount: 0, isArchived: false));
+    }
+
+    [Fact]
+    public void IsEmptyAlbumWarning_is_silent_for_an_archived_album()
+    {
+        Assert.False(Release.IsEmptyAlbumWarning(ReleaseType.Album, trackCount: 0, isArchived: true));
+    }
 }

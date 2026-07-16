@@ -44,4 +44,11 @@ public class Release
     /// </summary>
     public static bool NeedsWarning(bool distributed, string? upc) =>
         distributed && string.IsNullOrWhiteSpace(upc);
+
+    /// <summary>
+    /// Whether the soft "Album is empty" advisory should show: an active album with no tracks yet.
+    /// Surfaced next to the UPC warning on the home card and releases table. Advisory, never blocks.
+    /// </summary>
+    public static bool IsEmptyAlbumWarning(ReleaseType type, int trackCount, bool isArchived) =>
+        type == ReleaseType.Album && !isArchived && trackCount == 0;
 }
