@@ -18,13 +18,14 @@ public sealed class SongService(ZmgDbContext db) : ISongService
     // scope=archived returns archived songs (ArchivedAt desc); any other scope returns active ones
     // ordered by title. Orphans (no links) are included by design. Deleted songs are hidden by the
     // global query filter. q is a case-insensitive title search.
-    public async Task<IReadOnlyList<SongListItemDto>> ListAsync(string? q, string? scope)
+    public async Task<IReadOnlyList<SongListItemDto>> ListAsync(string? q, string? scope, Guid? artistId)
     {
         var isArchived = string.Equals(scope, "archived", StringComparison.OrdinalIgnoreCase);
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
         var query = db.Songs.AsQueryable();
         query = isArchived ? query.Where(s => s.ArchivedAt != null) : query.Where(s => s.ArchivedAt == null);
+        if (artistId is { } aid) query = query.Where(s => s.MainArtistId == aid);
         if (!string.IsNullOrWhiteSpace(q))
         {
             var term = q.Trim();

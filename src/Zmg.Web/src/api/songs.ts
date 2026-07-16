@@ -9,10 +9,11 @@ import { request } from './client';
 
 // Catalog (M13).
 export const songsApi = {
-  list: (filters?: { q?: string; scope?: 'all' | 'archived' }) => {
+  list: (filters?: { q?: string; scope?: 'all' | 'archived'; artistId?: string }) => {
     const qs = new URLSearchParams();
     if (filters?.q) qs.set('q', filters.q);
     if (filters?.scope) qs.set('scope', filters.scope);
+    if (filters?.artistId) qs.set('artistId', filters.artistId);
     const suffix = qs.toString() ? `?${qs}` : '';
     return request<SongListItem[]>(`/api/songs${suffix}`);
   },

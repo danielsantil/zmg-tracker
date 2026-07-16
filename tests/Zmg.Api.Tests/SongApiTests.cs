@@ -132,6 +132,23 @@ public class SongApiTests(ZmgApiFactory factory) : IClassFixture<ZmgApiFactory>
         Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
     }
 
+    [Fact]
+    public async Task List_filters_by_main_artist()
+    {
+        var client = factory.CreateClient();
+        var mine = await CreateArtist(client, "Mine Artist");
+        var other = await CreateArtist(client, "Other Artist");
+        await CreateRelease(client, mine.Id, "Mine R", ReleaseType.Single,
+            new DateOnly(2026, 9, 1), new List<TrackInput> { NewTrack("Mine Song") });
+        await CreateRelease(client, other.Id, "Other R", ReleaseType.Single,
+            new DateOnly(2026, 9, 2), new List<TrackInput> { NewTrack("Other Song") });
+
+        var results = await ListSongs(client, $"?artistId={mine.Id}");
+        Assert.Contains(results, s => s.Title == "Mine Song");
+        Assert.DoesNotContain(results, s => s.Title == "Other Song");
+        Assert.All(results, s => Assert.Equal(mine.Id, s.MainArtistId));
+    }
+
     // ---- Detail ----
 
     [Fact]

@@ -4,7 +4,7 @@ namespace Zmg.Api.Services.Interfaces;
 
 public interface ISongService
 {
-    Task<IReadOnlyList<SongListItemDto>> ListAsync(string? q, string? scope);
+    Task<IReadOnlyList<SongListItemDto>> ListAsync(string? q, string? scope, Guid? artistId);
     Task<OperationResult<SongDetailDto>> GetAsync(Guid id);
     Task<OperationResult<SongDetailDto>> CreateAsync(SongCreateInput input);
     Task<OperationResult<SongDetailDto>> UpdateAsync(Guid id, SongUpdateInput input);

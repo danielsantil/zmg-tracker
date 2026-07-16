@@ -14,9 +14,9 @@ public static class SongEndpoints
     {
         var group = app.MapGroup("/api/songs").WithTags("Songs");
 
-        // List; q filters by title, scope=archived returns archived songs (default: active).
-        group.MapGet("", async (string? q, string? scope, ISongService songs) =>
-            Results.Ok(await songs.ListAsync(q, scope)));
+        // List; q filters by title, artistId filters by main artist, scope=archived returns archived songs (default: active).
+        group.MapGet("", async (string? q, string? scope, Guid? artistId, ISongService songs) =>
+            Results.Ok(await songs.ListAsync(q, scope, artistId)));
 
         // Detail with feats/collabs and every linked release.
         group.MapGet("/{id:guid}", async (Guid id, ISongService songs) =>

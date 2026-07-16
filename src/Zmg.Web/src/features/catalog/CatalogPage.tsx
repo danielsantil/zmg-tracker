@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api, ApiError } from '@/api';
-import type { SongListItem } from '@/types';
+import type { Artist, SongListItem } from '@/types';
 import { Button, inputClass } from '@/components';
 
 /**
@@ -12,25 +12,33 @@ import { Button, inputClass } from '@/components';
 export default function CatalogPage() {
   const navigate = useNavigate();
   const [songs, setSongs] = useState<SongListItem[]>([]);
+  const [artists, setArtists] = useState<Artist[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState('');
+  const [artistId, setArtistId] = useState('');
 
   function load() {
     setLoading(true);
     setError(null);
     api.songs
-      .list({ q: q.trim() || undefined })
+      .list({ q: q.trim() || undefined, artistId: artistId || undefined })
       .then(setSongs)
       .catch((e) => setError(e instanceof ApiError ? e.message : 'Failed to load catalog.'))
       .finally(() => setLoading(false));
   }
 
   useEffect(() => {
+    api.artists.list().then(setArtists).catch(() => setError('Failed to load artists.'));
+  }, []);
+
+  useEffect(() => {
     const t = setTimeout(load, q ? 250 : 0);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q]);
+  }, [q, artistId]);
+
+  const hasFilters = useMemo(() => q || artistId, [q, artistId]);
 
   async function archive(s: SongListItem) {
     if (!confirm(`Archive "${s.title}"? Archived songs are read-only and can't be restored.`)) return;
@@ -62,14 +70,33 @@ export default function CatalogPage() {
         <Button onClick={() => navigate('/catalog/new')}>+ New song</Button>
       </div>
 
-      <div className="mb-5 flex items-center justify-between gap-3">
+      <div className="mb-5 flex flex-wrap items-center gap-3">
         <input
           className={`${inputClass} max-w-[16rem]`}
           placeholder="Search by title…"
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
-        <Link to="/catalog/archived" className="shrink-0 text-sm text-slate-400 hover:text-accent">
+        <select className={`${inputClass} max-w-[12rem]`} value={artistId} onChange={(e) => setArtistId(e.target.value)}>
+          <option value="">All artists</option>
+          {artists.map((a) => (
+            <option key={a.id} value={a.id}>
+              {a.name}
+            </option>
+          ))}
+        </select>
+        {hasFilters && (
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setQ('');
+              setArtistId('');
+            }}
+          >
+            Clear
+          </Button>
+        )}
+        <Link to="/catalog/archived" className="ml-auto shrink-0 text-sm text-slate-400 hover:text-accent">
           Archived Songs →
         </Link>
       </div>
@@ -80,7 +107,7 @@ export default function CatalogPage() {
         <p className="text-slate-400">Loading…</p>
       ) : songs.length === 0 ? (
         <div className="rounded-xl border border-dashed border-edge bg-panel/50 p-10 text-center text-slate-400">
-          {q.trim() ? 'No songs match this search.' : 'No songs yet — add one or create a release.'}
+          {hasFilters ? 'No songs match these filters.' : 'No songs yet — add one or create a release.'}
         </div>
       ) : (
         <div className="overflow-hidden rounded-xl border border-edge bg-panel">
