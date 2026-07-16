@@ -10,6 +10,7 @@ lists; read **this** for current state and the cross-cutting knowledge the plans
 - [build-plan-1.2.md](build-plan-1.2.md) — archived releases (M11). Shipped.
 - [build-plan-2.0.md](build-plan-2.0.md) — songs & catalog (M12–M15). **M12–M15 shipped — v2.0 complete.**
 - [build-plan-2.1.md](build-plan-2.1.md) — UX refinements (M16–M18). **M16–M18 shipped — v2.1 complete.**
+- [build-plan-2.2.md](build-plan-2.2.md) — UX improvements (M19–M23). **Planned, not started — next up.**
 
 Newer plan versions go in new `build-plan-N.N.md` files; older ones stay frozen.
 
@@ -17,8 +18,8 @@ Newer plan versions go in new `build-plan-N.N.md` files; older ones stay frozen.
 archive cascade — plus a round of post-v2.0 UX/feature improvements, and now **build-plan-2.1 fully
 shipped** (M16–M18): the `Modal`/confirm-dialog primitives, toast variants, and the `SongPickerModal` +
 unified `Tracklist`, plus a bugfix round enforcing **per-artist song-title uniqueness** and an **immutable song
-main artist**. Tests green (`dotnet test` — domain 62 / API 99). Next work is **Phase 2 (DSP stats)**
-(see [Backlog / next steps](#backlog--next-steps)).
+main artist**. Tests green (`dotnet test` — domain 62 / API 99). Next work is **build-plan-2.2 (M19–M23)** —
+now scoped and written, not yet built (see [Backlog / next steps](#backlog--next-steps)).
 
 > ⚠️ **M12 is a hard schema reset with no migration.** Any existing local `src/Zmg.Api/zmg.db` from
 > v1.x must be deleted before running — the fresh `InitialCreate` won't apply on top of the old schema.
@@ -226,7 +227,25 @@ tests/Zmg.Api.Tests      integration tests (WebApplicationFactory + in-memory SQ
   ESLint migration. All browser-verified; see the journal. One thing never driven in the browser: the
   archive-confirm cascade *list* specifically (needs a release with dormant cascading songs) — the underlying
   `ConfirmDialog`/`Modal` + `ReactNode` body are otherwise verified.
-- **Phase 2 — DSP stats (next up)** (the reason this exists over Notion/Trello): hang streaming/revenue data
+- **build-plan-2.2 — UX improvements (M19–M23) (next up, scoped & written).** See
+  [build-plan-2.2.md](build-plan-2.2.md) for full scope, mockup notes, and per-milestone test lists.
+  - **M19 — Artists redesign.** Real table (Name · Releases · Songs · Actions) with a `RowMenu` kebab; a
+    delete modal that checks `releaseCount`/`songCount` *up front* (info modal when blocked, no post-hoc
+    error toast) — needs `SongCount` added to `ArtistDto`/`ListAsync` + a new `ConfirmOptions.hideCancel`;
+    dedicated `/artists/new` + `/artists/:id` **pages** (mirror `SongFormPage`; needs `GET /api/artists/{id}`),
+    retiring the inline `ArtistForm`.
+  - **M20 — Kebab menus** on the Releases + Catalog table rows (replace inline Archive/Delete/Edit buttons).
+  - **M21 — Compact `ReleaseCard`** (kebab actions, optional cover) that **replaces the Home cards** (Home
+    keeps its cover) and is reused by the calendar preview.
+  - **M22 — Releases calendar view.** A Table/Calendar toggle + hand-rolled month grid (`lib/calendar.ts`),
+    dependency-free; opens on today's month, "Next release" jump chip (hidden when nothing upcoming), mobile
+    dots vs desktop chips; click → preview modal of compact cards. **No backend change** (`scope=all` already
+    returns all dates).
+  - **M23 — Inline reorder arrows** on checklist rows (release detail + templates), replacing the kebab
+    "Move up/down"; extract a shared `ReorderArrows` used by both task rows and the `Tracklist`.
+  - Branch `feat/v2.2-ux-improvements` exists; only the build-plan doc + this note are committed-in-spirit —
+    no implementation code written yet.
+- **Phase 2 — DSP stats (after v2.2)** (the reason this exists over Notion/Trello): hang streaming/revenue data
   off the stable Artist / Release / **Song** / Track ids and UPC/ISRC columns. The v2.0 Song ids are its
   foundation. No build plan yet — write `build-plan-3.0.md` when it starts.
 - **Per-track task fan-out** on albums: registrations that repeat per track are single "per track"
