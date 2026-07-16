@@ -154,6 +154,7 @@ export default function ReleaseDetailPage() {
     try {
       const created = await api.tracks.add(id!, { songId: null, title, isrc: null, artists: null });
       setTracks((ts) => [...ts, created]);
+      loadPending(); // refresh pending actions after tracklist changes
     } catch (e) {
       showToast(e instanceof ApiError ? e.message : 'Could not add track.');
     }
@@ -163,6 +164,7 @@ export default function ReleaseDetailPage() {
     try {
       const created = await api.tracks.add(id!, { songId, title: null, isrc: null, artists: null });
       setTracks((ts) => [...ts, created]);
+      loadPending(); // refresh pending actions after tracklist changes
     } catch (e) {
       showToast(e instanceof ApiError ? e.message : 'Could not add song.');
     }
@@ -193,6 +195,7 @@ export default function ReleaseDetailPage() {
     );
     try {
       await api.tracks.delete(id!, track.songId);
+      loadPending(); // refresh pending actions after tracklist changes
     } catch (e) {
       setTracks(prev);
       showToast(e instanceof ApiError ? e.message : 'Could not remove track.');
