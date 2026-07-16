@@ -12,7 +12,7 @@ import { todayIso } from '@/lib/format';
 import { ReleaseHeader } from './components/ReleaseHeader';
 import { NeedsAttention } from './components/NeedsAttention';
 import { PhaseSection } from './components/PhaseSection';
-import { TrackList } from './components/TrackList';
+import { Tracklist, type TracklistRow } from './components/Tracklist';
 import { SongCard } from './components/SongCard';
 import { archiveReleaseConfirm } from './archiveConfirm';
 import type { TaskPatch } from './components/TaskRow';
@@ -159,6 +159,23 @@ export default function ReleaseDetailPage() {
     [tracks],
   );
 
+  // Adapter onto the shared Tracklist (M18): rows are keyed by songId, so `track()` maps a row back
+  // to exactly one track for the optimistic api.tracks.* handlers below.
+  const trackRows: TracklistRow[] = useMemo(
+    () =>
+      orderedTracks.map((t) => ({
+        key: t.songId,
+        trackNumber: t.trackNumber,
+        title: t.title,
+        isrc: t.isrc,
+        songId: t.songId,
+        isFocusTrack: t.isFocusTrack,
+        isSongArchived: t.isSongArchived,
+      })),
+    [orderedTracks],
+  );
+  const track = (row: TracklistRow) => orderedTracks.find((t) => t.songId === row.key)!;
+
   async function addTrack(title: string) {
     try {
       const created = await api.tracks.add(id!, { songId: null, title, isrc: null, artists: null });
@@ -295,15 +312,16 @@ export default function ReleaseDetailPage() {
             <SongCard track={orderedTracks[0]} mainArtistName={release.mainArtistName} />
           )
         ) : (
-          <TrackList
-            tracks={orderedTracks}
-            isSingle={false}
+          <Tracklist
+            rows={trackRows}
             readOnly={readOnly}
-            onAdd={addTrack}
-            onAddExisting={addExistingTrack}
-            onToggleFocus={toggleFocus}
-            onDelete={removeTrack}
-            onMove={moveTrack}
+            mainArtistId={release.mainArtistId}
+            excludeIds={orderedTracks.map((t) => t.songId)}
+            onAddNew={addTrack}
+            onAddExisting={(song) => addExistingTrack(song.id)}
+            onToggleFocus={(row) => toggleFocus(track(row))}
+            onRemove={(row) => removeTrack(track(row))}
+            onMove={(row, dir) => moveTrack(track(row), dir)}
           />
         )}
       </div>

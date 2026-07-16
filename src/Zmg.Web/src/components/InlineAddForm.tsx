@@ -6,6 +6,9 @@ import { inputClass } from './Field';
  * The "+ Add …" row shared by task/track lists: a trigger button that swaps to a
  * text input with Add/Cancel, Enter to submit, Escape to cancel. Manages its own
  * open/draft state; the parent only receives the trimmed title via `onAdd`.
+ *
+ * Every button is explicitly `type="button"`: M18 renders this inside the create form's <form>,
+ * where the default `submit` type would save the release instead of adding a track.
  */
 export function InlineAddForm({
   addLabel,
@@ -47,13 +50,16 @@ export function InlineAddForm({
               if (e.key === 'Escape') cancel();
             }}
           />
-          <Button onClick={submit}>Add</Button>
-          <Button variant="ghost" onClick={cancel}>
+          <Button type="button" onClick={submit}>
+            Add
+          </Button>
+          <Button type="button" variant="ghost" onClick={cancel}>
             Cancel
           </Button>
         </div>
       ) : (
         <button
+          type="button"
           className="rounded-lg px-2 py-1.5 text-sm text-slate-400 hover:text-accent"
           onClick={() => setAdding(true)}
         >

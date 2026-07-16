@@ -3,7 +3,8 @@ import type { Artist, SongArtistInput, TrackInput } from '@/types';
 import { ReleaseType } from '@/types';
 import { Button, Field, inputClass } from '@/components';
 import { SongArtistsEditor } from '@/features/catalog/components/SongArtistsEditor';
-import { SongPicker } from '@/features/catalog/components/SongPicker';
+import { SongPickerModal } from '@/features/catalog/components/SongPickerModal';
+import { Tracklist, type TracklistRow } from './Tracklist';
 
 // A create-form row is either a NEW inline song (title/ISRC/feats editable) or an existing catalog
 // song (songId + display title). `key` keeps React state stable across reorder/remove.
@@ -34,10 +35,11 @@ function toInput(r: EditorRow): TrackInput {
 }
 
 /**
- * The create-form Tracks section (v2.0). Each row is a new inline track or an existing catalog song
- * (per-row toggle, M13). A single has exactly one fixed row; an album has zero or more with
- * add/remove/reorder. Emits `TrackInput[]` to the parent on every change. Remount (via `key={type}`
- * in the parent) resets rows when the release type changes.
+ * The create-form Tracks section (v2.0). Each row is a new inline track or an existing catalog song.
+ * An album is the create-form adapter onto the shared `Tracklist` (M18) — same rows and ↑/↓ controls
+ * as the release detail, with the new song's optional fields tucked into a per-row disclosure; a
+ * single is one fixed row instead, since there's no list to reorder. Emits `TrackInput[]` to the
+ * parent on every change. Remount (via `key={type}` in the parent) resets rows when the type changes.
  */
 export function TracksEditor({
   type,
@@ -52,25 +54,19 @@ export function TracksEditor({
 }) {
   const isAlbum = type === ReleaseType.Album;
   const [rows, setRows] = useState<EditorRow[]>(() => (isAlbum ? [] : [blankRow()]));
+  const [singlePickerOpen, setSinglePickerOpen] = useState(false);
 
   function commit(next: EditorRow[]) {
     setRows(next);
     onChange(next.map(toInput));
   }
 
-  function update(i: number, patch: Partial<EditorRow>) {
-    commit(rows.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
+  function update(key: string, patch: Partial<EditorRow>) {
+    commit(rows.map((r) => (r.key === key ? { ...r, ...patch } : r)));
   }
 
-  function addRow() {
-    commit([...rows, blankRow()]);
-  }
-
-  function removeRow(i: number) {
-    commit(rows.filter((_, idx) => idx !== i));
-  }
-
-  function move(i: number, dir: -1 | 1) {
+  function move(key: string, dir: -1 | 1) {
+    const i = rows.findIndex((r) => r.key === key);
     const j = i + dir;
     if (j < 0 || j >= rows.length) return;
     const next = [...rows];
@@ -81,91 +77,113 @@ export function TracksEditor({
   // songIds already chosen in other rows — exclude them from the picker.
   const chosenIds = rows.filter((r) => r.songId).map((r) => r.songId!);
 
-  return (
-    <Field
-      label={isAlbum ? 'Tracks' : 'Track'}
-      hint={isAlbum ? 'Add the songs on this album' : 'A single has exactly one song'}
-    >
-      <div className="space-y-3">
-        {rows.map((track, i) => (
-          <div key={track.key} className="rounded-lg border border-edge bg-panel p-3">
-            <div className="flex items-center gap-2">
-              <span className="w-5 shrink-0 text-right text-sm tabular-nums text-slate-500">{i + 1}</span>
-
-              {track.songId ? (
-                // Existing catalog song: title is read-only, "Change" re-opens the picker.
-                <div className="flex flex-1 items-center gap-2">
-                  <span className="flex-1 text-sm text-slate-100">{track.title}</span>
-                  <span className="text-xs text-slate-500">from catalog</span>
-                  <button
-                    type="button"
-                    className="text-xs text-slate-400 hover:text-accent"
-                    onClick={() => update(i, { songId: null, title: '' })}
-                  >
-                    Change
-                  </button>
-                </div>
-              ) : (
-                <input
-                  className={inputClass}
-                  value={track.title}
-                  onChange={(e) => update(i, { title: e.target.value })}
-                  placeholder="Song title"
-                />
-              )}
-
-              {isAlbum && (
-                <div className="flex shrink-0 items-center gap-1">
-                  <button type="button" aria-label="Move up" disabled={i === 0} onClick={() => move(i, -1)}
-                    className="px-1.5 text-slate-500 hover:text-slate-300 disabled:opacity-30">↑</button>
-                  <button type="button" aria-label="Move down" disabled={i === rows.length - 1} onClick={() => move(i, 1)}
-                    className="px-1.5 text-slate-500 hover:text-slate-300 disabled:opacity-30">↓</button>
-                  <button type="button" aria-label="Remove track" onClick={() => removeRow(i)}
-                    className="px-1.5 text-red-400/70 hover:text-red-300">✕</button>
-                </div>
-              )}
-            </div>
-
-            {/* New-track fields (title / ISRC / feats). Hidden once a catalog song is picked. */}
-            {!track.songId && (
-              <div className="mt-2 space-y-2 pl-7">
-                <input
-                  className={`${inputClass} max-w-[16rem]`}
-                  value={track.isrc}
-                  onChange={(e) => update(i, { isrc: e.target.value })}
-                  placeholder="ISRC (optional)"
-                />
-                <SongArtistsEditor
-                  artists={artists}
-                  value={track.artists}
-                  onChange={(next) => update(i, { artists: next })}
-                  mainArtistId={mainArtistId}
-                />
-                <div>
-                  <span className="mr-2 text-xs text-slate-500">or</span>
-                  <SongPicker
-                    excludeIds={chosenIds}
-                    placeholder="Pick an existing song from the catalog…"
-                    onSelect={(s) => update(i, { songId: s.id, title: s.title })}
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-        ))}
-
-        {rows.length === 0 && (
-          <p className="rounded-lg border border-dashed border-edge px-3 py-2 text-sm text-slate-500">
-            No tracks yet — an album can be created empty and filled in later.
-          </p>
-        )}
-
-        {isAlbum && (
-          <Button type="button" variant="ghost" onClick={addRow}>
-            + Add track
-          </Button>
-        )}
+  // The new song's own fields. Only for a row that isn't a catalog song (which owns its own).
+  function newSongFields(row: EditorRow) {
+    return (
+      <div className="space-y-2">
+        <input
+          className={inputClass}
+          value={row.title}
+          onChange={(e) => update(row.key, { title: e.target.value })}
+          placeholder="Song title"
+        />
+        <input
+          className={`${inputClass} max-w-[16rem]`}
+          value={row.isrc}
+          onChange={(e) => update(row.key, { isrc: e.target.value })}
+          placeholder="ISRC (optional)"
+        />
+        <SongArtistsEditor
+          artists={artists}
+          value={row.artists}
+          onChange={(next) => update(row.key, { artists: next })}
+          mainArtistId={mainArtistId}
+        />
       </div>
+    );
+  }
+
+  if (!isAlbum) {
+    const row = rows[0];
+    return (
+      <Field label="Track" hint="A single has exactly one song">
+        <div className="rounded-lg border border-edge bg-panel p-3">
+          {row.songId ? (
+            <div className="flex items-center gap-2">
+              <span className="flex-1 text-sm text-slate-100">{row.title}</span>
+              <span className="text-xs text-slate-500">from catalog</span>
+              <button
+                type="button"
+                className="text-xs text-slate-400 hover:text-accent"
+                onClick={() => update(row.key, { songId: null, title: '' })}
+              >
+                Change
+              </button>
+            </div>
+          ) : (
+            <>
+              {newSongFields(row)}
+              <div className="mt-2">
+                <span className="mr-2 text-xs text-slate-500">or</span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  disabled={!mainArtistId}
+                  onClick={() => setSinglePickerOpen(true)}
+                >
+                  Add existing song
+                </Button>
+                {!mainArtistId && (
+                  <span className="ml-2 text-xs text-slate-500">Pick a main artist first</span>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+
+        <SongPickerModal
+          open={singlePickerOpen}
+          mainArtistId={mainArtistId}
+          excludeIds={[]}
+          onClose={() => setSinglePickerOpen(false)}
+          onSelect={(s) => {
+            setSinglePickerOpen(false);
+            update(row.key, { songId: s.id, title: s.title });
+          }}
+        />
+      </Field>
+    );
+  }
+
+  const tracklistRows: TracklistRow[] = rows.map((r, i) => ({
+    key: r.key,
+    trackNumber: i + 1,
+    title: r.title || 'Untitled song',
+    // A new song's ISRC is edited in its disclosure below, so don't echo it on the row too.
+    isrc: null,
+    songId: r.songId,
+    details: r.songId ? undefined : (
+      <details className="text-sm">
+        <summary className="cursor-pointer text-xs text-slate-500 hover:text-slate-300">
+          Details (optional)
+        </summary>
+        <div className="mt-2">{newSongFields(r)}</div>
+      </details>
+    ),
+  }));
+
+  return (
+    <Field label="Tracks" hint="Add the songs on this album">
+      <Tracklist
+        rows={tracklistRows}
+        mainArtistId={mainArtistId}
+        excludeIds={chosenIds}
+        emptyText="No tracks yet — an album can be created empty and filled in later."
+        onMove={(row, dir) => move(row.key, dir)}
+        onRemove={(row) => commit(rows.filter((r) => r.key !== row.key))}
+        onAddNew={(title) => commit([...rows, { ...blankRow(), title }])}
+        onAddExisting={(song) => commit([...rows, { ...blankRow(), songId: song.id, title: song.title }])}
+      />
     </Field>
   );
 }

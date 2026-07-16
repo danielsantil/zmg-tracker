@@ -9,15 +9,15 @@ lists; read **this** for current state and the cross-cutting knowledge the plans
 - [build-plan-1.1.md](build-plan-1.1.md) — singles improvements (M6–M10). Shipped.
 - [build-plan-1.2.md](build-plan-1.2.md) — archived releases (M11). Shipped.
 - [build-plan-2.0.md](build-plan-2.0.md) — songs & catalog (M12–M15). **M12–M15 shipped — v2.0 complete.**
-- [build-plan-2.1.md](build-plan-2.1.md) — UX refinements (M16–M18). **M16–M17 shipped; M18 next** — see [Backlog](#backlog--next-steps).
+- [build-plan-2.1.md](build-plan-2.1.md) — UX refinements (M16–M18). **M16–M18 shipped — v2.1 complete.**
 
 Newer plan versions go in new `build-plan-N.N.md` files; older ones stay frozen.
 
 **Current state:** **build-plan-2.0 fully shipped** (M12–M15) — songs, catalog, pending rework, and the
-archive cascade — plus a round of post-v2.0 UX/feature improvements, and now **M16–M17** of
-[build-plan-2.1](build-plan-2.1.md) (the `Modal`/confirm-dialog primitives + toast variants). Tests green
-(`dotnet test` — domain 62 / API 95). Next work is **M18 — `SongPickerModal` + unified `Tracklist`**
-(see [Backlog / next steps](#backlog--next-steps)); Phase 2 (DSP stats) follows.
+archive cascade — plus a round of post-v2.0 UX/feature improvements, and now **build-plan-2.1 fully
+shipped** (M16–M18): the `Modal`/confirm-dialog primitives, toast variants, and the `SongPickerModal` +
+unified `Tracklist`. Tests green (`dotnet test` — domain 62 / API 95). Next work is **Phase 2 (DSP stats)**
+(see [Backlog / next steps](#backlog--next-steps)).
 
 > ⚠️ **M12 is a hard schema reset with no migration.** Any existing local `src/Zmg.Api/zmg.db` from
 > v1.x must be deleted before running — the fresh `InitialCreate` won't apply on top of the old schema.
@@ -117,6 +117,26 @@ green — it was a red pop-up that read as failure. The slide-in is a real `toas
 green (62/95), and all three variant classes + the emitted keyframe confirmed in the CSS bundle. Click-through
 still pending, same as M16.
 
+**v2.1 (M18) — `SongPickerModal` + unified `Tracklist`.** The inline `SongPicker` is gone, replaced by
+[`SongPickerModal`](src/Zmg.Web/src/features/catalog/components/SongPickerModal.tsx) on M16's `Modal`:
+it **browses on open** (`api.songs.list({ artistId })`, no typing — the "I forgot the title" case) and every
+query stays artist-scoped, so another artist's songs can't be linked; typing debounces at 250ms but browse-on-open
+is immediate (the delay is `term ? 250 : 0`). No backend change — `artistId` filtering already existed.
+[`Tracklist`](src/Zmg.Web/src/features/releases/components/Tracklist.tsx) is now the **one** album tracklist for
+both contexts (row + ↑/↓ + ✕, `ml-3` before ✕); `TrackRow.tsx` and its kebab are deleted, and `onToggleFocus` is
+**optional** because the focus track only exists once a release is saved. Two adapters keep persistence where it
+was: `ReleaseDetailPage` maps `TrackDto[]`→rows keyed by `songId` (a `track(row)` lookup feeds the existing
+optimistic `api.tracks.*` handlers), and `TracksEditor` maps its local `EditorRow[]`, putting a new song's
+title/ISRC/feats in a per-row **"Details (optional)"** disclosure. Two decisions worth knowing: **the single keeps
+its own fixed one-row editor** (it's not a list — nothing to reorder, no add row) and only swaps the inline picker
+for the modal; and **`TrackList.tsx` → `Tracklist.tsx` had to be a `git mv`** — macOS is case-insensitive, so the
+two names are the same file and writing one silently overwrote the other. Also fixed a regression this milestone
+would have introduced: `InlineAddForm`'s buttons had no `type`, harmless on the detail page but inside the create
+form's `<form>` they default to `submit` — "+ Add track" would have saved the release. Verified: `npm run build`
+clean, `dotnet test` green (62/95), and the app boots (`/` 200) with `GET /api/songs?artistId=…` returning the
+artist's songs unfiltered and `&q=` filtering within that scope. Interactive click-through still pending (no
+browser automation, same as M16–M17); cross-artist exclusion is unverified locally — the dev db has one artist.
+
 ---
 
 ## Cross-cutting decisions (not in any single plan)
@@ -148,6 +168,17 @@ still pending, same as M16.
   `useConfirm()`'s `confirm(opts)` (one `<ConfirmDialog>` under the root `ConfirmProvider`), report failures
   with an error toast. Overlays build on `components/Modal.tsx` rather than hand-rolling a backdrop.
   Destructive intent is colour-coded: red `danger` for hard deletes, amber `archive` for archiving.
+- **One tracklist, two adapters (M18).** `features/releases/components/Tracklist.tsx` owns the album row
+  design and controls for *both* the create form and the release detail; neither context gets its own row
+  markup. It holds no persistence — `TracksEditor` (local `EditorRow[]`) and `ReleaseDetailPage` (optimistic
+  `api.tracks.*`) adapt to it. Singles are deliberately outside it: one fixed row, nothing to reorder.
+  Linking an existing song always goes through `SongPickerModal`, which is **always scoped to the release's
+  main artist** — never widen it to the whole catalog.
+- **macOS is case-insensitive — `Foo.tsx` and `foo.tsx` are one file.** M18 renamed `TrackList.tsx` →
+  `Tracklist.tsx`; writing the "new" file just overwrote the old one. Use `git mv` for case-only renames.
+- **Buttons inside a `<form>` need an explicit `type`** — the HTML default is `submit`. Shared components
+  that may be rendered inside a form (`InlineAddForm`, and anything reused from `components/`) set
+  `type="button"`; `Button` itself has no default, so real submits stay explicit (`type="submit"`).
 - **Enums serialize as integers** (System.Text.Json default); the TS layer mirrors (`ReleaseType.Single
   = 0`, …). Change both sides together. `erasableSyntaxOnly` is disabled in `tsconfig.app.json` so TS
   `enum`s compile.
@@ -204,18 +235,14 @@ tests/Zmg.Api.Tests      integration tests (WebApplicationFactory + in-memory SQ
 
 ## Backlog / next steps
 
-- **build-plan-2.1 (M16–M18) — UX refinements. M16–M17 shipped; M18 next.**
-  - **M16 — shared `Modal` primitive + custom confirm dialog. Shipped** — see the journal entry above.
-  - **M17 — Toast variants. Shipped** — see the journal entry above.
-  - Outstanding for both: the interactive click-through from the plan's Verification list (bottom sheet vs.
-    centered card, Escape/backdrop dismiss, cascade list in the archive confirm, green "Saved." toast).
-    Everything is verified by build + bundle inspection only — no browser automation in these sessions.
-  - **M18 — `SongPickerModal` + unified `Tracklist`.** Replace the inline
-    [`SongPicker`](src/Zmg.Web/src/features/catalog/components/SongPicker.tsx) with a `Modal`-based
-    picker that **browses the release's main-artist songs on open** (no typing needed) and stays
-    artist-scoped (`api.songs.list({ artistId })` — already supported, no backend change). Unify the
-    create-form (`TracksEditor`) and detail-page (`TrackList`) tracklists into one `Tracklist`
-    component with a single row design and standard ↑/↓ reorder (retire the detail-page kebab menu).
+- **build-plan-2.1 (M16–M18) — UX refinements. Fully shipped** (M16 `Modal`/confirm, M17 toast variants,
+  M18 `SongPickerModal` + unified `Tracklist`) — see the journal entries above.
+  - **Outstanding for all three: the interactive click-through** from the plan's Verification list — bottom
+    sheet vs. centered card, Escape/backdrop dismiss, cascade list in the archive confirm, green "Saved."
+    toast, and the picker/tracklist flows at both widths. Verified by build + bundle/endpoint inspection
+    only; no browser automation in these sessions. **Do this first** on a session that has a browser.
+  - Known gap: cross-artist picker scoping is unverified locally (the dev db has a single artist) — seed a
+    second artist with songs to confirm the modal never lists them.
 - **v2.0 is fully shipped (M12–M15).** See the journal above and [build-plan-2.0.md](build-plan-2.0.md).
 - **Phase 2 — DSP stats** (the reason this exists over Notion/Trello): hang streaming/revenue data off
   the stable Artist / Release / **Song** / Track ids and UPC/ISRC columns. The v2.0 Song ids are its
