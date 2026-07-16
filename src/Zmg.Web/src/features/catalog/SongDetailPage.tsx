@@ -17,7 +17,7 @@ import { SongArtistsEditor } from './components/SongArtistsEditor';
 export default function SongDetailPage() {
   const { id } = useParams<{ id: string }>();
   const goBack = useBackNavigation();
-  const { toast, showToast } = useToast();
+  const { toast, toastVariant, showToast } = useToast();
 
   const [song, setSong] = useState<SongDetail | null>(null);
   const [artists, setArtists] = useState<Artist[]>([]);
@@ -67,7 +67,7 @@ export default function SongDetailPage() {
       });
       hydrate(result.data);
       if (result.warnings.length > 0) setWarnings(result.warnings);
-      else showToast('Saved.');
+      else showToast('Saved.', 'success');
     } catch (e) {
       setErrors(e instanceof ApiError ? e.errors : ['Failed to save song.']);
     } finally {
@@ -203,7 +203,7 @@ export default function SongDetailPage() {
         </div>
       </section>
 
-      <Toast message={toast} />
+      <Toast message={toast} variant={toastVariant} />
     </div>
   );
 }

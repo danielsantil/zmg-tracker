@@ -9,14 +9,14 @@ lists; read **this** for current state and the cross-cutting knowledge the plans
 - [build-plan-1.1.md](build-plan-1.1.md) — singles improvements (M6–M10). Shipped.
 - [build-plan-1.2.md](build-plan-1.2.md) — archived releases (M11). Shipped.
 - [build-plan-2.0.md](build-plan-2.0.md) — songs & catalog (M12–M15). **M12–M15 shipped — v2.0 complete.**
-- [build-plan-2.1.md](build-plan-2.1.md) — UX refinements (M16–M18). **M16 shipped; M17–M18 next** — see [Backlog](#backlog--next-steps).
+- [build-plan-2.1.md](build-plan-2.1.md) — UX refinements (M16–M18). **M16–M17 shipped; M18 next** — see [Backlog](#backlog--next-steps).
 
 Newer plan versions go in new `build-plan-N.N.md` files; older ones stay frozen.
 
 **Current state:** **build-plan-2.0 fully shipped** (M12–M15) — songs, catalog, pending rework, and the
-archive cascade — plus a round of post-v2.0 UX/feature improvements, and now **M16** of
-[build-plan-2.1](build-plan-2.1.md) (the `Modal`/confirm-dialog primitives). Tests green (`dotnet test` —
-domain 62 / API 95). Next work is **M17 (toast variants) → M18 (`SongPickerModal` + unified `Tracklist`)**
+archive cascade — plus a round of post-v2.0 UX/feature improvements, and now **M16–M17** of
+[build-plan-2.1](build-plan-2.1.md) (the `Modal`/confirm-dialog primitives + toast variants). Tests green
+(`dotnet test` — domain 62 / API 95). Next work is **M18 — `SongPickerModal` + unified `Tracklist`**
 (see [Backlog / next steps](#backlog--next-steps)); Phase 2 (DSP stats) follows.
 
 > ⚠️ **M12 is a hard schema reset with no migration.** Any existing local `src/Zmg.Api/zmg.db` from
@@ -102,6 +102,20 @@ were identical at all three call sites. Verified: `tsc -b` + `npm run build` cle
 (62/95), and — contrary to the note below — `dotnet run` now boots fine and serves the SPA + API on :5274
 (`/` and `/api/releases` both 200), with the amber utilities confirmed in the CSS bundle. The interactive
 click-through (sheet vs. card, Escape/backdrop) is **not** yet done — no browser automation here.
+
+**v2.1 (M17) — toast variants.** [`Toast`](src/Zmg.Web/src/components/Toast.tsx) gains
+`variant: 'success' | 'error' | 'info'` (emerald + ✓ / red / slate), and `useToast`'s
+`showToast(msg, variant = 'error')` stores `{ message, variant }` — **`error` stays the default**, so the many
+revert/failure callers (and M16's `alert`→toast replacements) keep their red with no edit. The hook still
+returns `toast` as a plain string and adds `toastVariant`, so the only change at the 9 render sites is passing
+`variant={toastVariant}`. The actual fix: `SongDetailPage`'s post-save `showToast('Saved.', 'success')` is now
+green — it was a red pop-up that read as failure. The slide-in is a real `toast-in` keyframe in
+`tailwind.config.js` (not an arbitrary value) because the toast centers via `-translate-x-1/2` and an
+**animation transform replaces the class's rather than composing with it** — both frames must carry
+`translate(-50%)` or the toast jumps to the right edge mid-animation. Gated behind `motion-safe:`; also picked up
+`role="status"`/`aria-live` and `mb-[env(safe-area-inset-bottom)]`. Verified: `npm run build` clean, `dotnet test`
+green (62/95), and all three variant classes + the emitted keyframe confirmed in the CSS bundle. Click-through
+still pending, same as M16.
 
 ---
 
@@ -190,13 +204,12 @@ tests/Zmg.Api.Tests      integration tests (WebApplicationFactory + in-memory SQ
 
 ## Backlog / next steps
 
-- **build-plan-2.1 (M16–M18) — UX refinements. M16 shipped; M17 → M18 next.**
+- **build-plan-2.1 (M16–M18) — UX refinements. M16–M17 shipped; M18 next.**
   - **M16 — shared `Modal` primitive + custom confirm dialog. Shipped** — see the journal entry above.
-    Outstanding: the interactive click-through from the plan's Verification list (bottom sheet vs.
-    centered card, Escape/backdrop dismiss, cascade list in the archive confirm).
-  - **M17 — Toast variants.** `Toast`/`useToast` gain `variant: 'success' | 'error' | 'info'` (default
-    `error` so existing callers keep red). The post-save "Saved." in `SongDetailPage` becomes green
-    success — fixing the current red-pop-up-that-looks-like-failure.
+  - **M17 — Toast variants. Shipped** — see the journal entry above.
+  - Outstanding for both: the interactive click-through from the plan's Verification list (bottom sheet vs.
+    centered card, Escape/backdrop dismiss, cascade list in the archive confirm, green "Saved." toast).
+    Everything is verified by build + bundle inspection only — no browser automation in these sessions.
   - **M18 — `SongPickerModal` + unified `Tracklist`.** Replace the inline
     [`SongPicker`](src/Zmg.Web/src/features/catalog/components/SongPicker.tsx) with a `Modal`-based
     picker that **browses the release's main-artist songs on open** (no typing needed) and stays

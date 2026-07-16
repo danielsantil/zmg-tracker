@@ -14,7 +14,7 @@ import { useToast } from '@/hooks/useToast';
 export default function CatalogPage() {
   const navigate = useNavigate();
   const confirm = useConfirm();
-  const { toast, showToast } = useToast();
+  const { toast, toastVariant, showToast } = useToast();
   const [songs, setSongs] = useState<SongListItem[]>([]);
   const [artists, setArtists] = useState<Artist[]>([]);
   const [loading, setLoading] = useState(true);
@@ -180,7 +180,7 @@ export default function CatalogPage() {
         </div>
       )}
 
-      <Toast message={toast} />
+      <Toast message={toast} variant={toastVariant} />
     </div>
   );
 }

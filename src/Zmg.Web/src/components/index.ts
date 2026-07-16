@@ -7,5 +7,5 @@ export { SoftWarning } from './SoftWarning';
 export { MenuItem, RowMenu } from './RowMenu';
 export { ProgressBar } from './ProgressBar';
 export { StatusBadge } from './StatusBadge';
-export { Toast } from './Toast';
+export { Toast, type ToastVariant } from './Toast';
 export { TypeBadge } from './TypeBadge';

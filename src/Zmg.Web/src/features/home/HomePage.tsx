@@ -14,7 +14,7 @@ import { archiveReleaseConfirm } from '../releases/archiveConfirm';
 export default function HomePage() {
   const navigate = useNavigate();
   const confirm = useConfirm();
-  const { toast, showToast } = useToast();
+  const { toast, toastVariant, showToast } = useToast();
   const [releases, setReleases] = useState<ReleaseListItem[]>([]);
   const [artists, setArtists] = useState<Artist[]>([]);
   const [pending, setPending] = useState<PendingAction[]>([]);
@@ -131,7 +131,7 @@ export default function HomePage() {
         </div>
       )}
 
-      <Toast message={toast} />
+      <Toast message={toast} variant={toastVariant} />
     </div>
   );
 }

@@ -21,7 +21,7 @@ export default function TemplatesPage() {
   const [tasks, setTasks] = useState<TemplateTaskDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { toast, showToast } = useToast();
+  const { toast, toastVariant, showToast } = useToast();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -175,7 +175,7 @@ export default function TemplatesPage() {
         </>
       )}
 
-      <Toast message={toast} />
+      <Toast message={toast} variant={toastVariant} />
     </div>
   );
 }

@@ -15,7 +15,7 @@ import { useToast } from '@/hooks/useToast';
 export default function ArchivedReleasesPage() {
   const navigate = useNavigate();
   const confirm = useConfirm();
-  const { toast, showToast } = useToast();
+  const { toast, toastVariant, showToast } = useToast();
   const [releases, setReleases] = useState<ReleaseListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -123,7 +123,7 @@ export default function ArchivedReleasesPage() {
         </div>
       )}
 
-      <Toast message={toast} />
+      <Toast message={toast} variant={toastVariant} />
     </div>
   );
 }

@@ -12,7 +12,7 @@ import { archiveReleaseConfirm } from './archiveConfirm';
 export default function AllReleasesPage() {
   const navigate = useNavigate();
   const confirm = useConfirm();
-  const { toast, showToast } = useToast();
+  const { toast, toastVariant, showToast } = useToast();
   const [releases, setReleases] = useState<ReleaseListItem[]>([]);
   const [artists, setArtists] = useState<Artist[]>([]);
   const [loading, setLoading] = useState(true);
@@ -186,7 +186,7 @@ export default function AllReleasesPage() {
         </div>
       )}
 
-      <Toast message={toast} />
+      <Toast message={toast} variant={toastVariant} />
     </div>
   );
 }

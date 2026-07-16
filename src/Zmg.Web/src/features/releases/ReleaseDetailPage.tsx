@@ -29,7 +29,7 @@ export default function ReleaseDetailPage() {
   const [pendingActions, setPendingActions] = useState<PendingAction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { toast, showToast } = useToast();
+  const { toast, toastVariant, showToast } = useToast();
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -324,7 +324,7 @@ export default function ReleaseDetailPage() {
         ))}
       </div>
 
-      <Toast message={toast} />
+      <Toast message={toast} variant={toastVariant} />
     </div>
   );
 }

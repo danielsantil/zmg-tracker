@@ -8,7 +8,7 @@ import { ArtistForm } from './components/ArtistForm';
 
 export default function ArtistsPage() {
   const confirm = useConfirm();
-  const { toast, showToast } = useToast();
+  const { toast, toastVariant, showToast } = useToast();
   const [artists, setArtists] = useState<Artist[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Artist | null>(null);
@@ -108,7 +108,7 @@ export default function ArtistsPage() {
         </div>
       )}
 
-      <Toast message={toast} />
+      <Toast message={toast} variant={toastVariant} />
     </div>
   );
 }
