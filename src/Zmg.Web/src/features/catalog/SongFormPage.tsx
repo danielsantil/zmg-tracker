@@ -17,7 +17,6 @@ export default function SongFormPage() {
   const [artists, setArtists] = useState<Artist[]>([]);
   const [loading, setLoading] = useState(true);
   const [errors, setErrors] = useState<string[]>([]);
-  const [warnings, setWarnings] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<{ title?: string }>({});
 
@@ -47,7 +46,6 @@ export default function SongFormPage() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setErrors([]);
-    setWarnings([]);
     setFieldErrors({});
 
     if (!title.trim()) {
@@ -63,11 +61,7 @@ export default function SongFormPage() {
         isrc: isrc.trim() || null,
         artists: songArtists,
       });
-      if (result.warnings.length > 0) {
-        setWarnings(result.warnings);
-      } else {
-        navigate(`/catalog/${result.data.id}`);
-      }
+      navigate(`/catalog/${result.data.id}`);
     } catch (err) {
       setErrors(err instanceof ApiError ? err.errors : ['Failed to save song.']);
     } finally {
@@ -137,25 +131,6 @@ export default function SongFormPage() {
               <li key={msg}>{msg}</li>
             ))}
           </ul>
-        )}
-
-        {warnings.length > 0 && (
-          <div className="mb-4 rounded-lg bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
-            <p className="font-medium">Saved with warnings:</p>
-            <ul className="ml-4 list-disc">
-              {warnings.map((msg) => (
-                <li key={msg}>{msg}</li>
-              ))}
-            </ul>
-            <div className="mt-3 flex gap-2">
-              <Button variant="ghost" onClick={goBack}>
-                Go back
-              </Button>
-              <Button variant="ghost" onClick={() => setWarnings([])}>
-                Keep editing
-              </Button>
-            </div>
-          </div>
         )}
 
         <div className="flex gap-2">

@@ -25,7 +25,6 @@ export default function SongDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
-  const [warnings, setWarnings] = useState<string[]>([]);
 
   const [title, setTitle] = useState('');
   const [mainArtistId, setMainArtistId] = useState('');
@@ -57,7 +56,6 @@ export default function SongDetailPage() {
     if (!id) return;
     setSaving(true);
     setErrors([]);
-    setWarnings([]);
     try {
       const result = await api.songs.update(id, {
         title,
@@ -66,8 +64,7 @@ export default function SongDetailPage() {
         artists: songArtists,
       });
       hydrate(result.data);
-      if (result.warnings.length > 0) setWarnings(result.warnings);
-      else showToast('Saved.', 'success');
+      showToast('Saved.', 'success');
     } catch (e) {
       setErrors(e instanceof ApiError ? e.errors : ['Failed to save song.']);
     } finally {
@@ -103,13 +100,9 @@ export default function SongDetailPage() {
         </Field>
 
         <Field label="Main artist">
-          <select className={inputClass} value={mainArtistId} disabled={archived} onChange={(e) => setMainArtistId(e.target.value)}>
-            {artists.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name}
-              </option>
-            ))}
-          </select>
+          <p className={`${inputClass} bg-panel/50 text-slate-400`}>
+            {artists.find((a) => a.id === mainArtistId)?.name ?? song.mainArtistName}
+          </p>
         </Field>
 
         {drifts.length > 0 && (
@@ -150,17 +143,6 @@ export default function SongDetailPage() {
         </ul>
       )}
 
-      {warnings.length > 0 && (
-        <div className="mb-4 rounded-lg bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
-          <p className="font-medium">Saved with warnings:</p>
-          <ul className="ml-4 list-disc">
-            {warnings.map((msg) => (
-              <li key={msg}>{msg}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-      
         {!archived && (
           <div className="flex gap-2">
             <Button onClick={save} disabled={saving}>

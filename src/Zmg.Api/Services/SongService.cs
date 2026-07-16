@@ -109,24 +109,26 @@ public sealed class SongService(ZmgDbContext db) : ISongService
         if (song.IsArchived)
             return OperationResult<SongDetailDto>.Conflict(new[] { "Archived songs are read-only." });
 
-        var mainArtistExists = input.MainArtistId != Guid.Empty
-            && await db.Artists.AnyAsync(a => a.Id == input.MainArtistId);
+        // Main artist is immutable after creation: the song may already be on releases under the
+        // original artist, so re-pointing it would create cross-artist data inconsistency.
+        if (input.MainArtistId != song.MainArtistId)
+            return OperationResult<SongDetailDto>.Conflict(new[] { "A song's main artist can't be changed after creation." });
+
         var otherTitles = await db.Songs
-            .Where(s => s.MainArtistId == input.MainArtistId && s.Id != id && s.ArchivedAt == null)
+            .Where(s => s.MainArtistId == song.MainArtistId && s.Id != id && s.ArchivedAt == null)
             .Select(s => s.Title)
             .ToListAsync();
 
-        var validation = Validation.ValidateSong(input.Title, input.MainArtistId, mainArtistExists, otherTitles);
+        var validation = Validation.ValidateSong(input.Title, song.MainArtistId, mainArtistExists: true, otherTitles);
         if (!validation.IsValid)
             return OperationResult<SongDetailDto>.Invalid(validation.Errors);
 
         song.Title = input.Title.Trim();
-        song.MainArtistId = input.MainArtistId;
         song.Isrc = string.IsNullOrWhiteSpace(input.Isrc) ? null : input.Isrc.Trim();
 
         song.Artists.Clear();
         foreach (var a in (input.Artists ?? new List<SongArtistInput>())
-                     .Where(a => a.ArtistId != input.MainArtistId)
+                     .Where(a => a.ArtistId != song.MainArtistId)
                      .DistinctBy(a => a.ArtistId))
         {
             song.Artists.Add(new SongArtist { SongId = song.Id, ArtistId = a.ArtistId, Role = a.Role });

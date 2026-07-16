@@ -20,8 +20,9 @@ public class ReleaseListScopeApiTests
     private async Task CreateRelease(HttpClient client, Guid artistId, string title, DateOnly date)
     {
         var res = await client.PostAsJsonAsync("/api/releases", new ReleaseInput(
+            // Song titles are unique per artist — derive the track title from the (unique) release title.
             title, ReleaseType.Single, date, artistId, null, null,
-            new List<TrackInput> { new(null, "Track 1", null, null) }));
+            new List<TrackInput> { new(null, $"{title} Track", null, null) }));
         res.EnsureSuccessStatusCode();
     }
 

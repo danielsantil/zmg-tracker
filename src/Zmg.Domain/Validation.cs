@@ -38,6 +38,14 @@ public sealed class ValidationResult
 /// </summary>
 public static class Validation
 {
+    /// <summary>
+    /// Blocking message for a song title that clashes with another active song of the same main
+    /// artist. Shared by <see cref="ValidateSong"/>, the release-create inline tracks, and the
+    /// track-add endpoint so the rule reads identically everywhere (and the SPA can recognise it).
+    /// </summary>
+    public const string DuplicateSongTitleMessage =
+        "A song with this title already exists for this artist.";
+
     public static ValidationResult ValidateArtist(
         string? name,
         IEnumerable<string> otherArtistNames)
@@ -117,9 +125,11 @@ public static class Validation
     }
 
     /// <summary>
-    /// Song create/rename rules (v2.0). Title required; a main artist is required. The optional
-    /// existing-title set (same main artist) drives the non-blocking duplicate-title warning —
-    /// pass an empty set to skip it (e.g. editing a song whose title didn't change).
+    /// Song create/rename rules (v2.0). Title required; a main artist is required. A title clashing
+    /// with another active song of the same main artist is a hard error — song titles are unique per
+    /// artist, so a duplicate must be resolved (rename, or reuse the existing song) rather than
+    /// created. Pass an empty existing-title set to skip the check (e.g. editing a song whose title
+    /// didn't change).
     /// </summary>
     public static ValidationResult ValidateSong(
         string? title,
@@ -141,7 +151,7 @@ public static class Validation
             otherTitlesForSameArtist.Any(t =>
                 string.Equals(t?.Trim(), title.Trim(), StringComparison.OrdinalIgnoreCase)))
         {
-            result.Warn("A song with this title already exists for this artist — consider picking it from the catalog.");
+            result.Error(DuplicateSongTitleMessage);
         }
 
         return result;

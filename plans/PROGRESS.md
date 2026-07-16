@@ -16,7 +16,8 @@ Newer plan versions go in new `build-plan-N.N.md` files; older ones stay frozen.
 **Current state:** **build-plan-2.0 fully shipped** (M12–M15) — songs, catalog, pending rework, and the
 archive cascade — plus a round of post-v2.0 UX/feature improvements, and now **build-plan-2.1 fully
 shipped** (M16–M18): the `Modal`/confirm-dialog primitives, toast variants, and the `SongPickerModal` +
-unified `Tracklist`. Tests green (`dotnet test` — domain 62 / API 95). Next work is **Phase 2 (DSP stats)**
+unified `Tracklist`, plus a bugfix round enforcing **per-artist song-title uniqueness** and an **immutable song
+main artist**. Tests green (`dotnet test` — domain 62 / API 99). Next work is **Phase 2 (DSP stats)**
 (see [Backlog / next steps](#backlog--next-steps)).
 
 > ⚠️ **M12 is a hard schema reset with no migration.** Any existing local `src/Zmg.Api/zmg.db` from
@@ -169,6 +170,23 @@ editing of an existing song — release-detail rows still only reorder/focus/rem
 adding "Duet in the Dark" with an ISRC + a Bruno feat on Aurora's album persisted both (`/api/releases/{id}` shows
 the ISRC and the featured artist), the row shows its ISRC, and the create-form album add still works. `npm run
 build` + `dotnet test` green (62/95).
+
+**v2.1 — song-title uniqueness per artist + immutable main artist (bugfix round).** Song titles are now
+**unique per main artist** (among active/non-archived songs), enforced as a hard rule instead of the old
+non-blocking warning — the warning was surfacing in the song **detail** form where there's no release context,
+which never made sense. [`Validation.ValidateSong`](src/Zmg.Domain/Validation.cs) now returns an **error**
+(`Validation.DuplicateSongTitleMessage`, a shared const) on a clash; enforced everywhere a song is minted:
+`SongService` create/rename (400), `ReleaseService.CreateAsync` inline tracks (also catches two identical new
+titles in one request), and `TrackService.AddAsync` (the detail-page "+ Add track" path, which previously had
+**no** check at all — the reported bug). On the detail page, a duplicate `api.tracks.add` opens a **"Song already
+exists" `Modal`** ([`ReleaseDetailPage`](src/Zmg.Web/src/features/releases/ReleaseDetailPage.tsx)) offering *Add
+existing song* (looks the clash up via `api.songs.list({ artistId, q })`; hidden when it's already on the release)
+or *Change the name* — and `NewTrackForm`'s `onAdd` now resolves `false` to keep the form open with the typed
+values. **Main artist is immutable after creation** ([`SongService.UpdateAsync`](src/Zmg.Api/Services/SongService.cs)
+409s on a change; a song may already be on that artist's releases) — the detail page renders it as a read-only field.
+Dead "Saved with warnings" UI dropped from both song pages (songs no longer emit warnings). Two API-test helpers that
+reused a fixed `"Track 1"` title per artist now derive it from the release title. Verified in-browser end-to-end
+(both modal branches, read-only main artist). `dotnet test` green (domain 62 / API 99); SPA typechecks + builds.
 
 ---
 
