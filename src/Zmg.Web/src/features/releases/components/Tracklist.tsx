@@ -1,8 +1,16 @@
 import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import type { SongListItem } from '@/types';
+import type { Artist, SongArtistInput, SongListItem } from '@/types';
 import { InlineAddForm } from '@/components';
 import { SongPickerModal } from '@/features/catalog/components/SongPickerModal';
+import { NewTrackForm } from './NewTrackForm';
+
+/** A brand-new song to put on the release: a title plus optional ISRC/feats. */
+export interface NewTrackDraft {
+  title: string;
+  isrc: string | null;
+  artists: SongArtistInput[];
+}
 
 /**
  * One row of a tracklist, in either context (M18). A create-form row has no `songId` until it's
@@ -33,6 +41,7 @@ export function Tracklist({
   readOnly = false,
   mainArtistId,
   excludeIds,
+  artists,
   onMove,
   onToggleFocus,
   onRemove,
@@ -45,10 +54,12 @@ export function Tracklist({
   readOnly?: boolean;
   mainArtistId: string;
   excludeIds: string[];
+  /** Full artist list — when given, "+ Add track" collects a new song's ISRC/feats at add time. */
+  artists?: Artist[];
   onMove: (row: TracklistRow, dir: -1 | 1) => void;
   onToggleFocus?: (row: TracklistRow) => void;
   onRemove: (row: TracklistRow) => void;
-  onAddNew: (title: string) => void;
+  onAddNew: (draft: NewTrackDraft) => void;
   onAddExisting: (song: SongListItem) => void;
   heading?: string;
   emptyText?: string;
@@ -142,7 +153,15 @@ export function Tracklist({
 
         {editable && (
           <>
-            <InlineAddForm addLabel="+ Add track" placeholder="New track title" onAdd={onAddNew} />
+            {artists ? (
+              <NewTrackForm artists={artists} mainArtistId={mainArtistId} onAdd={onAddNew} />
+            ) : (
+              <InlineAddForm
+                addLabel="+ Add track"
+                placeholder="New track title"
+                onAdd={(title) => onAddNew({ title, isrc: null, artists: [] })}
+              />
+            )}
             <div className="border-t border-edge px-3 py-2">
               <button
                 type="button"

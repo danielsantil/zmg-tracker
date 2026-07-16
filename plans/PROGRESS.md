@@ -152,6 +152,24 @@ so a child that already claimed focus keeps it, while a dialog with no focusable
 panel focus. Re-verified in the browser: the search input now holds focus on open. `npm run build` + `dotnet test`
 green (62/95).
 
+**v2.1 — add-time track details on the release detail page (post-M18).** M18 deliberately kept a new song's
+ISRC/feats **create-only** (a per-row "Details (optional)" disclosure in `TracksEditor`), so the detail-page
+tracklist's "+ Add track" captured a title only and created the song bare — you then set ISRC/feats on the
+catalog song page. That round-trip was friction, so the detail page now collects them at add time. New
+[`NewTrackForm`](src/Zmg.Web/src/features/releases/components/NewTrackForm.tsx): a title field with a "Details
+(optional)" disclosure (ISRC + the shared `SongArtistsEditor` feats control) that submits the whole song in one
+`api.tracks.add` call — the backend already accepted `Isrc`/`Artists` on `TrackInput`
+([`TrackService`](src/Zmg.Api/Services/TrackService.cs) → `SongMapping.NewSong`), so **no backend change**.
+`Tracklist`'s `onAddNew` is now `(draft: NewTrackDraft) => void` (title + isrc + artists) for both contexts, and it
+renders `NewTrackForm` **only when passed the full `artists` list** (the detail page does; the create form doesn't,
+so it keeps its title-only `InlineAddForm` + per-row disclosure — that flow is unchanged and was regression-tested).
+`ReleaseDetailPage` fetches `api.artists.list()` for the feats control. This is a deliberate, narrow exception to
+"song fields are edited only on the catalog page": it's **creation-time** entry from the tracklist, not ongoing
+editing of an existing song — release-detail rows still only reorder/focus/remove. Verified in-browser end-to-end:
+adding "Duet in the Dark" with an ISRC + a Bruno feat on Aurora's album persisted both (`/api/releases/{id}` shows
+the ISRC and the featured artist), the row shows its ISRC, and the create-form album add still works. `npm run
+build` + `dotnet test` green (62/95).
+
 ---
 
 ## Cross-cutting decisions (not in any single plan)
@@ -204,8 +222,11 @@ green (62/95).
   artist); a **Release** is the commercial package (UPC, cover, tasks). They link through `Track`, so
   one song can sit on a single *and* an album. A song's **UPCs and release date are derived** from its
   links, never stored. **Type is fixed at create** (determines the checklist) and PUT rejects a change
-  with 409. A single is fixed at one track; an album has zero+. Song fields are edited only on the
-  catalog detail page (M13) — release-detail track rows just reorder/focus/remove.
+  with 409. A single is fixed at one track; an album has zero+. Song fields of an **existing** song are
+  edited only on the catalog detail page (M13) — release-detail track rows just reorder/focus/remove. The
+  one exception is **creation**: adding a *new* song from a tracklist may set its title/ISRC/feats at add
+  time (create form's per-row disclosure, and the detail page's `NewTrackForm`), since that's the song's
+  birth, not later editing.
 - **Hard schema reset, no migration (v2.0).** M12 deleted all v1.x migrations and regenerated a single
   `InitialCreate`; there is intentionally **no upgrade path** from a v1.x db. Delete any local `zmg.db`.
   Template/task `HasData` seeding carried over unchanged (proven by the green seed tests).

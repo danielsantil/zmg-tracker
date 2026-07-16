@@ -181,7 +181,7 @@ export function TracksEditor({
         emptyText="No tracks yet — an album can be created empty and filled in later."
         onMove={(row, dir) => move(row.key, dir)}
         onRemove={(row) => commit(rows.filter((r) => r.key !== row.key))}
-        onAddNew={(title) => commit([...rows, { ...blankRow(), title }])}
+        onAddNew={(draft) => commit([...rows, { ...blankRow(), title: draft.title }])}
         onAddExisting={(song) => commit([...rows, { ...blankRow(), songId: song.id, title: song.title }])}
       />
     </Field>

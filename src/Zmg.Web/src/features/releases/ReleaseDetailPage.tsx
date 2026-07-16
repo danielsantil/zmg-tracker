@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api, ApiError } from '@/api';
-import type { PendingAction, ReleaseDetail as ReleaseDetailModel, ReleaseTaskDto, TrackDto } from '@/types';
+import type { Artist, PendingAction, ReleaseDetail as ReleaseDetailModel, ReleaseTaskDto, TrackDto } from '@/types';
 import { Phase, ReleaseType } from '@/types';
 import { Button, Toast } from '@/components';
 import { useConfirm } from '@/hooks/useConfirm';
@@ -12,7 +12,7 @@ import { todayIso } from '@/lib/format';
 import { ReleaseHeader } from './components/ReleaseHeader';
 import { NeedsAttention } from './components/NeedsAttention';
 import { PhaseSection } from './components/PhaseSection';
-import { Tracklist, type TracklistRow } from './components/Tracklist';
+import { Tracklist, type NewTrackDraft, type TracklistRow } from './components/Tracklist';
 import { SongCard } from './components/SongCard';
 import { archiveReleaseConfirm } from './archiveConfirm';
 import type { TaskPatch } from './components/TaskRow';
@@ -26,6 +26,7 @@ export default function ReleaseDetailPage() {
   const [release, setRelease] = useState<ReleaseDetailModel | null>(null);
   const [tasks, setTasks] = useState<ReleaseTaskDto[]>([]);
   const [tracks, setTracks] = useState<TrackDto[]>([]);
+  const [artists, setArtists] = useState<Artist[]>([]);
   const [pendingActions, setPendingActions] = useState<PendingAction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -61,6 +62,12 @@ export default function ReleaseDetailPage() {
   useEffect(() => {
     loadPending();
   }, [loadPending]);
+
+  // The full artist list feeds the feats editor when adding a new track (an album's main artist
+  // can't feature on their own song). Best-effort — the add form still works without it.
+  useEffect(() => {
+    api.artists.list().then(setArtists).catch(() => setArtists([]));
+  }, []);
 
   const done = tasks.filter((t) => t.isDone).length;
   const total = tasks.length;
@@ -176,9 +183,14 @@ export default function ReleaseDetailPage() {
   );
   const track = (row: TracklistRow) => orderedTracks.find((t) => t.songId === row.key)!;
 
-  async function addTrack(title: string) {
+  async function addTrack(draft: NewTrackDraft) {
     try {
-      const created = await api.tracks.add(id!, { songId: null, title, isrc: null, artists: null });
+      const created = await api.tracks.add(id!, {
+        songId: null,
+        title: draft.title,
+        isrc: draft.isrc,
+        artists: draft.artists.length ? draft.artists : null,
+      });
       setTracks((ts) => [...ts, created]);
       loadPending(); // refresh pending actions after tracklist changes
     } catch (e) {
@@ -317,6 +329,7 @@ export default function ReleaseDetailPage() {
             readOnly={readOnly}
             mainArtistId={release.mainArtistId}
             excludeIds={orderedTracks.map((t) => t.songId)}
+            artists={artists}
             onAddNew={addTrack}
             onAddExisting={(song) => addExistingTrack(song.id)}
             onToggleFocus={(row) => toggleFocus(track(row))}
