@@ -4,6 +4,7 @@ import Home from './features/home/HomePage';
 import AllReleases from './features/releases/AllReleasesPage';
 import ArchivedReleases from './features/releases/ArchivedReleasesPage';
 import Artists from './features/artists/ArtistsPage';
+import ArtistForm from './features/artists/ArtistFormPage';
 import ReleaseForm from './features/releases/ReleaseFormPage';
 import ReleaseDetail from './features/releases/ReleaseDetailPage';
 import Catalog from './features/catalog/CatalogPage';
@@ -59,6 +60,8 @@ export default function App() {
             <Route path="/catalog/archived" element={<ArchivedSongs />} />
             <Route path="/catalog/:id" element={<SongDetail />} />
             <Route path="/artists" element={<Artists />} />
+            <Route path="/artists/new" element={<ArtistForm />} />
+            <Route path="/artists/:id" element={<ArtistForm />} />
             <Route path="/templates" element={<Templates />} />
             <Route path="/releases/new" element={<ReleaseForm />} />
             <Route path="/releases/:id" element={<ReleaseDetail />} />

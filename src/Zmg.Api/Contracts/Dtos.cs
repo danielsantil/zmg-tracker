@@ -4,7 +4,7 @@ using Zmg.Domain.Enums;
 namespace Zmg.Api.Contracts;
 
 // ---- Artists ----
-public record ArtistDto(Guid Id, string Name, string? Notes, int ReleaseCount);
+public record ArtistDto(Guid Id, string Name, string? Notes, int ReleaseCount, int SongCount, int CreditCount);
 public record ArtistInput(string Name, string? Notes);
 
 // ---- Songs / artists on songs (v2.0) ----

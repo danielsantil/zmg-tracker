@@ -9,6 +9,8 @@ export type ConfirmOptions = {
   cancelLabel?: string;
   /** `danger` (red) for hard deletes, `archive` (amber) for the terminal-but-not-destructive archive. */
   confirmVariant?: 'primary' | 'danger' | 'archive';
+  /** Hide the Cancel button — for an info-only modal (single OK, result ignored). */
+  hideCancel?: boolean;
 };
 
 /**
@@ -37,9 +39,11 @@ export function ConfirmDialog({
     <Modal open={open} onClose={() => onResolve(false)} title={options?.title}>
       {options?.body && <div className="text-sm text-slate-300">{options.body}</div>}
       <div className="mt-5 flex justify-end gap-2">
-        <Button variant="ghost" onClick={() => onResolve(false)}>
-          {options?.cancelLabel ?? 'Cancel'}
-        </Button>
+        {!options?.hideCancel && (
+          <Button variant="ghost" onClick={() => onResolve(false)}>
+            {options?.cancelLabel ?? 'Cancel'}
+          </Button>
+        )}
         <Button variant={options?.confirmVariant ?? 'primary'} onClick={() => onResolve(true)}>
           {options?.confirmLabel ?? 'Confirm'}
         </Button>

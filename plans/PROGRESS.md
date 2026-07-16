@@ -10,7 +10,7 @@ lists; read **this** for current state and the cross-cutting knowledge the plans
 - [build-plan-1.2.md](build-plan-1.2.md) — archived releases (M11). Shipped.
 - [build-plan-2.0.md](build-plan-2.0.md) — songs & catalog (M12–M15). **M12–M15 shipped — v2.0 complete.**
 - [build-plan-2.1.md](build-plan-2.1.md) — UX refinements (M16–M18). **M16–M18 shipped — v2.1 complete.**
-- [build-plan-2.2.md](build-plan-2.2.md) — UX improvements (M19–M23). **Planned, not started — next up.**
+- [build-plan-2.2.md](build-plan-2.2.md) — UX improvements (M19–M23). **M19 shipped; M20–M23 next.**
 
 Newer plan versions go in new `build-plan-N.N.md` files; older ones stay frozen.
 
@@ -18,8 +18,10 @@ Newer plan versions go in new `build-plan-N.N.md` files; older ones stay frozen.
 archive cascade — plus a round of post-v2.0 UX/feature improvements, and now **build-plan-2.1 fully
 shipped** (M16–M18): the `Modal`/confirm-dialog primitives, toast variants, and the `SongPickerModal` +
 unified `Tracklist`, plus a bugfix round enforcing **per-artist song-title uniqueness** and an **immutable song
-main artist**. Tests green (`dotnet test` — domain 62 / API 99). Next work is **build-plan-2.2 (M19–M23)** —
-now scoped and written, not yet built (see [Backlog / next steps](#backlog--next-steps)).
+main artist**. Then **build-plan-2.2 M19** shipped — the Artists redesign (table · smart delete · dedicated
+pages), plus a fix to the artist delete guard (feat/collab credits now block deletion too). Tests green
+(`dotnet test` — domain 62 / API 102). Next work is **build-plan-2.2 M20–M23** (see
+[Backlog / next steps](#backlog--next-steps)).
 
 > ⚠️ **M12 is a hard schema reset with no migration.** Any existing local `src/Zmg.Api/zmg.db` from
 > v1.x must be deleted before running — the fresh `InitialCreate` won't apply on top of the old schema.
@@ -113,6 +115,25 @@ binding never installed), which meant splitting non-component exports into their
 boundaries. Browser-verified end-to-end (sheet vs. card + Escape/backdrop, cross-artist picker scope at API **and**
 UI with a two-artist seed, both duplicate-modal branches, read-only main artist); `dotnet test` green (domain 62 /
 API 99), `npm run lint`/`build` clean.
+
+**v2.2 M19 — Artists redesign (table · smart delete · dedicated pages).** The hand-rolled `divide-y` artist
+list became a bordered table (**Name · Releases · Songs · Actions**) matching Catalog/Releases, each row a
+`RowMenu` kebab. **Backend slice:** `ArtistDto` gained `SongCount` (and `CreditCount`, see below);
+`ArtistService.ListAsync`/new `GetAsync(id)` project both counts, `GET /api/artists/{id}` added
+([ArtistEndpoints.cs](src/Zmg.Api/Endpoints/ArtistEndpoints.cs)); `api/artists.ts` got `get()`. **Smart delete
+(no post-hoc toast):** the row carries the counts, so the page branches *before* asking — an **info** modal
+(`confirm({ confirmLabel:'OK', hideCancel:true })`, result ignored) when the artist is still referenced, a red
+**Delete** confirm when clean. New optional `hideCancel?: boolean` on
+[`ConfirmOptions`](src/Zmg.Web/src/components/ConfirmDialog.tsx) renders only the confirm button. **Dedicated
+pages:** new [`ArtistFormPage`](src/Zmg.Web/src/features/artists/ArtistFormPage.tsx) (mirrors `SongFormPage`;
+`/artists/new` create + `/artists/:id` edit via `api.artists.get`), retiring the inline `ArtistForm.tsx`
+(deleted). **Bug found & fixed while verifying:** the delete guard counted only main-artist references
+(releases + songs), **not feat/collab credits** (`SongArtist`, a Restrict FK) — a feat-only artist slipped past
+the guard and **500'd on the FK** instead of a clean conflict, defeating M19's "check up front" promise.
+`ArtistService.DeleteAsync` now also counts `SongArtists`; `ArtistDto.CreditCount` surfaces it so the info modal
+blocks feat-only artists up front too ("still tied to N feat/collab credits"). Browser-verified end-to-end
+(table + counts, both delete branches incl. the credit case, create → list, edit prefill); `dotnet test` green
+(domain 62 / **API 102** — +GET-by-id/songCount/feat-delete-guard), `npm run lint`/`build` clean.
 
 ---
 
@@ -227,13 +248,13 @@ tests/Zmg.Api.Tests      integration tests (WebApplicationFactory + in-memory SQ
   ESLint migration. All browser-verified; see the journal. One thing never driven in the browser: the
   archive-confirm cascade *list* specifically (needs a release with dormant cascading songs) — the underlying
   `ConfirmDialog`/`Modal` + `ReactNode` body are otherwise verified.
-- **build-plan-2.2 — UX improvements (M19–M23) (next up, scoped & written).** See
+- **build-plan-2.2 — UX improvements (M19–M23). M19 shipped; M20–M23 next.** See
   [build-plan-2.2.md](build-plan-2.2.md) for full scope, mockup notes, and per-milestone test lists.
-  - **M19 — Artists redesign.** Real table (Name · Releases · Songs · Actions) with a `RowMenu` kebab; a
-    delete modal that checks `releaseCount`/`songCount` *up front* (info modal when blocked, no post-hoc
-    error toast) — needs `SongCount` added to `ArtistDto`/`ListAsync` + a new `ConfirmOptions.hideCancel`;
-    dedicated `/artists/new` + `/artists/:id` **pages** (mirror `SongFormPage`; needs `GET /api/artists/{id}`),
-    retiring the inline `ArtistForm`.
+  - **M19 — Artists redesign. ✅ Shipped.** Table (Name · Releases · Songs · Actions) + `RowMenu` kebab;
+    up-front smart delete (info modal vs. red confirm, `ConfirmOptions.hideCancel`); dedicated
+    `/artists/new` + `/artists/:id` pages (`GET /api/artists/{id}`), inline `ArtistForm` deleted. Also fixed:
+    the delete guard now counts feat/collab credits (`ArtistDto.CreditCount`) so a feat-only artist blocks
+    with a clean 409 instead of a FK 500.
   - **M20 — Kebab menus** on the Releases + Catalog table rows (replace inline Archive/Delete/Edit buttons).
   - **M21 — Compact `ReleaseCard`** (kebab actions, optional cover) that **replaces the Home cards** (Home
     keeps its cover) and is reused by the calendar preview.
