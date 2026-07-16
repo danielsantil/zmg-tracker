@@ -9,13 +9,15 @@ lists; read **this** for current state and the cross-cutting knowledge the plans
 - [build-plan-1.1.md](build-plan-1.1.md) — singles improvements (M6–M10). Shipped.
 - [build-plan-1.2.md](build-plan-1.2.md) — archived releases (M11). Shipped.
 - [build-plan-2.0.md](build-plan-2.0.md) — songs & catalog (M12–M15). **M12–M15 shipped — v2.0 complete.**
+- [build-plan-2.1.md](build-plan-2.1.md) — UX refinements (M16–M18). **Planned, not started** — see [Backlog](#backlog--next-steps).
 
 Newer plan versions go in new `build-plan-N.N.md` files; older ones stay frozen.
 
 **Current state:** **build-plan-2.0 fully shipped** (M12–M15) — songs, catalog, pending rework, and the
 archive cascade — plus a round of post-v2.0 UX/feature improvements (see the journal). Tests green
-(`dotnet test` — domain 62 / API 95). Next work is the
-[Backlog / next steps](#backlog--next-steps) (Phase 2 — DSP stats).
+(`dotnet test` — domain 62 / API 95). Next work is **[build-plan-2.1](build-plan-2.1.md) (M16–M18) —
+UX refinements**, planned and approved but not yet started (see [Backlog / next steps](#backlog--next-steps));
+Phase 2 (DSP stats) follows.
 
 > ⚠️ **M12 is a hard schema reset with no migration.** Any existing local `src/Zmg.Api/zmg.db` from
 > v1.x must be deleted before running — the fresh `InitialCreate` won't apply on top of the old schema.
@@ -165,6 +167,25 @@ tests/Zmg.Api.Tests      integration tests (WebApplicationFactory + in-memory SQ
 
 ## Backlog / next steps
 
+- **build-plan-2.1 (M16–M18) — UX refinements. Approved, not started.** Four UX rough edges from v2.0,
+  with mockups approved. Build in order (M16 → M17 → M18):
+  - **M16 — shared `Modal` primitive + custom confirm dialog.** New `components/Modal.tsx` (portal,
+    backdrop, Escape/backdrop-dismiss, bottom-sheet on mobile / centered card on desktop);
+    `components/ConfirmDialog.tsx` + `hooks/useConfirm.tsx` (promise-based `confirm(opts)`), with a
+    `ConfirmProvider` at the `App.tsx` root. Replace **all** `window.confirm`/`window.alert` (~13 sites)
+    with `useConfirm` / error toast. Add an amber **`archive`** `Button` variant (distinct from red
+    `danger`) and standardize **every** Archive button/action to it; delete keeps red. Refactor
+    [`archiveReleaseConfirmMessage`](src/Zmg.Web/src/features/releases/archiveConfirm.ts) to return a
+    `ReactNode` body (bulleted cascade list) instead of `\n`-joined text.
+  - **M17 — Toast variants.** `Toast`/`useToast` gain `variant: 'success' | 'error' | 'info'` (default
+    `error` so existing callers keep red). The post-save "Saved." in `SongDetailPage` becomes green
+    success — fixing the current red-pop-up-that-looks-like-failure.
+  - **M18 — `SongPickerModal` + unified `Tracklist`.** Replace the inline
+    [`SongPicker`](src/Zmg.Web/src/features/catalog/components/SongPicker.tsx) with a `Modal`-based
+    picker that **browses the release's main-artist songs on open** (no typing needed) and stays
+    artist-scoped (`api.songs.list({ artistId })` — already supported, no backend change). Unify the
+    create-form (`TracksEditor`) and detail-page (`TrackList`) tracklists into one `Tracklist`
+    component with a single row design and standard ↑/↓ reorder (retire the detail-page kebab menu).
 - **v2.0 is fully shipped (M12–M15).** See the journal above and [build-plan-2.0.md](build-plan-2.0.md).
 - **Phase 2 — DSP stats** (the reason this exists over Notion/Trello): hang streaming/revenue data off
   the stable Artist / Release / **Song** / Track ids and UPC/ISRC columns. The v2.0 Song ids are its
