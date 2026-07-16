@@ -25,8 +25,9 @@ public class PendingApiTests
         HttpClient client, Guid artistId, string title, DateOnly date, string? isrc = null)
     {
         var res = await client.PostAsJsonAsync("/api/releases", new ReleaseInput(
+            // Song titles are unique per artist — derive the track title from the (unique) release title.
             title, ReleaseType.Single, date, artistId, null, null,
-            new List<TrackInput> { new(null, "Track 1", isrc, null) }));
+            new List<TrackInput> { new(null, $"{title} Track", isrc, null) }));
         res.EnsureSuccessStatusCode();
         return (await res.Content.ReadFromJsonAsync<CreatedWithWarnings<ReleaseDetailDto>>())!.Data;
     }

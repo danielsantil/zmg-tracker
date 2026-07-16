@@ -117,6 +117,28 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
         if (existingSongs.Any(s => s.IsArchived))
             return OperationResult<ReleaseDetailDto>.Conflict(new[] { "Can't add an archived song to a release." });
 
+        // Song titles are unique per main artist. A new inline title that clashes with an active
+        // same-artist song (or with another new title in this same request) is blocked — the user
+        // must rename it or link the existing song instead of silently minting a duplicate.
+        var activeTitlesForArtist = await db.Songs
+            .Where(s => s.MainArtistId == input.MainArtistId && s.ArchivedAt == null)
+            .Select(s => s.Title)
+            .ToListAsync();
+        var seenNewTitles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var spec in specs.Where(s => !string.IsNullOrWhiteSpace(s.NewTitle)))
+        {
+            var newTitle = spec.NewTitle!.Trim();
+            var clashesActive = activeTitlesForArtist.Any(t =>
+                string.Equals(t?.Trim(), newTitle, StringComparison.OrdinalIgnoreCase));
+            if (clashesActive || !seenNewTitles.Add(newTitle))
+            {
+                validation.Error(Validation.DuplicateSongTitleMessage);
+                break; // one message covers the whole tracklist
+            }
+        }
+        if (!validation.IsValid)
+            return OperationResult<ReleaseDetailDto>.Invalid(validation.Errors);
+
         var template = await LoadTemplate(input.Type);
         if (template is null)
             return OperationResult<ReleaseDetailDto>.Problem($"No template seeded for release type {input.Type}.");
@@ -148,14 +170,7 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
             }
         }
 
-        // Active (non-archived) song titles for the same main artist drive the non-blocking duplicate
-        // warning — a title only clashes with a song still in the working catalog.
-        var existingTitlesForArtist = await db.Songs
-            .Where(s => s.MainArtistId == input.MainArtistId && s.ArchivedAt == null)
-            .Select(s => s.Title)
-            .ToListAsync();
-        var warnedTitles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
+        // Title uniqueness was enforced above; new inline songs can be materialised directly here.
         var trackNumber = 1;
         foreach (var t in trackInputs)
         {
@@ -167,12 +182,6 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
             else
             {
                 var song = SongMapping.NewSong(input.MainArtistId, t.Title!, t.Isrc, t.Artists);
-                if (existingTitlesForArtist.Any(x =>
-                        string.Equals(x?.Trim(), song.Title, StringComparison.OrdinalIgnoreCase))
-                    && warnedTitles.Add(song.Title))
-                {
-                    validation.Warn("A song with this title already exists for this artist — consider picking it from the catalog.");
-                }
                 db.Songs.Add(song);
                 songId = song.Id;
             }

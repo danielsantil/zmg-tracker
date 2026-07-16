@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api, ApiError } from '@/api';
-import type { Artist, PendingAction, ReleaseDetail as ReleaseDetailModel, ReleaseTaskDto, TrackDto } from '@/types';
+import type { Artist, PendingAction, ReleaseDetail as ReleaseDetailModel, ReleaseTaskDto, SongListItem, TrackDto } from '@/types';
 import { Phase, ReleaseType } from '@/types';
-import { Button, Toast } from '@/components';
+import { Button, Modal, Toast } from '@/components';
 import { useConfirm } from '@/hooks/useConfirm';
 import { useToast } from '@/hooks/useToast';
 import { useBackNavigation } from '@/hooks/useBackNavigation';
@@ -30,6 +30,8 @@ export default function ReleaseDetailPage() {
   const [pendingActions, setPendingActions] = useState<PendingAction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Set when adding a new track whose title collides with an existing song for this artist (M19).
+  const [dupPrompt, setDupPrompt] = useState<{ title: string; existing: SongListItem | null; onRelease: boolean } | null>(null);
   const { toast, toastVariant, showToast } = useToast();
 
   const load = useCallback(async () => {
@@ -183,7 +185,8 @@ export default function ReleaseDetailPage() {
   );
   const track = (row: TracklistRow) => orderedTracks.find((t) => t.songId === row.key)!;
 
-  async function addTrack(draft: NewTrackDraft) {
+  // Returns false when the add was rejected (keeps NewTrackForm open so the title can be changed).
+  async function addTrack(draft: NewTrackDraft): Promise<boolean> {
     try {
       const created = await api.tracks.add(id!, {
         songId: null,
@@ -193,9 +196,31 @@ export default function ReleaseDetailPage() {
       });
       setTracks((ts) => [...ts, created]);
       loadPending(); // refresh pending actions after tracklist changes
+      return true;
     } catch (e) {
+      // A duplicate title (unique per artist) opens a prompt: pick the existing song or rename.
+      if (e instanceof ApiError && e.errors.some((m) => m.includes('already exists for this artist'))) {
+        await promptDuplicate(draft.title);
+        return false;
+      }
       showToast(e instanceof ApiError ? e.message : 'Could not add track.');
+      return false;
     }
+  }
+
+  // Look up the clashing catalog song (scoped to this artist) so the prompt can offer to link it.
+  async function promptDuplicate(rawTitle: string) {
+    const title = rawTitle.trim();
+    const wanted = title.toLowerCase();
+    let existing: SongListItem | null = null;
+    try {
+      const matches = await api.songs.list({ artistId: release!.mainArtistId, q: title });
+      existing = matches.find((s) => !s.isArchived && s.title.trim().toLowerCase() === wanted) ?? null;
+    } catch {
+      existing = null;
+    }
+    const onRelease = !!existing && orderedTracks.some((t) => t.songId === existing!.id);
+    setDupPrompt({ title, existing, onRelease });
   }
 
   async function addExistingTrack(songId: string) {
@@ -354,6 +379,36 @@ export default function ReleaseDetailPage() {
           />
         ))}
       </div>
+
+      <Modal open={!!dupPrompt} onClose={() => setDupPrompt(null)} title="Song already exists">
+        {dupPrompt && (
+          <div className="space-y-4">
+            <p className="text-sm text-slate-300">
+              A song titled <span className="font-medium text-slate-100">“{dupPrompt.title}”</span> already
+              exists for {release.mainArtistName}.{' '}
+              {dupPrompt.onRelease
+                ? "It's already on this release — change the name to add a different song."
+                : 'Add the existing song to this release, or change the name.'}
+            </p>
+            <div className="flex gap-2">
+              {dupPrompt.existing && !dupPrompt.onRelease && (
+                <Button
+                  onClick={async () => {
+                    const song = dupPrompt.existing!;
+                    setDupPrompt(null);
+                    await addExistingTrack(song.id);
+                  }}
+                >
+                  Add existing song
+                </Button>
+              )}
+              <Button variant="ghost" onClick={() => setDupPrompt(null)}>
+                Change the name
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       <Toast message={toast} variant={toastVariant} />
     </div>

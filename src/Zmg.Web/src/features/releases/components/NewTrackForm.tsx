@@ -17,9 +17,11 @@ export function NewTrackForm({
 }: {
   artists: Artist[];
   mainArtistId: string;
-  onAdd: (draft: NewTrackDraft) => void;
+  /** Resolve `false` to keep the form open with its values (e.g. a rejected duplicate title). */
+  onAdd: (draft: NewTrackDraft) => void | boolean | Promise<void | boolean>;
 }) {
   const [adding, setAdding] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [title, setTitle] = useState('');
   const [isrc, setIsrc] = useState('');
   const [feats, setFeats] = useState<SongArtistInput[]>([]);
@@ -31,11 +33,17 @@ export function NewTrackForm({
     setAdding(false);
   }
 
-  function submit() {
+  async function submit() {
     const t = title.trim();
-    if (!t) return;
-    onAdd({ title: t, isrc: isrc.trim() || null, artists: feats });
-    reset();
+    if (!t || submitting) return;
+    setSubmitting(true);
+    try {
+      const ok = await onAdd({ title: t, isrc: isrc.trim() || null, artists: feats });
+      // Keep the typed values in place when the add was rejected, so the user can rename and retry.
+      if (ok !== false) reset();
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   if (!adding) {
@@ -85,8 +93,8 @@ export function NewTrackForm({
         </div>
       </details>
       <div className="flex gap-2">
-        <Button type="button" onClick={submit}>
-          Add
+        <Button type="button" onClick={submit} disabled={submitting}>
+          {submitting ? 'Adding…' : 'Add'}
         </Button>
         <Button type="button" variant="ghost" onClick={reset}>
           Cancel

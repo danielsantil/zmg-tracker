@@ -101,11 +101,11 @@ public class ValidationTests
     }
 
     [Fact]
-    public void Song_duplicate_title_for_same_artist_warns_but_does_not_block()
+    public void Song_duplicate_title_for_same_artist_is_blocked()
     {
         var result = Validation.ValidateSong("Luz", Guid.NewGuid(), mainArtistExists: true, new[] { "luz" });
-        Assert.True(result.IsValid);
-        Assert.Contains(result.Warnings, w => w.Contains("already exists"));
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, e => e.Contains("already exists"));
     }
 
     // ---- Release tracks (v2.0) ----

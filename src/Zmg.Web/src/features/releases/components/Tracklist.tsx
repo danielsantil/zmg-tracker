@@ -59,7 +59,8 @@ export function Tracklist({
   onMove: (row: TracklistRow, dir: -1 | 1) => void;
   onToggleFocus?: (row: TracklistRow) => void;
   onRemove: (row: TracklistRow) => void;
-  onAddNew: (draft: NewTrackDraft) => void;
+  /** May resolve `false` to signal the add was rejected (keeps the new-track form open). */
+  onAddNew: (draft: NewTrackDraft) => void | boolean | Promise<void | boolean>;
   onAddExisting: (song: SongListItem) => void;
   heading?: string;
   emptyText?: string;

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Zmg.Api.Contracts;
 using Zmg.Api.Services.Interfaces;
+using Zmg.Domain;
 using Zmg.Domain.Entities;
 using Zmg.Domain.Enums;
 using Zmg.Infra.Data;
@@ -43,6 +44,16 @@ public sealed class TrackService(ZmgDbContext db) : ITrackService
         }
         else
         {
+            // Song titles are unique per main artist: reject a new inline title that clashes with an
+            // active same-artist song. The SPA turns this into a "pick the existing / rename" prompt.
+            var newTitle = input.Title!.Trim();
+            var activeTitles = await db.Songs
+                .Where(s => s.MainArtistId == release.MainArtistId && s.ArchivedAt == null)
+                .Select(s => s.Title)
+                .ToListAsync();
+            if (activeTitles.Any(t => string.Equals(t?.Trim(), newTitle, StringComparison.OrdinalIgnoreCase)))
+                return OperationResult<TrackDto>.Invalid(new[] { Validation.DuplicateSongTitleMessage });
+
             var song = SongMapping.NewSong(release.MainArtistId, input.Title!, input.Isrc, input.Artists);
             db.Songs.Add(song);
             songId = song.Id;

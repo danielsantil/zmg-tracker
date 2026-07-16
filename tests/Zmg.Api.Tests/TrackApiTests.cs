@@ -132,7 +132,7 @@ public class TrackApiTests(ZmgApiFactory factory) : IClassFixture<ZmgApiFactory>
     }
 
     [Fact]
-    public async Task Duplicate_song_title_for_same_artist_warns_but_creates()
+    public async Task Duplicate_song_title_for_same_artist_on_create_is_rejected()
     {
         var client = factory.CreateClient();
         var artist = await CreateArtist(client, "Dup Title Artist");
@@ -141,13 +141,40 @@ public class TrackApiTests(ZmgApiFactory factory) : IClassFixture<ZmgApiFactory>
         await Create(client, artist.Id, "Echo Single", ReleaseType.Single,
             new List<TrackInput> { NewTrack("Echo") });
 
-        // A new-title track re-using that title for the same artist → 201 with warning.
+        // A new-title track re-using that title for the same artist (case-insensitive) → 400.
         var res = await client.PostAsJsonAsync("/api/releases", new ReleaseInput(
             "Echo Album", ReleaseType.Album, new DateOnly(2026, 8, 14), artist.Id, null, null,
             new List<TrackInput> { NewTrack("echo") }));
-        res.EnsureSuccessStatusCode();
-        var created = (await res.Content.ReadFromJsonAsync<CreatedWithWarnings<ReleaseDetailDto>>())!;
-        Assert.Contains(created.Warnings, w => w.Contains("already exists"));
+        Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
+    }
+
+    [Fact]
+    public async Task Two_new_tracks_with_the_same_title_on_create_are_rejected()
+    {
+        var client = factory.CreateClient();
+        var artist = await CreateArtist(client, "Twin Title Artist");
+
+        var res = await client.PostAsJsonAsync("/api/releases", new ReleaseInput(
+            "Twins", ReleaseType.Album, new DateOnly(2026, 8, 14), artist.Id, null, null,
+            new List<TrackInput> { NewTrack("Same"), NewTrack("same") }));
+        Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
+    }
+
+    [Fact]
+    public async Task Add_new_track_with_duplicate_title_for_same_artist_is_rejected()
+    {
+        var client = factory.CreateClient();
+        var album = await CreateAlbum(client, "Add Dup Artist", "Add Dup Album");
+
+        await AddTrack(client, album.Id, NewTrack("Solstice"));
+
+        // Adding another new inline song with the same title (case-insensitive) → 400.
+        var res = await client.PostAsJsonAsync($"/api/releases/{album.Id}/tracks", NewTrack("solstice"));
+        Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
+
+        // The existing catalog song can still be linked by id.
+        var detail = await client.GetFromJsonAsync<ReleaseDetailDto>($"/api/releases/{album.Id}");
+        Assert.Single(detail!.Tracks);
     }
 
     // ---- Add / delete / reorder / focus ----

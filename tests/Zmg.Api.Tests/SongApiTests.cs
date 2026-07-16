@@ -259,6 +259,42 @@ public class SongApiTests(ZmgApiFactory factory) : IClassFixture<ZmgApiFactory>
         Assert.Equal(HttpStatusCode.NotFound, res.StatusCode);
     }
 
+    [Fact]
+    public async Task Update_renaming_onto_another_same_artist_song_is_rejected()
+    {
+        var client = factory.CreateClient();
+        var artist = await CreateArtist(client, "Rename Clash Artist");
+
+        var first = await CreateRelease(client, artist.Id, "First Single", ReleaseType.Single,
+            new DateOnly(2026, 9, 1), new List<TrackInput> { NewTrack("Alpha") });
+        var second = await CreateRelease(client, artist.Id, "Second Single", ReleaseType.Single,
+            new DateOnly(2026, 9, 2), new List<TrackInput> { NewTrack("Beta") });
+        var betaId = second.Tracks.Single().SongId;
+
+        // Rename "Beta" onto the existing "Alpha" (case-insensitive) for the same artist → 400.
+        var res = await client.PutAsJsonAsync($"/api/songs/{betaId}",
+            new SongUpdateInput("alpha", artist.Id, null, null));
+        Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
+        _ = first;
+    }
+
+    [Fact]
+    public async Task Update_changing_main_artist_is_rejected()
+    {
+        var client = factory.CreateClient();
+        var artist = await CreateArtist(client, "Original Owner Artist");
+        var other = await CreateArtist(client, "Poaching Artist");
+
+        var single = await CreateRelease(client, artist.Id, "Owned Single", ReleaseType.Single,
+            new DateOnly(2026, 9, 1), new List<TrackInput> { NewTrack("Owned Song") });
+        var songId = single.Tracks.Single().SongId;
+
+        // Re-pointing the song to another main artist is blocked (it may be on this artist's releases).
+        var res = await client.PutAsJsonAsync($"/api/songs/{songId}",
+            new SongUpdateInput("Owned Song", other.Id, null, null));
+        Assert.Equal(HttpStatusCode.Conflict, res.StatusCode);
+    }
+
     // ---- Picker path ----
 
     [Fact]
