@@ -21,7 +21,10 @@ export function Modal({
 
   useEffect(() => {
     if (!open) return;
-    panel.current?.focus();
+    // Focus the panel for keyboard/Escape handling — but not if a child already claimed focus
+    // (e.g. an `autoFocus` search input), since this effect runs after the child mounts and
+    // would otherwise steal it back.
+    if (!panel.current?.contains(document.activeElement)) panel.current?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };

@@ -134,8 +134,23 @@ two names are the same file and writing one silently overwrote the other. Also f
 would have introduced: `InlineAddForm`'s buttons had no `type`, harmless on the detail page but inside the create
 form's `<form>` they default to `submit` — "+ Add track" would have saved the release. Verified: `npm run build`
 clean, `dotnet test` green (62/95), and the app boots (`/` 200) with `GET /api/songs?artistId=…` returning the
-artist's songs unfiltered and `&q=` filtering within that scope. Interactive click-through still pending (no
-browser automation, same as M16–M17); cross-artist exclusion is unverified locally — the dev db has one artist.
+artist's songs unfiltered and `&q=` filtering within that scope.
+
+**v2.1 — browser click-through + one fix (post-M18).** The interactive verification outstanding for M16–M18 is
+now done in a browser (in-app browser driving `:5274`, dev db seeded with **two** artists so cross-artist scoping
+is observable): **Modal** — centered card at desktop (measured rect centre = viewport centre) and a full-width
+bottom sheet below `sm`; **Escape** and **backdrop click** both close it and release the body scroll-lock.
+**ConfirmDialog** — the catalog delete confirm shows the red `danger` button and deletes end-to-end (song gone
+from `/api/songs`). **M17 toast** — the post-save song toast is the green `bg-emerald-600/90` "✓ Saved." with
+`role="status"` + the `toast-in` keyframe. **M18 `SongPickerModal`** — browses on open, and with two artists
+seeded the picker for Aurora's release lists **only** Aurora's songs (Bruno's excluded, confirming the artist
+scope in the UI, not just the API), with `&q=` narrowing within that scope. Cross-artist exclusion is therefore
+confirmed at both the API and UI layers. **Fix found in the process:** `Modal`'s `panel.focus()` effect ran after
+the child mounted and stole focus back from `SongPickerModal`'s `autoFocus` search input, so "browse on open, just
+type" silently didn't — focus landed on the dialog `<div>`. Guarded it (`if (!panel.current?.contains(document.activeElement))`)
+so a child that already claimed focus keeps it, while a dialog with no focusable child (ConfirmDialog) still gets
+panel focus. Re-verified in the browser: the search input now holds focus on open. `npm run build` + `dotnet test`
+green (62/95).
 
 ---
 
@@ -235,14 +250,14 @@ tests/Zmg.Api.Tests      integration tests (WebApplicationFactory + in-memory SQ
 
 ## Backlog / next steps
 
-- **build-plan-2.1 (M16–M18) — UX refinements. Fully shipped** (M16 `Modal`/confirm, M17 toast variants,
-  M18 `SongPickerModal` + unified `Tracklist`) — see the journal entries above.
-  - **Outstanding for all three: the interactive click-through** from the plan's Verification list — bottom
-    sheet vs. centered card, Escape/backdrop dismiss, cascade list in the archive confirm, green "Saved."
-    toast, and the picker/tracklist flows at both widths. Verified by build + bundle/endpoint inspection
-    only; no browser automation in these sessions. **Do this first** on a session that has a browser.
-  - Known gap: cross-artist picker scoping is unverified locally (the dev db has a single artist) — seed a
-    second artist with songs to confirm the modal never lists them.
+- **build-plan-2.1 (M16–M18) — UX refinements. Fully shipped and browser-verified** (M16 `Modal`/confirm,
+  M17 toast variants, M18 `SongPickerModal` + unified `Tracklist`) — see the journal entries above.
+  - The interactive click-through (sheet vs. card, Escape/backdrop, red-delete confirm, green "Saved." toast,
+    picker browse-on-open) is **done** in a browser, and cross-artist picker scoping is **confirmed** at both
+    the API and UI layers with a two-artist seed. A focus-steal in `Modal` (defeated `SongPickerModal`'s
+    `autoFocus`) was found and fixed in the same pass.
+  - Not driven in the browser: the archive-confirm cascade list specifically (needs a release with dormant
+    cascading songs) — the underlying `ConfirmDialog`/`Modal` and the `ReactNode` body are otherwise verified.
 - **v2.0 is fully shipped (M12–M15).** See the journal above and [build-plan-2.0.md](build-plan-2.0.md).
 - **Phase 2 — DSP stats** (the reason this exists over Notion/Trello): hang streaming/revenue data off
   the stable Artist / Release / **Song** / Track ids and UPC/ISRC columns. The v2.0 Song ids are its
