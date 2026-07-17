@@ -248,7 +248,7 @@ tests/Zmg.Api.Tests      integration tests (WebApplicationFactory + in-memory SQ
   ESLint migration. All browser-verified; see the journal. One thing never driven in the browser: the
   archive-confirm cascade *list* specifically (needs a release with dormant cascading songs) — the underlying
   `ConfirmDialog`/`Modal` + `ReactNode` body are otherwise verified.
-- **build-plan-2.2 — UX improvements (M19–M23). M19 shipped; M20–M23 next.** See
+- **build-plan-2.2 — UX improvements (M19–M23). M19–M21 shipped; M22–M23 next.** See
   [build-plan-2.2.md](build-plan-2.2.md) for full scope, mockup notes, and per-milestone test lists.
   - **M19 — Artists redesign. ✅ Shipped.** Table (Name · Releases · Songs · Actions) + `RowMenu` kebab;
     up-front smart delete (info modal vs. red confirm, `ConfirmOptions.hideCancel`); dedicated
@@ -256,8 +256,9 @@ tests/Zmg.Api.Tests      integration tests (WebApplicationFactory + in-memory SQ
     the delete guard now counts feat/collab credits (`ArtistDto.CreditCount`) so a feat-only artist blocks
     with a clean 409 instead of a FK 500.
   - **M20 — Kebab menus. ✅ Shipped.** on the Releases + Catalog table rows (replace inline Archive/Delete/Edit buttons).
-  - **M21 — Compact `ReleaseCard`** (kebab actions, optional cover) that **replaces the Home cards** (Home
-    keeps its cover) and is reused by the calendar preview.
+  - **M21 — Compact `ReleaseCard`. ✅ Shipped.** Moved to `features/releases/components/ReleaseCard.tsx`
+    (old `features/home/components/ReleaseCard.tsx` deleted); kebab actions, `showCover` opt-in, ready for
+    the M22 calendar preview.
   - **M22 — Releases calendar view.** A Table/Calendar toggle + hand-rolled month grid (`lib/calendar.ts`),
     dependency-free; opens on today's month, "Next release" jump chip (hidden when nothing upcoming), mobile
     dots vs desktop chips; click → preview modal of compact cards. **No backend change** (`scope=all` already
