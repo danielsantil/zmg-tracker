@@ -1,10 +1,17 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 
 /**
  * The `⋮` row-actions button plus its dropdown. The menu renders with `fixed`
  * positioning computed from the button's rect, so it escapes the `overflow-hidden`
  * phase sections it lives inside (an `absolute` menu was clipped near a list's end).
  * It flips upward when there isn't room below. `children` receives a `close` fn.
+ *
+ * The dropdown portals to <body>: a `fixed` element inside a *transformed* ancestor resolves
+ * against that ancestor instead of the viewport (and gets clipped by it), which put the menu
+ * off-panel and under the backdrop when a card is rendered inside `Modal` (whose panel is
+ * `-translate-x/y-1/2`). Portaling keeps `fixed` viewport-relative, so it must also sit above
+ * the modal layer (z-40).
  */
 export function RowMenu({
   children,
@@ -57,17 +64,20 @@ export function RowMenu({
       >
         ⋮
       </button>
-      {open && pos && (
-        <>
-          <div className="fixed inset-0 z-20" onClick={close} />
-          <div
-            style={pos}
-            className="z-30 w-44 overflow-hidden rounded-lg border border-edge bg-panel text-sm shadow-lg"
-          >
-            {children(close)}
-          </div>
-        </>
-      )}
+      {open &&
+        pos &&
+        createPortal(
+          <>
+            <div className="fixed inset-0 z-50" onClick={close} />
+            <div
+              style={pos}
+              className="z-50 w-44 overflow-hidden rounded-lg border border-edge bg-panel text-sm shadow-lg"
+            >
+              {children(close)}
+            </div>
+          </>,
+          document.body,
+        )}
     </>
   );
 }
