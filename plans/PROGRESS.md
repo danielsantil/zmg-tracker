@@ -177,8 +177,8 @@ rather than fetching, so every filter constrains it for free and no backend chan
 dependency-free per the plan's survey. **Timezone discipline throughout:** cells are `yyyy-MM-dd` strings
 built by hand (`toIso`) and releases group by their raw `releaseDate` string, so the grid never parses a date
 back out of `new Date('yyyy-MM-dd')` (UTC, drifts a day back in negative offsets) — `monthOf`/`isInMonth` read
-the year/month straight off the string. The grid is a fixed **6×7** (`monthGrid`) so paging months doesn't
-reflow the page; adjacent-month days are dimmed but still render their releases, which is why July shows Aug 8.
+the year/month straight off the string. `monthGrid` emits **only the weeks the month touches** (4–6 rows);
+adjacent-month days are dimmed but still render their releases.
 One responsive grid at all sizes: `≥sm` gets up to 2 type-tinted title chips + "+N more", mobile gets up to 3
 colored dots with the whole cell as one tap target (accent = single, emerald = album), and the weekday header
 degrades `Sun`→`S`. Clicking any chip/dot/"+N more" opens a `Modal` of that day's compact `ReleaseCard`s
@@ -220,6 +220,18 @@ page down for), and an `isValid` type-guard rejects values a stale key or devtoo
 falling back to the default and self-healing the key. Browser-verified at 390px (columns reachable, page
 still doesn't scroll sideways, calendar survives a reload, a junk `"gantt"` value falls back to Table) and
 at 1280 (no scrollbar, unchanged). `npm run lint` + `npm run build` clean; SPA-only, so no `dotnet test`.
+
+**M22 follow-up — the grid rendered a whole foreign week.** `monthGrid` hardcoded **6 rows**, so any month
+fitting in 5 trailed an entire week belonging to the next month: July 2026 (Wed start + 31 days = 34 cells →
+5 rows) showed an all-August row, with Aug 8's release sitting in it. Row count is now
+`ceil(firstWeekday + daysInMonth) / 7)` → **4–6 rows**, which by construction can't emit a week the month
+doesn't reach. The original "fixed height stops the grid reflowing as you page" rationale was a **bad trade** —
+it bought a stable height with a visibly wrong calendar; the height now varies with the month, as it should.
+Verified by asserting the invariants over **252 months (2020–2040)**: every emitted week contains ≥1 day of
+the month, every day appears exactly once, rows stay 7-wide/contiguous/Sunday-aligned. Worth knowing the range
+really is **4–6, not 5–6**: a 28-day February starting Sunday needs just 4 rows and renders with *no* filler
+cells at all — **Feb 2026** is exactly that (next: Feb 2037), and both it and a genuine 6-row month (Aug 2026)
+were browser-checked.
 
 ---
 

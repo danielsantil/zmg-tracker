@@ -35,16 +35,25 @@ export function monthLabel({ year, month }: YearMonth): string {
 }
 
 /**
- * A fixed 6×7 grid of `yyyy-MM-dd` cells for the given month, Sunday-first, padded with the
- * adjacent months' days. Fixed height keeps the grid from reflowing as you page through months.
+ * The `yyyy-MM-dd` cells for the given month, Sunday-first, as 4–6 rows of 7 — every week the
+ * month touches, padded at each end with the adjacent months' days. A week with no day of this
+ * month in it is never emitted.
  */
 export function monthGrid({ year, month }: YearMonth): string[][] {
   const firstWeekday = new Date(year, month, 1).getDay();
+  // `new Date(y, m + 1, 0)` rolls back to the last day of *this* month, i.e. its length.
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  // Only the weeks the month actually touches (4–6): enough rows to cover the leading blanks plus
+  // every day, and no more. A fixed 6 would tack on a whole row belonging to the next month
+  // whenever the month fits in 5 — e.g. July 2026 (Wed start, 31 days = 34 cells) would trail an
+  // all-August week. The cost is that the grid's height changes with the month, which is correct:
+  // a row of days the month doesn't reach is worse than a stable height.
+  const weekCount = Math.ceil((firstWeekday + daysInMonth) / 7);
   const weeks: string[][] = [];
   // `new Date(y, m, 0)` is the last day of the previous month, so day 1 minus the weekday offset
   // walks back into it; Date normalizes the overflow in both directions for us.
   const start = new Date(year, month, 1 - firstWeekday);
-  for (let w = 0; w < 6; w++) {
+  for (let w = 0; w < weekCount; w++) {
     const week: string[] = [];
     for (let d = 0; d < 7; d++) {
       const cell = new Date(start.getFullYear(), start.getMonth(), start.getDate() + w * 7 + d);
