@@ -240,11 +240,13 @@ export default function ReleaseFormPage() {
                 <li key={msg}>{msg}</li>
               ))}
             </ul>
+            {/* Both live inside the <form>, so they need an explicit type — the HTML default
+                is `submit`, which re-fired the create POST and duplicated the release. */}
             <div className="mt-3 flex gap-2">
-              <Button variant="ghost" onClick={goBack}>
+              <Button type="button" variant="ghost" onClick={goBack}>
                 Go back
               </Button>
-              <Button variant="ghost" onClick={() => setWarnings([])}>
+              <Button type="button" variant="ghost" onClick={() => setWarnings([])}>
                 Keep editing
               </Button>
             </div>
