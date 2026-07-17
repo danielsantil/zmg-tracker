@@ -11,13 +11,15 @@ for where the project stands and the rules that span plans.
 - [build-plan-2.0.md](build-plan-2.0.md) — songs & catalog (M12–M15). Shipped.
 - [build-plan-2.1.md](build-plan-2.1.md) — UX refinements (M16–M18). Shipped.
 - [build-plan-2.2.md](build-plan-2.2.md) — UX improvements (M19–M23). Shipped.
+- [build-plan-2.3.md](build-plan-2.3.md) — refactor · code health (M24–M25). **M24 (web) shipped; M25 (API) open.**
 
 Newer plan versions go in new `build-plan-N.N.md` files; older ones stay frozen.
 
-**Current state:** every plan through **build-plan-2.2 is shipped** — v2.2 (M19–M23) closed out the UX
-pass, and the app is feature-complete for the tracker's original brief. Tests green: **domain 62 / API
-102** (unchanged since M19 — everything after it was SPA-only). Next up is **Phase 2 — DSP stats**,
-which has no build plan yet.
+**Current state:** feature-complete through v2.2. **v2.3 M24 (the web refactor) is shipped**; **M25
+(the API + tests refactor) is the next milestone** — it also unblocks the two M24 items parked on it
+(server `canArchive`, `Validation.DuplicateSongTitleMessage`). Backend tests unchanged at **domain 62 /
+API 102** (M24 was SPA-only); the SPA now has **28 Vitest tests** on the pure modules. After M25,
+**Phase 2 — DSP stats** (no build plan yet).
 
 > ⚠️ **v2.0's `InitialCreate` is a hard schema reset with no migration path.** Any local
 > `src/Zmg.Api/zmg.db` from v1.x must be deleted, not upgraded (`rm src/Zmg.Api/zmg.db*`) — startup
@@ -59,6 +61,22 @@ the releases **calendar** view (dependency-free month grid + a day preview modal
 ↑/↓ reorder control app-wide. Browser verification surfaced four latent bugs worth knowing about — the
 artist delete guard, popovers inside modals, mobile table clipping, and page-level horizontal overflow —
 each now carried as a rule in Cross-cutting decisions rather than as a story here.
+
+**v2.3 M24 (web refactor) — no features, code health.** `strict` on across the SPA (with the
+reachable-null `!`s narrowed); **Vitest** added with 28 tests on the pure modules (`lib/calendar`,
+`lib/format`, `usePersistedState`'s extracted core). **TanStack Query** adopted over the unchanged
+`api/` modules (`api/queries.ts` — key factory + hooks); a 60s `staleTime` means the artist roster
+loads once across navigation instead of on every page. Extracted the list-page shell (`DataTable`,
+`EmptyState`, `ErrorBanner`, `Loading`, `FilterBar`, `useConfirmDelete`) and one `useDebouncedValue`
+(retiring the 4 copy-pasted debounces + their `exhaustive-deps` disables and the 39 `errorMessage`
+repeats). Collapsed the `Template*` fork into generic `TaskRow`/`PhaseSection`/`TimeframeEditor`/
+`MovePhaseItems`. Split `ReleaseDetailPage` into `useReleaseTasks`/`useReleaseTracks` (an outer loader
++ inner view over a guaranteed release); `ReleaseFormPage` fields → one `useReducer`. Defects fixed:
+`todayIso()` now builds a local date (was UTC), and the stale `TEMPLATE_TASK_COUNT` is gone for a live
+`/api/templates` count. cva for the variant maps (which also fixed `Button` dropping a passed
+`className`); type-aware ESLint with `no-floating-promises`. **Two items parked on M25** (kept working
+in the meantime): the release `canArchive` is still re-derived client-side, and the add-track
+duplicate-title branch still string-matches the validator message.
 
 ---
 
@@ -154,14 +172,24 @@ tests/Zmg.Api.Tests      integration tests (WebApplicationFactory + in-memory SQ
 
 ## Backlog / next steps
 
-- **Shipped — v2.2 (M19–M23):** Artists redesign · Kebab menus · Compact `ReleaseCard` · Releases
-  calendar view · Inline reorder arrows.
-- **Next — Phase 2: DSP stats** (the reason this exists over Notion/Trello): hang streaming/revenue data
+- **Shipped — v2.3 M24 (web refactor):** strict + Vitest · TanStack Query · shared list-page shell ·
+  `Template*` fork collapsed · `ReleaseDetailPage`/`ReleaseFormPage` split · cva + typed-lint.
+- **Next — v2.3 M25 (API + tests refactor):** see [build-plan-2.3.md](build-plan-2.3.md) §M25. Closes the
+  archived-release **write gap** (defect 1 — `ReleaseMutability`, 409s), hoists the duplicated
+  title-clash rule, adds `AsNoTracking` + narrows `PendingService`, ships **`canArchive` on the release
+  DTOs** and exposes `Validation.DuplicateSongTitleMessage` (**both unblock the two parked M24 items**),
+  threads `CancellationToken`, splits `ReleaseService.CreateAsync`, **fixes + actually builds the
+  Dockerfile** (defect 2), and defuses the `2026-08-14` **test date bomb** (defect 4) plus the shared-
+  fixtures / AAA / Theory test cleanup. Full `dotnet test` is the gate.
+- **Then — Phase 2: DSP stats** (the reason this exists over Notion/Trello): hang streaming/revenue data
   off the stable Artist / Release / **Song** / Track ids and the UPC/ISRC columns; the v2.0 Song ids are
   its foundation. No build plan yet — write `build-plan-3.0.md` when it starts.
 - **Per-track task fan-out** on albums: registrations that repeat per track are single "per track" tasks
   today. Decide after the first real album.
 - **Verify the Docker image** on a machine with the daemon running (`docker build -t zmg-tracker .`) —
-  written and reviewed, never actually built.
+  folded into M25 (defect 2); still needs a machine with the daemon running.
 - Deferred: un-archive/restore and hard-delete/purge (archives are terminal by rule); auth for hosted
-  deploys; absolute per-task due dates (v1.1 only added timeframe *ranges*).
+  deploys; absolute per-task due dates (v1.1 only added timeframe *ranges*). Also carried forward from
+  the M24 audit: the **seed-data 3-way drift hazard** (`SeedData.cs` → `InitialCreate` → snapshot, with
+  `DeterministicTaskId` renumbering every later GUID on a mid-list insert) — left as-is per CLAUDE.md's
+  hard-reset rule, noted here so M25/Phase 2 don't rediscover it.

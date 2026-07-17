@@ -26,7 +26,11 @@ export function useReleaseTracks(
 
   useEffect(() => setTracks(initial), [initial]);
 
-  const refreshPending = () => void queryClient.invalidateQueries({ queryKey: queryKeys.pending });
+  // Tracklist edits can change pending actions and a release's warnings (e.g. "Album is empty").
+  const refreshPending = () => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.pending });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.releases() });
+  };
 
   const orderedTracks = useMemo(
     () => [...tracks].sort((a, b) => a.trackNumber - b.trackNumber),

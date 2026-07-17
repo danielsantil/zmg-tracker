@@ -48,9 +48,12 @@ function Nav() {
   );
 }
 
-// One client for the app. Roster/list data is cached so navigating between pages doesn't refetch
-// what's already fresh (e.g. the artist roster, previously fetched 8× independently).
-const queryClient = new QueryClient();
+// One client for the app. A 60s staleTime means navigating between pages serves cached data instead
+// of refetching (the artist roster, previously fetched 8× per navigation, now loads once); mutations
+// invalidate the affected keys explicitly, so edits still show immediately.
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { staleTime: 60_000 } },
+});
 
 export default function App() {
   return (
