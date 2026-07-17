@@ -200,6 +200,27 @@ end-to-end — which incidentally drove the **archive-confirm cascade list** the
 browser-verified (it correctly listed the song about to cascade). `npm run lint` + `npm run build` clean;
 `dotnet test` deliberately not re-run (SPA-only blast radius).
 
+**M22 follow-ups — table overflow at 390px · sticky view.** Two fixes after using the calendar on an
+iPhone 12 Pro (390×844). **The Releases table was silently truncated:** its min-content width is **496px**
+against a 356px wrapper, and the shared `overflow-hidden` wrapper *clipped* the difference — Status and
+Action weren't merely cut off, they were **unreachable** (the page itself didn't scroll, `body.scrollWidth`
+== 390, so the columns were simply gone). Wrapper → **`overflow-x-auto`** on all five tables (Releases,
+Archived Releases, Catalog, Archived Songs, Artists): the wide content now scrolls **inside its own
+container** while the page body never scrolls sideways — the rule the M21 nav fix established. Only
+`/releases` clips today (5 columns; the others fit at 356), but the wrapper was copy-pasted identically
+across all five, and Archived Releases would clip the moment it has rows — `overflow-x-auto` is inert
+where nothing overflows, so desktop and the fitting tables are untouched. **Sticky view:** the
+Table/Calendar choice now persists via new
+[`usePersistedState`](src/Zmg.Web/src/hooks/usePersistedState.ts) (`localStorage`, `zmg.`-prefixed keys —
+the standard for a UI preference; `sessionStorage` would forget on every tab, and a `?view=` param would
+put a *preference* in a shareable URL). Lazy-initialized, so a persisted calendar renders on first paint
+with **no flash of the table**. Two guards worth keeping: every access is `try`/`catch`ed (`localStorage`
+throws in Safari private mode and wherever site data is blocked — a preference is never worth taking the
+page down for), and an `isValid` type-guard rejects values a stale key or devtools edit could leave behind,
+falling back to the default and self-healing the key. Browser-verified at 390px (columns reachable, page
+still doesn't scroll sideways, calendar survives a reload, a junk `"gantt"` value falls back to Table) and
+at 1280 (no scrollbar, unchanged). `npm run lint` + `npm run build` clean; SPA-only, so no `dotnet test`.
+
 ---
 
 ## Cross-cutting decisions (not in any single plan)
