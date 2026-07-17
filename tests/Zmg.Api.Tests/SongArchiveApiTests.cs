@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using Zmg.Api.Contracts;
+using Zmg.Domain;
 using Zmg.Domain.Enums;
 
 namespace Zmg.Api.Tests;
@@ -8,8 +9,10 @@ namespace Zmg.Api.Tests;
 /// <summary>
 /// M15 — the song archive lifecycle: the release-archive cascade, manual archive/delete guards,
 /// the archived scope + read-only PUT, and that archived songs contribute no pending action.
+/// Shares one host (IClassFixture): every test scopes its assertions to its own songId/releaseId and
+/// creates a uniquely-named artist, so the shared seeded DB never collides (M25 — was 13 host boots).
 /// </summary>
-public class SongArchiveApiTests
+public class SongArchiveApiTests(ZmgApiFactory factory) : IClassFixture<ZmgApiFactory>
 {
     private static readonly DateOnly Today = DateOnly.FromDateTime(DateTime.UtcNow);
 
@@ -46,11 +49,13 @@ public class SongArchiveApiTests
         (await ListSongs(client, scope))!.Single(s => s.Id == songId);
 
     // ---- Release-archive cascade ----
+    // The exclude-shared and exclude-released rule variations are pure and covered by SongArchivalTests
+    // (Song_shared_with_another_active_release_is_untouched / Released_song_is_untouched, M25); this keeps
+    // only the positive case that proves the archive endpoint actually invokes the cascade.
 
     [Fact]
     public async Task Archiving_a_release_cascades_to_its_exclusive_upcoming_song()
     {
-        using var factory = new ZmgApiFactory();
         var client = factory.CreateClient();
         var artist = await CreateArtist(client, "Cascade Artist");
 
@@ -66,53 +71,11 @@ public class SongArchiveApiTests
         Assert.True(detail!.IsArchived);
     }
 
-    [Fact]
-    public async Task Archiving_a_release_leaves_a_song_shared_with_an_active_release_untouched()
-    {
-        using var factory = new ZmgApiFactory();
-        var client = factory.CreateClient();
-        var artist = await CreateArtist(client, "Shared Cascade Artist");
-
-        // One song on two upcoming albums; archive only the first.
-        var albumA = await CreateAlbum(client, artist, "Album A", Today.AddDays(20),
-            new List<TrackInput> { new(null, "Shared", null, null), new(null, "Filler A", null, null) });
-        var songId = albumA.Tracks.First(t => t.Title == "Shared").SongId;
-
-        var albumB = await CreateAlbum(client, artist, "Album B", Today.AddDays(40),
-            new List<TrackInput> { new(songId, null, null, null), new(null, "Filler B", null, null) });
-
-        (await client.PostAsync($"/api/releases/{albumA.Id}/archive", null)).EnsureSuccessStatusCode();
-
-        // The shared song stays active because Album B is still active.
-        Assert.Contains((await ListSongs(client))!, s => s.Id == songId);
-        _ = albumB;
-    }
-
-    [Fact]
-    public async Task Archiving_a_release_leaves_a_released_song_untouched()
-    {
-        using var factory = new ZmgApiFactory();
-        var client = factory.CreateClient();
-        var artist = await CreateArtist(client, "Released Cascade Artist");
-
-        // Song first appeared on a past single (released), then re-used on an upcoming album.
-        var past = await CreateSingle(client, artist, "Past Single", Today.AddDays(-5));
-        var songId = past.Tracks.Single().SongId;
-        var album = await CreateAlbum(client, artist, "Reissue Album", Today.AddDays(30),
-            new List<TrackInput> { new(songId, null, null, null), new(null, "New Track", null, null) });
-
-        (await client.PostAsync($"/api/releases/{album.Id}/archive", null)).EnsureSuccessStatusCode();
-
-        // Released → never cascades.
-        Assert.Contains((await ListSongs(client))!, s => s.Id == songId);
-    }
-
     // ---- Manual archive guards ----
 
     [Fact]
     public async Task Manual_archive_of_an_orphan_song_succeeds()
     {
-        using var factory = new ZmgApiFactory();
         var client = factory.CreateClient();
         var artist = await CreateArtist(client, "Orphan Archive Artist");
 
@@ -132,7 +95,6 @@ public class SongArchiveApiTests
     [Fact]
     public async Task Manual_archive_of_a_song_on_an_active_release_is_rejected()
     {
-        using var factory = new ZmgApiFactory();
         var client = factory.CreateClient();
         var artist = await CreateArtist(client, "Active Song Artist");
 
@@ -146,7 +108,6 @@ public class SongArchiveApiTests
     [Fact]
     public async Task Manual_archive_of_a_released_song_is_rejected()
     {
-        using var factory = new ZmgApiFactory();
         var client = factory.CreateClient();
         var artist = await CreateArtist(client, "Released Song Artist");
 
@@ -160,7 +121,6 @@ public class SongArchiveApiTests
     [Fact]
     public async Task Manual_archive_of_unknown_song_is_not_found()
     {
-        using var factory = new ZmgApiFactory();
         var client = factory.CreateClient();
         var res = await client.PostAsync($"/api/songs/{Guid.NewGuid()}/archive", null);
         Assert.Equal(HttpStatusCode.NotFound, res.StatusCode);
@@ -171,7 +131,6 @@ public class SongArchiveApiTests
     [Fact]
     public async Task Delete_an_archived_song_succeeds()
     {
-        using var factory = new ZmgApiFactory();
         var client = factory.CreateClient();
         var artist = await CreateArtist(client, "Delete Archived Artist");
 
@@ -187,7 +146,6 @@ public class SongArchiveApiTests
     [Fact]
     public async Task Delete_an_orphan_song_succeeds_without_archiving_first()
     {
-        using var factory = new ZmgApiFactory();
         var client = factory.CreateClient();
         var artist = await CreateArtist(client, "Delete Orphan Artist");
 
@@ -203,7 +161,6 @@ public class SongArchiveApiTests
     [Fact]
     public async Task Delete_a_song_on_an_active_release_is_rejected()
     {
-        using var factory = new ZmgApiFactory();
         var client = factory.CreateClient();
         var artist = await CreateArtist(client, "Delete Active Artist");
 
@@ -219,7 +176,6 @@ public class SongArchiveApiTests
     [Fact]
     public async Task Updating_an_archived_song_is_rejected()
     {
-        using var factory = new ZmgApiFactory();
         var client = factory.CreateClient();
         var artist = await CreateArtist(client, "RO Artist");
 
@@ -235,7 +191,6 @@ public class SongArchiveApiTests
     [Fact]
     public async Task Adding_an_archived_song_to_a_release_is_rejected()
     {
-        using var factory = new ZmgApiFactory();
         var client = factory.CreateClient();
         var artist = await CreateArtist(client, "Add Archived Artist");
 
@@ -252,7 +207,6 @@ public class SongArchiveApiTests
     [Fact]
     public async Task Archived_song_contributes_no_pending_action()
     {
-        using var factory = new ZmgApiFactory();
         var client = factory.CreateClient();
         var artist = await CreateArtist(client, "Archived Pending Artist");
 
@@ -260,16 +214,16 @@ public class SongArchiveApiTests
         var single = await CreateSingle(client, artist, "Upcoming Distributed", Today.AddDays(30));
         var songId = single.Tracks.Single().SongId;
         var distribute = single.Phases.SelectMany(p => p.Tasks)
-            .Single(t => t.Title == Zmg.Domain.SeedData.DistributeToDspsTitle);
+            .Single(t => t.Title == SeedData.DistributeToDspsTitle);
         (await client.PatchAsync($"/api/tasks/{distribute.Id}/toggle", null)).EnsureSuccessStatusCode();
 
-        Assert.Contains((await client.GetFromJsonAsync<List<Zmg.Domain.PendingAction>>("/api/pending"))!,
+        Assert.Contains((await client.GetFromJsonAsync<List<PendingAction>>("/api/pending"))!,
             p => p.SongId == songId && p.Kind == PendingKind.MissingIsrc);
 
         // Archiving the (still upcoming, exclusive) release cascades the song into the archive.
         (await client.PostAsync($"/api/releases/{single.Id}/archive", null)).EnsureSuccessStatusCode();
 
-        var after = (await client.GetFromJsonAsync<List<Zmg.Domain.PendingAction>>("/api/pending"))!;
+        var after = (await client.GetFromJsonAsync<List<PendingAction>>("/api/pending"))!;
         Assert.DoesNotContain(after, p => p.SongId == songId);
     }
 }

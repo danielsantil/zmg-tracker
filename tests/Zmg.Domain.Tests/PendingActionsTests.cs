@@ -8,33 +8,14 @@ public class PendingActionsTests
 {
     private static readonly DateOnly Today = TestDates.Today;
 
+    // Local aliases onto the shared ObjectMother (Builders.cs).
     private static Release Rel(DateOnly date, string title = "Song", string? upc = null,
         ReleaseType type = ReleaseType.Single, params ReleaseTask[] tasks) =>
-        new()
-        {
-            Id = Guid.NewGuid(),
-            Title = title,
-            Type = type,
-            ReleaseDate = date,
-            MainArtist = new Artist { Name = "Artist" },
-            Upc = upc,
-            Tasks = tasks.ToList(),
-            // A single carries exactly one track; an album's tracklist is set per test.
-            Tracks = type == ReleaseType.Single ? new List<Track> { new() } : new List<Track>(),
-        };
+        Builders.Release(date, title, upc, type, tasks: tasks);
 
     private static ReleaseTask Task(string title, Phase phase = Phase.Pre, bool done = false,
         int? min = null, int? max = null, int sort = 0) =>
-        new()
-        {
-            Id = Guid.NewGuid(),
-            Title = title,
-            Phase = phase,
-            SortOrder = sort,
-            IsDone = done,
-            MinDaysBefore = min,
-            MaxDaysBefore = max,
-        };
+        Builders.Task(title, phase, done, min, max, sort);
 
     [Fact]
     public void Task_with_no_timeframe_never_pends()

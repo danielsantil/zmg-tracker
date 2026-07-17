@@ -11,8 +11,8 @@ for where the project stands and the rules that span plans.
 - [build-plan-2.0.md](build-plan-2.0.md) — songs & catalog (M12–M15). Shipped.
 - [build-plan-2.1.md](build-plan-2.1.md) — UX refinements (M16–M18). Shipped.
 - [build-plan-2.2.md](build-plan-2.2.md) — UX improvements (M19–M23). Shipped.
-- [build-plan-2.3.md](build-plan-2.3.md) — refactor · code health (M24–M25). **M24 (web) + M25 (API,
-  incl. all four defects) shipped; only the M25 test-hygiene *sweep* remains (see backlog).**
+- [build-plan-2.3.md](build-plan-2.3.md) — refactor · code health (M24–M25). **M24 (web) + M25 (API +
+  defects + the test-hygiene sweep) shipped. Only a live `docker build` verify is left (see backlog).**
 
 Newer plan versions go in new `build-plan-N.N.md` files; older ones stay frozen.
 
@@ -20,13 +20,12 @@ Newer plan versions go in new `build-plan-N.N.md` files; older ones stay frozen.
 M25 closed the archived-release write gap, hoisted the title-clash rule, added `AsNoTracking`/query
 tidy, shipped `canArchive` on the release DTOs, threaded `CancellationToken`, split
 `ReleaseService.CreateAsync`, fixed the Dockerfile + a fail-fast connection-string guard, and defused the
-test date bomb. Backend tests grew to **domain 73 / API 143** (was 62 / 102). The SPA has **28 Vitest
-tests**. **Two threads still open before Phase 2:** (a) the M25 *test-hygiene sweep* — shared
-fixtures/one lifecycle to cut host boots, exhaustive AAA/Theory, and the redundant-integration-test
-deletions (behavior-neutral; suite is green without it); (b) the **two M24 web items** M25 unblocked but
-did not itself close — the SPA still re-derives `canArchive` and still string-matches the duplicate-title
-message, now that the server ships `CanArchive` on the DTOs and `Validation.DuplicateSongTitleMessage`
-is a public const. After those, **Phase 2 — DSP stats** (no build plan yet).
+test date bomb. The **test-hygiene sweep** then landed (Domain ObjectMother + AAA; `SongArchiveApiTests`
+13→1 and `ReleaseArchiveApiTests` 8→1 host boots via `IClassFixture`; redundant integration tests
+deleted). Backend tests **domain 73 / API 136**, green (~6s). The **two M24 web items** are closed too —
+the SPA now reads `canArchive` from the DTO and matches the mirrored duplicate-title constant. The SPA
+has **28 Vitest** tests. **One thing left before Phase 2:** a live `docker build` verify (the Dockerfile
+fix is unverified — the daemon was down). Then **Phase 2 — DSP stats** (no build plan yet).
 
 > ⚠️ **v2.0's `InitialCreate` is a hard schema reset with no migration path.** Any local
 > `src/Zmg.Api/zmg.db` from v1.x must be deleted, not upgraded (`rm src/Zmg.Api/zmg.db*`) — startup
@@ -219,11 +218,16 @@ tests/Zmg.Api.Tests      integration tests (WebApplicationFactory + in-memory SQ
   Tests **domain 73 / API 143**, all green. New: `ReleaseMutability`/`ReleaseArchival`/`Reorder`/
   `OperationResultExtensions` units, a 22-route 404 Theory, the archived-write 409 suite, `?status=` +
   `CanArchive` DTO assertions.
-- **Remaining M25 cleanup (behavior-neutral; not gating):** the **test-hygiene sweep** deferred from M25 —
-  the shared-fixture / one-lifecycle consolidation to cut host boots (~39 → ~11), the exhaustive AAA/Theory
-  pass, and the redundant-integration-test deletions the plan lists (`SongArchiveApiTests`/`PendingApiTests`/
-  `TrackApiTests`). Also **verify `docker build` on a live daemon** (the Dockerfile fix is unverified —
-  daemon was down here). Pure hygiene; the suite is green without it.
+- **Shipped — v2.3 M25 test-hygiene sweep:** Domain `Builders.cs` ObjectMother (dedupes the 6 private
+  builders) + AAA on `SongArchivalTests`; `SongArchiveApiTests` (13→1 boots) and `ReleaseArchiveApiTests`
+  (8→1) moved to `IClassFixture`; redundant integration tests deleted (2 domain-covered cascade cases, 3
+  triple-covered pending cases, 2 of the 3 `Reorder_with_missing_ids` now that `Reorder` is unit-tested).
+  Tests **domain 73 / API 136**, green; suite wall-clock ~8s → ~6s. `ReleaseListScopeApiTests` (exact
+  global ordering) and `PendingApiTests`/`TemplateApiTests` (aggregate reads / template mutation) stay
+  per-test isolated by necessity, so boots landed ~29 not the plan's optimistic ~11.
+- **Still open (not gating):** **verify `docker build` on a live daemon** (the Dockerfile fix is unverified
+  — daemon was down here); and the remaining low-value polish (exhaustive AAA-comment pass on every file,
+  the last few Theory conversions). Pure hygiene; the suite is green without it.
 - **The two M24 web items M25 unblocked (small SPA follow-up):** the SPA still re-derives `canArchive`
   (`ReleaseDetailPage`/`AllReleasesPage`/`ReleaseCard`) — consume the DTO's new `CanArchive` — and the
   add-track branch still string-matches; mirror `Validation.DuplicateSongTitleMessage` in a TS constant.

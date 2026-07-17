@@ -109,17 +109,8 @@ public class ReleaseTaskApiTests(ZmgApiFactory factory) : IClassFixture<ZmgApiFa
         Assert.Equal(reversedIds, afterIds);
     }
 
-    [Fact]
-    public async Task Reorder_with_missing_ids_is_rejected()
-    {
-        var client = factory.CreateClient();
-        var release = await CreateReleaseWithChecklist(client, "Bad Reorder Artist", "Bad Reorder Song");
-        var pre = release.Phases.Single(p => p.Phase == Phase.Pre).Tasks;
-
-        var res = await client.PutAsJsonAsync($"/api/releases/{release.Id}/tasks/order",
-            new ReorderTasksInput(Phase.Pre, new List<Guid> { pre.First().Id }));
-        Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
-    }
+    // Reorder-with-missing-ids rejection is covered by ReorderTests (the rule) + OperationResultExtensions
+    // (Invalid→400); the happy-path reorder above proves this endpoint's wiring (M25 — was triple-covered).
 
     [Fact]
     public async Task Delete_task_removes_it_and_lowers_total()

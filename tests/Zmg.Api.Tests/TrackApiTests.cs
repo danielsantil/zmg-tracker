@@ -279,18 +279,8 @@ public class TrackApiTests(ZmgApiFactory factory) : IClassFixture<ZmgApiFactory>
         Assert.Equal(new[] { 1, 2, 3 }, after.Select(t => t.TrackNumber).ToArray());
     }
 
-    [Fact]
-    public async Task Reorder_with_missing_ids_is_rejected()
-    {
-        var client = factory.CreateClient();
-        var album = await CreateAlbum(client, "Bad Reorder Track Artist", "Bad Reorder Track Album");
-        var a = await AddTrack(client, album.Id, NewTrack("A"));
-        await AddTrack(client, album.Id, NewTrack("B"));
-
-        var res = await client.PutAsJsonAsync($"/api/releases/{album.Id}/tracks/order",
-            new ReorderTracksInput(new List<Guid> { a.SongId }));
-        Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
-    }
+    // Reorder-with-missing-ids rejection is covered by ReorderTests (the rule) + OperationResultExtensions
+    // (Invalid→400); the happy-path reorder above proves this endpoint's wiring (M25 — was triple-covered).
 
     [Fact]
     public async Task Toggle_focus_flips_the_flag()

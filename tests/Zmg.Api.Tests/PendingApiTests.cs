@@ -79,33 +79,8 @@ public class PendingApiTests
         Assert.Contains(pending, a => a.Kind == PendingKind.MissingIsrc && a.ReleaseId == null && a.SongId != null);
     }
 
-    [Fact]
-    public async Task Undistributed_future_song_has_no_isrc_action()
-    {
-        using var factory = new ZmgApiFactory();
-        var client = factory.CreateClient();
-        var artist = await CreateArtist(client, "Future Artist");
-
-        // Forward single, never distributed, blank ISRC → no missing-ISRC action.
-        await CreateSingle(client, artist, "Future", Today.AddDays(30));
-
-        var pending = await GetPending(client);
-        Assert.DoesNotContain(pending!, a => a.Kind == PendingKind.MissingIsrc);
-    }
-
-    [Fact]
-    public async Task Song_provided_with_isrc_has_no_isrc_action_even_when_distributed()
-    {
-        using var factory = new ZmgApiFactory();
-        var client = factory.CreateClient();
-        var artist = await CreateArtist(client, "Isrc Artist");
-
-        // Past (auto-distributed) single whose track carries an ISRC → no missing-ISRC action.
-        await CreateSingle(client, artist, "HasIsrc", Today.AddDays(-3), isrc: "US-ABC-26-1");
-
-        var pending = await GetPending(client);
-        Assert.DoesNotContain(pending!, a => a.Kind == PendingKind.MissingIsrc);
-    }
+    // Note: the "not distributed → no ISRC action" and "ISRC filled → no ISRC action" cases are pure and
+    // covered by PendingActionsTests.Song_pends_missing_isrc_only_when_distributed_blank_and_active (M25).
 
     [Fact]
     public async Task Song_on_two_distributed_releases_yields_exactly_one_isrc_action()
@@ -152,20 +127,9 @@ public class PendingApiTests
         Assert.DoesNotContain((await GetPending(client))!, a => a.Kind == PendingKind.EmptyAlbum);
     }
 
-    [Fact]
-    public async Task Archived_album_has_no_empty_album_action()
-    {
-        using var factory = new ZmgApiFactory();
-        var client = factory.CreateClient();
-        var artist = await CreateArtist(client, "Archived Album Artist");
-
-        // Empty album with a future date so it can be archived (archive guards releaseDate >= today).
-        var album = await CreateAlbum(client, artist, "Archived Album", Today.AddDays(30));
-        Assert.Contains((await GetPending(client))!, a => a.Kind == PendingKind.EmptyAlbum && a.ReleaseId == album.Id);
-
-        (await client.PostAsync($"/api/releases/{album.Id}/archive", null)).EnsureSuccessStatusCode();
-        Assert.DoesNotContain((await GetPending(client))!, a => a.ReleaseId == album.Id);
-    }
+    // Note: "archived release contributes no pending actions" is proven purely in
+    // PendingActionsTests.Archived_album_does_not_pend_empty and end-to-end in
+    // ReleaseArchiveApiTests.Archived_release_contributes_no_pending_actions (M25 — was triple-covered).
 
     // ---- Per-release scoping ----
 
