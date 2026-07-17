@@ -6,7 +6,7 @@ namespace Zmg.Domain.Tests;
 /// <summary>M15 — the pure release-archive cascade rule (which songs follow a release into the archive).</summary>
 public class SongArchivalTests
 {
-    private static readonly DateOnly Today = new(2026, 7, 15);
+    private static readonly DateOnly Today = TestDates.Today;
 
     private static Release Rel(Guid id, DateOnly date, bool archived = false) =>
         new() { Id = id, ReleaseDate = date, ArchivedAt = archived ? DateTime.UtcNow : null };

@@ -4,36 +4,23 @@ namespace Zmg.Domain.Tests;
 
 public class SeedDataTests
 {
-    [Fact]
-    public void Single_template_has_the_v1_1_counts()
+    // The seeded task counts are asserted end-to-end in TemplateApiTests (the integration "home"); a
+    // pure change-detector here would only assert the data file says what the data file says (M25 task 11).
+
+    [Theory]
+    [InlineData("Distribute to DSPs")]
+    [InlineData("Pitch to Spotify")]
+    public void Single_template_pre_release_tasks_have_the_7_to_14_timeframe(string title)
     {
+        // Arrange
         var single = SeedData.Templates().Single(t => t.Type == ReleaseType.Single);
 
-        // v1.1 adds "Distribute to DSPs" as a 6th Pre task: 30 → 31 (6 Pre / 18 Release / 7 Post).
-        Assert.Equal(6, single.Tasks.Count(t => t.Phase == Phase.Pre));
-        Assert.Equal(18, single.Tasks.Count(t => t.Phase == Phase.Release));
-        Assert.Equal(7, single.Tasks.Count(t => t.Phase == Phase.Post));
-        Assert.Equal(31, single.Tasks.Count);
-    }
+        // Act
+        var task = single.Tasks.Single(t => t.Title == title);
 
-    [Fact]
-    public void Single_template_distribute_to_dsps_has_the_7_to_14_timeframe()
-    {
-        var single = SeedData.Templates().Single(t => t.Type == ReleaseType.Single);
-        var distribute = single.Tasks.Single(t => t.Title == "Distribute to DSPs");
-
-        Assert.Equal(7, distribute.MinDaysBefore);
-        Assert.Equal(14, distribute.MaxDaysBefore);
-    }
-
-    [Fact]
-    public void Single_template_pitch_to_spotify_has_the_7_to_14_timeframe()
-    {
-        var single = SeedData.Templates().Single(t => t.Type == ReleaseType.Single);
-        var spotify = single.Tasks.Single(t => t.Title == "Pitch to Spotify");
-
-        Assert.Equal(7, spotify.MinDaysBefore);
-        Assert.Equal(14, spotify.MaxDaysBefore);
+        // Assert
+        Assert.Equal(7, task.MinDaysBefore);
+        Assert.Equal(14, task.MaxDaysBefore);
     }
 
     [Fact]

@@ -62,6 +62,40 @@ public class ReleaseListScopeApiTests
     }
 
     [Fact]
+    public async Task Status_filter_returns_only_matching_derived_status()
+    {
+        using var factory = new ZmgApiFactory();
+        var client = factory.CreateClient();
+        var artist = await CreateArtist(client, "Status Artist");
+
+        await CreateRelease(client, artist, "Out Already", Today.AddDays(-10)); // derives Released
+        await CreateRelease(client, artist, "Still Coming", Today.AddDays(10)); // derives Upcoming
+
+        var upcoming = await client.GetFromJsonAsync<List<ReleaseListItemDto>>(
+            $"/api/releases?artistId={artist}&status={ReleaseStatus.Upcoming}");
+
+        Assert.Contains(upcoming!, r => r.Title == "Still Coming");
+        Assert.DoesNotContain(upcoming!, r => r.Title == "Out Already");
+        Assert.All(upcoming!, r => Assert.Equal(ReleaseStatus.Upcoming, r.Status));
+    }
+
+    [Fact]
+    public async Task CanArchive_is_true_only_for_upcoming_releases()
+    {
+        using var factory = new ZmgApiFactory();
+        var client = factory.CreateClient();
+        var artist = await CreateArtist(client, "CanArchive Artist");
+
+        await CreateRelease(client, artist, "Future", Today.AddDays(10));
+        await CreateRelease(client, artist, "Past", Today.AddDays(-10));
+
+        var all = await client.GetFromJsonAsync<List<ReleaseListItemDto>>($"/api/releases?artistId={artist}");
+
+        Assert.True(all!.Single(r => r.Title == "Future").CanArchive);
+        Assert.False(all!.Single(r => r.Title == "Past").CanArchive);
+    }
+
+    [Fact]
     public async Task Title_search_is_case_insensitive_substring()
     {
         using var factory = new ZmgApiFactory();

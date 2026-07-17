@@ -15,7 +15,7 @@ public class ReleaseTaskApiTests(ZmgApiFactory factory) : IClassFixture<ZmgApiFa
         var artist = (await artistRes.Content.ReadFromJsonAsync<ArtistDto>())!;
 
         var relRes = await client.PostAsJsonAsync("/api/releases", new ReleaseInput(
-            title, ReleaseType.Single, new DateOnly(2026, 8, 14), artist.Id, null, null,
+            title, ReleaseType.Single, TestDates.Upcoming, artist.Id, null, null,
             new List<TrackInput> { new(null, "Track 1", null, null) }));
         relRes.EnsureSuccessStatusCode();
         return (await relRes.Content.ReadFromJsonAsync<CreatedWithWarnings<ReleaseDetailDto>>())!.Data;

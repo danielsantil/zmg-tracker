@@ -6,7 +6,11 @@ using Zmg.Infra.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var connectionString = builder.Configuration.GetConnectionString("Zmg");
+// Production supplies this via ConnectionStrings__Zmg (see the Dockerfile); Development has it in
+// appsettings.Development.json. Fail fast with a clear message rather than letting UseSqlite receive null.
+var connectionString = builder.Configuration.GetConnectionString("Zmg")
+    ?? throw new InvalidOperationException(
+        "Connection string 'Zmg' is not configured. Set ConnectionStrings__Zmg (e.g. \"Data Source=/data/zmg.db\").");
 builder.Services.AddDbContext<ZmgDbContext>(options => options.UseSqlite(connectionString));
 
 builder.Services.AddScoped<IArtistService, ArtistService>();

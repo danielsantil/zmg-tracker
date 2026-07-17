@@ -35,12 +35,12 @@ public class ReleaseIdentifierApiTests(ZmgApiFactory factory) : IClassFixture<Zm
         var client = factory.CreateClient();
         var artist = await CreateArtist(client, "Identifier Artist");
 
-        var created = await CreateRelease(client, artist.Id, "IdSong", new DateOnly(2026, 8, 14),
+        var created = await CreateRelease(client, artist.Id, "IdSong", TestDates.Upcoming,
             upc: "0123456789012");
         Assert.Equal("0123456789012", created.Upc);
 
         var upd = await client.PutAsJsonAsync($"/api/releases/{created.Id}", new ReleaseInput(
-            "IdSong", ReleaseType.Single, new DateOnly(2026, 8, 14), artist.Id, null, null, null,
+            "IdSong", ReleaseType.Single, TestDates.Upcoming, artist.Id, null, null, null,
             Upc: "9999999999999"));
         upd.EnsureSuccessStatusCode();
         var updated = (await upd.Content.ReadFromJsonAsync<CreatedWithWarnings<ReleaseDetailDto>>())!.Data;
@@ -54,7 +54,7 @@ public class ReleaseIdentifierApiTests(ZmgApiFactory factory) : IClassFixture<Zm
         var artist = await CreateArtist(client, "Warning Artist");
 
         // Future release, blank UPC: silent until distributed.
-        var created = await CreateRelease(client, artist.Id, "WarnSong", new DateOnly(2026, 8, 14));
+        var created = await CreateRelease(client, artist.Id, "WarnSong", TestDates.Upcoming);
         Assert.DoesNotContain(ReleaseWarnings.MissingUpc, created.Warnings);
 
         // Check "Distribute to DSPs" — now a blank UPC surfaces the warning.
@@ -70,7 +70,7 @@ public class ReleaseIdentifierApiTests(ZmgApiFactory factory) : IClassFixture<Zm
 
         // Fill the UPC: warning clears.
         var upd = await client.PutAsJsonAsync($"/api/releases/{created.Id}", new ReleaseInput(
-            "WarnSong", ReleaseType.Single, new DateOnly(2026, 8, 14), artist.Id, null, null, null,
+            "WarnSong", ReleaseType.Single, TestDates.Upcoming, artist.Id, null, null, null,
             Upc: "0123456789012"));
         upd.EnsureSuccessStatusCode();
         var filled = (await upd.Content.ReadFromJsonAsync<CreatedWithWarnings<ReleaseDetailDto>>())!.Data;

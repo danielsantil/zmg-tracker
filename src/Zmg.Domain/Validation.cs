@@ -158,12 +158,18 @@ public static class Validation
     }
 
     /// <summary>
-    /// The inline Tracks section a release is created with (v2.0). Pure structural rules only —
-    /// existence/archived checks stay in the service. A single must have exactly one track; an album
-    /// may have zero or more. Each spec must set exactly one of existing-song-id / new-title, no song
-    /// may appear twice, and new titles must be non-blank.
+    /// The inline Tracks section a release is created with (v2.0). Pure structural rules plus the
+    /// per-artist song-title uniqueness rule — existence/archived checks stay in the service. A single
+    /// must have exactly one track; an album may have zero or more. Each spec must set exactly one of
+    /// existing-song-id / new-title, no song may appear twice, and new titles must be non-blank. A new
+    /// title that clashes with another new title in the same request, or with an active same-artist song
+    /// in <paramref name="activeTitlesForArtist"/>, is a hard <see cref="DuplicateSongTitleMessage"/>
+    /// error (M25: hoisted out of the two services that duplicated it, incl. the within-request dedupe).
     /// </summary>
-    public static ValidationResult ValidateReleaseTracks(ReleaseType type, IReadOnlyList<TrackSpec> tracks)
+    public static ValidationResult ValidateReleaseTracks(
+        ReleaseType type,
+        IReadOnlyList<TrackSpec> tracks,
+        IEnumerable<string> activeTitlesForArtist)
     {
         var result = new ValidationResult();
 
@@ -184,6 +190,22 @@ public static class Validation
             .Any(g => g.Count() > 1);
         if (duplicateIds)
             result.Error("The same song can't appear twice on a release.");
+
+        // Per-artist title uniqueness for the new inline songs: a new title clashing with an active
+        // same-artist song, or repeated within this request, must be renamed or linked as the existing
+        // song instead of silently minting a duplicate. One message covers the whole tracklist.
+        var seenNewTitles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var spec in tracks.Where(t => !string.IsNullOrWhiteSpace(t.NewTitle)))
+        {
+            var newTitle = spec.NewTitle!.Trim();
+            var clashesActive = activeTitlesForArtist.Any(t =>
+                string.Equals(t?.Trim(), newTitle, StringComparison.OrdinalIgnoreCase));
+            if (clashesActive || !seenNewTitles.Add(newTitle))
+            {
+                result.Error(DuplicateSongTitleMessage);
+                break;
+            }
+        }
 
         return result;
     }

@@ -4,7 +4,7 @@ namespace Zmg.Domain.Tests;
 
 public class ValidationTests
 {
-    private static readonly DateOnly Today = new(2026, 7, 11);
+    private static readonly DateOnly Today = TestDates.Today;
 
     // ---- Artist name required + unique (case-insensitive) ----
 
@@ -43,7 +43,9 @@ public class ValidationTests
         var missingAll = Validation.ValidateRelease(
             "", Guid.Empty, mainArtistExists: false, null, Today, Array.Empty<string>());
         Assert.False(missingAll.IsValid);
-        Assert.Equal(3, missingAll.Errors.Count); // title, artist, date
+        Assert.Contains("Release title is required.", missingAll.Errors);
+        Assert.Contains("A main artist is required.", missingAll.Errors);
+        Assert.Contains("Release date is required.", missingAll.Errors);
 
         var ok = Validation.ValidateRelease(
             "Luz", artistId, mainArtistExists: true, Today.AddDays(10), Today, Array.Empty<string>());
@@ -105,45 +107,71 @@ public class ValidationTests
     {
         var result = Validation.ValidateSong("Luz", Guid.NewGuid(), mainArtistExists: true, new[] { "luz" });
         Assert.False(result.IsValid);
-        Assert.Contains(result.Errors, e => e.Contains("already exists"));
+        Assert.Contains(Validation.DuplicateSongTitleMessage, result.Errors);
     }
 
-    // ---- Release tracks (v2.0) ----
+    // ---- Release tracks (v2.0; per-artist title rule hoisted here in M25) ----
 
     [Fact]
     public void Single_must_have_exactly_one_track()
     {
-        Assert.False(Validation.ValidateReleaseTracks(ReleaseType.Single, Array.Empty<TrackSpec>()).IsValid);
-        Assert.False(Validation.ValidateReleaseTracks(ReleaseType.Single,
-            new[] { new TrackSpec(null, "A"), new TrackSpec(null, "B") }).IsValid);
-        Assert.True(Validation.ValidateReleaseTracks(ReleaseType.Single,
-            new[] { new TrackSpec(null, "A") }).IsValid);
+        Assert.False(ValidateTracks(ReleaseType.Single).IsValid);
+        Assert.False(ValidateTracks(ReleaseType.Single, new TrackSpec(null, "A"), new TrackSpec(null, "B")).IsValid);
+        Assert.True(ValidateTracks(ReleaseType.Single, new TrackSpec(null, "A")).IsValid);
     }
 
     [Fact]
     public void Album_may_have_zero_tracks()
     {
-        Assert.True(Validation.ValidateReleaseTracks(ReleaseType.Album, Array.Empty<TrackSpec>()).IsValid);
+        Assert.True(ValidateTracks(ReleaseType.Album).IsValid);
     }
 
     [Fact]
     public void Track_spec_must_set_exactly_one_of_id_or_title()
     {
         // Neither.
-        Assert.False(Validation.ValidateReleaseTracks(ReleaseType.Album,
-            new[] { new TrackSpec(null, "  ") }).IsValid);
+        Assert.False(ValidateTracks(ReleaseType.Album, new TrackSpec(null, "  ")).IsValid);
         // Both.
-        Assert.False(Validation.ValidateReleaseTracks(ReleaseType.Album,
-            new[] { new TrackSpec(Guid.NewGuid(), "Title") }).IsValid);
+        Assert.False(ValidateTracks(ReleaseType.Album, new TrackSpec(Guid.NewGuid(), "Title")).IsValid);
     }
 
     [Fact]
     public void Duplicate_song_ids_are_rejected()
     {
         var id = Guid.NewGuid();
-        Assert.False(Validation.ValidateReleaseTracks(ReleaseType.Album,
-            new[] { new TrackSpec(id, null), new TrackSpec(id, null) }).IsValid);
+        Assert.False(ValidateTracks(ReleaseType.Album, new TrackSpec(id, null), new TrackSpec(id, null)).IsValid);
     }
+
+    [Fact]
+    public void New_track_title_clashing_with_active_song_is_rejected()
+    {
+        // Arrange
+        var tracks = new[] { new TrackSpec(null, "Luz") };
+
+        // Act
+        var result = Validation.ValidateReleaseTracks(ReleaseType.Single, tracks, new[] { "luz" });
+
+        // Assert
+        Assert.False(result.IsValid);
+        Assert.Contains(Validation.DuplicateSongTitleMessage, result.Errors);
+    }
+
+    [Fact]
+    public void New_track_titles_repeated_within_one_request_are_rejected()
+    {
+        // Arrange
+        var tracks = new[] { new TrackSpec(null, "Luz"), new TrackSpec(null, "luz") };
+
+        // Act
+        var result = Validation.ValidateReleaseTracks(ReleaseType.Album, tracks, Array.Empty<string>());
+
+        // Assert
+        Assert.False(result.IsValid);
+        Assert.Contains(Validation.DuplicateSongTitleMessage, result.Errors);
+    }
+
+    private static ValidationResult ValidateTracks(ReleaseType type, params TrackSpec[] tracks) =>
+        Validation.ValidateReleaseTracks(type, tracks, Array.Empty<string>());
 
     // ---- Template must keep at least one task ----
 

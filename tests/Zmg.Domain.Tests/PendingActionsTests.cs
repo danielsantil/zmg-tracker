@@ -6,7 +6,7 @@ namespace Zmg.Domain.Tests;
 /// <summary>M10 — the pure pending-actions engine (strongest v1.1 signal), reworked in M14.</summary>
 public class PendingActionsTests
 {
-    private static readonly DateOnly Today = new(2026, 7, 12);
+    private static readonly DateOnly Today = TestDates.Today;
 
     private static Release Rel(DateOnly date, string title = "Song", string? upc = null,
         ReleaseType type = ReleaseType.Single, params ReleaseTask[] tasks) =>

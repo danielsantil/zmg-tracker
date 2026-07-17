@@ -11,15 +11,22 @@ for where the project stands and the rules that span plans.
 - [build-plan-2.0.md](build-plan-2.0.md) — songs & catalog (M12–M15). Shipped.
 - [build-plan-2.1.md](build-plan-2.1.md) — UX refinements (M16–M18). Shipped.
 - [build-plan-2.2.md](build-plan-2.2.md) — UX improvements (M19–M23). Shipped.
-- [build-plan-2.3.md](build-plan-2.3.md) — refactor · code health (M24–M25). **M24 (web) shipped; M25 (API) open.**
+- [build-plan-2.3.md](build-plan-2.3.md) — refactor · code health (M24–M25). **M24 (web) + M25 (API,
+  incl. all four defects) shipped; only the M25 test-hygiene *sweep* remains (see backlog).**
 
 Newer plan versions go in new `build-plan-N.N.md` files; older ones stay frozen.
 
-**Current state:** feature-complete through v2.2. **v2.3 M24 (the web refactor) is shipped**; **M25
-(the API + tests refactor) is the next milestone** — it also unblocks the two M24 items parked on it
-(server `canArchive`, `Validation.DuplicateSongTitleMessage`). Backend tests unchanged at **domain 62 /
-API 102** (M24 was SPA-only); the SPA now has **28 Vitest tests** on the pure modules. After M25,
-**Phase 2 — DSP stats** (no build plan yet).
+**Current state:** feature-complete through v2.2. **v2.3 M24 (web) and M25 (API + defects) are shipped.**
+M25 closed the archived-release write gap, hoisted the title-clash rule, added `AsNoTracking`/query
+tidy, shipped `canArchive` on the release DTOs, threaded `CancellationToken`, split
+`ReleaseService.CreateAsync`, fixed the Dockerfile + a fail-fast connection-string guard, and defused the
+test date bomb. Backend tests grew to **domain 73 / API 143** (was 62 / 102). The SPA has **28 Vitest
+tests**. **Two threads still open before Phase 2:** (a) the M25 *test-hygiene sweep* — shared
+fixtures/one lifecycle to cut host boots, exhaustive AAA/Theory, and the redundant-integration-test
+deletions (behavior-neutral; suite is green without it); (b) the **two M24 web items** M25 unblocked but
+did not itself close — the SPA still re-derives `canArchive` and still string-matches the duplicate-title
+message, now that the server ships `CanArchive` on the DTOs and `Validation.DuplicateSongTitleMessage`
+is a public const. After those, **Phase 2 — DSP stats** (no build plan yet).
 
 > ⚠️ **v2.0's `InitialCreate` is a hard schema reset with no migration path.** Any local
 > `src/Zmg.Api/zmg.db` from v1.x must be deleted, not upgraded (`rm src/Zmg.Api/zmg.db*`) — startup
@@ -78,12 +85,43 @@ repeats). Collapsed the `Template*` fork into generic `TaskRow`/`PhaseSection`/`
 in the meantime): the release `canArchive` is still re-derived client-side, and the add-track
 duplicate-title branch still string-matches the validator message.
 
+**v2.3 M25 (API + defects) — no features, code health.** Closed all four defects. **(1) Archived-release
+write gap:** new pure `ReleaseMutability` (a `CanEdit` 409 rule) now gates `ReleaseService.UpdateAsync`,
+all four `TrackService` writes, and all `ReleaseTaskService` writes — the read side already treated
+archived as terminal; no write path did. **(2) Dockerfile:** stage 2 now copies `Zmg.Infra` (the
+missing project reference that made `dotnet restore` fail), and `Program.cs` fail-fasts on a null `Zmg`
+connection string instead of passing it to `UseSqlite` (`ZmgApiFactory` supplies a test value). *The
+image build itself still needs a machine with the Docker daemon running — unverified here.* **(3) Stale
+template constants:** handled on the web side in M24; **(4) test date bomb:** the ~14
+`new DateOnly(2026, 8, 14)` literals → relative `TestDates.Upcoming`, and the four divergent Domain-test
+"today"s → one `TestDates.Today`. Also: the inline-song **title-clash rule** (three copies, two
+divergent) hoisted into `Validation.ValidateReleaseTracks` (now takes the artist's active titles and
+folds the within-request dedupe), so both services call Domain; **`canArchive`** derived server-side via
+new pure `ReleaseArchival` and shipped on `ReleaseListItemDto`/`ReleaseDetailDto`; **`AsNoTracking`** on
+the read paths (`AsNoTrackingWithIdentityResolution` where an include path cycles), a shared
+`SongQueryExtensions.WithDetailIncludes`, `ArtistService.UpdateAsync`'s three `CountAsync` collapsed to
+one projection; **`CancellationToken`** threaded through every service + interface + endpoint;
+`CreateAsync` decomposed into validate/resolve/build/materialise steps. **Tests:** new unit coverage —
+`ReleaseMutabilityTests`, `ReleaseArchivalTests`, `ReorderTests` (via `InternalsVisibleTo`),
+`OperationResultExtensionsTests` (status-code mapping), a 22-route **404 Theory**
+(`NotFoundRoutesApiTests`), the archived-write **409** suite (`ArchivedReleaseWriteApiTests`), and the
+first `?status=` filter + `CanArchive` DTO assertions. Some AAA/Theory tidy landed
+(`ReleaseStatusTests`, `ReleaseTests`, `SeedDataTests`, `ValidationTests`). **Deferred (behavior-neutral,
+suite green without it):** the shared-fixture/one-lifecycle consolidation to cut host boots, the
+exhaustive AAA/Theory pass, and the redundant-integration-test deletions.
+
 ---
 
 ## Cross-cutting decisions (not in any single plan)
 
 - **Status is derived, never stored** — recomputed from tasks + date on every read. `Archived` (v1.2) is
   the one persisted flag that overrides the derived value.
+- **Archived is terminal on *writes* too, not just reads (M25).** The read side always treated archived
+  as read-only (`ReleaseWarnings`, `PendingService`), but every write path — release PUT, task edits,
+  track edits — silently succeeded. Pure `ReleaseMutability.CanEdit` now gates them all with a **409**,
+  matching the song lifecycle. Any new release-write endpoint must call it. The mirror question "may this
+  still be archived?" is the separate pure `ReleaseArchival.CanArchive` (upcoming and not yet archived),
+  shipped on the release DTOs so the SPA never re-derives `releaseDate >= today`.
 - **Soft-delete, never hard-delete** (v1.2). Removed releases are stamped `DeletedAt` and hidden by a
   global query filter, so stable ids survive for phase-2 stats. A join between two soft-filtered entities
   needs **its own** filter (`Track` checks both parents) or a stale join outlives them; EF's "required end
@@ -174,13 +212,21 @@ tests/Zmg.Api.Tests      integration tests (WebApplicationFactory + in-memory SQ
 
 - **Shipped — v2.3 M24 (web refactor):** strict + Vitest · TanStack Query · shared list-page shell ·
   `Template*` fork collapsed · `ReleaseDetailPage`/`ReleaseFormPage` split · cva + typed-lint.
-- **Next — v2.3 M25 (API + tests refactor):** see [build-plan-2.3.md](build-plan-2.3.md) §M25. Closes the
-  archived-release **write gap** (defect 1 — `ReleaseMutability`, 409s), hoists the duplicated
-  title-clash rule, adds `AsNoTracking` + narrows `PendingService`, ships **`canArchive` on the release
-  DTOs** and exposes `Validation.DuplicateSongTitleMessage` (**both unblock the two parked M24 items**),
-  threads `CancellationToken`, splits `ReleaseService.CreateAsync`, **fixes + actually builds the
-  Dockerfile** (defect 2), and defuses the `2026-08-14` **test date bomb** (defect 4) plus the shared-
-  fixtures / AAA / Theory test cleanup. Full `dotnet test` is the gate.
+- **Shipped — v2.3 M25 (API + defects):** all four defects closed (archived write gap → `ReleaseMutability`
+  409s; Dockerfile Infra copy + connection-string fail-fast; stale template constants done in M24; date
+  bomb → `TestDates`); title-clash rule hoisted; `canArchive` on the release DTOs (`ReleaseArchival`);
+  `AsNoTracking` read paths + `SongQueryExtensions`; `CancellationToken` everywhere; `CreateAsync` split.
+  Tests **domain 73 / API 143**, all green. New: `ReleaseMutability`/`ReleaseArchival`/`Reorder`/
+  `OperationResultExtensions` units, a 22-route 404 Theory, the archived-write 409 suite, `?status=` +
+  `CanArchive` DTO assertions.
+- **Remaining M25 cleanup (behavior-neutral; not gating):** the **test-hygiene sweep** deferred from M25 —
+  the shared-fixture / one-lifecycle consolidation to cut host boots (~39 → ~11), the exhaustive AAA/Theory
+  pass, and the redundant-integration-test deletions the plan lists (`SongArchiveApiTests`/`PendingApiTests`/
+  `TrackApiTests`). Also **verify `docker build` on a live daemon** (the Dockerfile fix is unverified —
+  daemon was down here). Pure hygiene; the suite is green without it.
+- **The two M24 web items M25 unblocked (small SPA follow-up):** the SPA still re-derives `canArchive`
+  (`ReleaseDetailPage`/`AllReleasesPage`/`ReleaseCard`) — consume the DTO's new `CanArchive` — and the
+  add-track branch still string-matches; mirror `Validation.DuplicateSongTitleMessage` in a TS constant.
 - **Then — Phase 2: DSP stats** (the reason this exists over Notion/Trello): hang streaming/revenue data
   off the stable Artist / Release / **Song** / Track ids and the UPC/ISRC columns; the v2.0 Song ids are
   its foundation. No build plan yet — write `build-plan-3.0.md` when it starts.

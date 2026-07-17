@@ -94,7 +94,7 @@ public class ArtistReleaseApiTests(ZmgApiFactory factory) : IClassFixture<ZmgApi
         var artist = await CreateArtist(client, "Golden Path Artist");
 
         var res = await client.PostAsJsonAsync("/api/releases", new ReleaseInput(
-            "Luz", ReleaseType.Single, new DateOnly(2026, 8, 14), artist.Id, null, null, OneTrack()));
+            "Luz", ReleaseType.Single, TestDates.Upcoming, artist.Id, null, null, OneTrack()));
         res.EnsureSuccessStatusCode();
 
         var created = (await res.Content.ReadFromJsonAsync<CreatedWithWarnings<ReleaseDetailDto>>())!;
