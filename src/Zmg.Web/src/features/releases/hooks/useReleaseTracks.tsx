@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { api, ApiError, errorMessage } from '@/api';
+import { api, ApiError, errorMessage, DUPLICATE_SONG_TITLE_MESSAGE } from '@/api';
 import { queryKeys } from '@/api/queries';
 import type { ReleaseDetail, SongListItem, TrackDto } from '@/types';
 import { useConfirm } from '@/hooks/useConfirm';
@@ -69,8 +69,8 @@ export function useReleaseTracks(
       return true;
     } catch (e) {
       // A duplicate title (unique per artist) opens a prompt: pick the existing song or rename.
-      // TODO(M25): match on Validation.DuplicateSongTitleMessage instead of this string fragment.
-      if (e instanceof ApiError && e.errors.some((m) => m.includes('already exists for this artist'))) {
+      // Matches the server's DuplicateSongTitleMessage (mirrored in api/serverMessages.ts), M25.
+      if (e instanceof ApiError && e.errors.some((m) => m.includes(DUPLICATE_SONG_TITLE_MESSAGE))) {
         await promptDuplicate(draft.title);
         return false;
       }

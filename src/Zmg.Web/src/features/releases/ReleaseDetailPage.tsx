@@ -10,7 +10,6 @@ import { useConfirm } from '@/hooks/useConfirm';
 import { useToast } from '@/hooks/useToast';
 import { useBackNavigation } from '@/hooks/useBackNavigation';
 import { PHASE_ORDER } from '@/lib/phase';
-import { todayIso } from '@/lib/format';
 import { ReleaseHeader } from './components/ReleaseHeader';
 import { NeedsAttention } from './components/NeedsAttention';
 import { PhaseSection } from './components/PhaseSection';
@@ -80,8 +79,8 @@ function ReleaseDetailView({ release }: { release: ReleaseDetail }) {
 
   // Archived releases are terminal and read-only: no edit, no toggles, no add/menu controls.
   const readOnly = release.isArchived;
-  // Archive is only allowed for releases still to come (releaseDate >= today).
-  const canArchive = !readOnly && release.releaseDate >= todayIso();
+  // Archive affordance follows the server's canArchive (upcoming & not archived).
+  const canArchive = release.canArchive;
 
   return (
     <div>

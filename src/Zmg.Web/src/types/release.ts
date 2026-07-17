@@ -38,6 +38,7 @@ export interface ReleaseListItem {
   status: ReleaseStatus;
   upc: string | null;
   warnings: string[]; // soft advisories (e.g. "Missing UPC", "Album is empty")
+  canArchive: boolean; // M25: server-derived (upcoming & not archived); don't re-derive from the date
 }
 
 export interface ReleaseDetail {
@@ -57,6 +58,7 @@ export interface ReleaseDetail {
   upc: string | null;
   warnings: string[]; // soft advisories (e.g. "Missing UPC", "Album is empty")
   isArchived: boolean;
+  canArchive: boolean; // M25: server-derived (upcoming & not archived); don't re-derive from the date
 }
 
 export interface CreatedWithWarnings<T> {

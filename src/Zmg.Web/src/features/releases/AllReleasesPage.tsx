@@ -27,7 +27,6 @@ import { usePersistedState } from '@/hooks/usePersistedState';
 import { useToast } from '@/hooks/useToast';
 import { useConfirmDelete } from '@/hooks/useConfirmDelete';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
-import { todayIso } from '@/lib/format';
 import { archiveReleaseConfirm } from './archiveConfirm';
 import { ReleaseCalendar } from './components/ReleaseCalendar';
 
@@ -46,7 +45,6 @@ export default function AllReleasesPage() {
   const [status, setStatus] = useState('');
   const [q, setQ] = useState('');
   const debouncedQ = useDebouncedValue(q);
-  const today = todayIso();
 
   const { data: artists = [] } = useArtists();
   const { data: releases = [], isLoading, error } = useReleases({
@@ -146,8 +144,8 @@ export default function AllReleasesPage() {
                         <MenuItem onClick={() => { close(); void navigate(`/releases/${r.id}/edit`); }}>
                           Edit
                         </MenuItem>
-                        {/* Archive is only allowed for releases still to come (releaseDate >= today). */}
-                        {r.releaseDate >= today && (
+                        {/* Archive affordance follows the server's canArchive (upcoming & not archived). */}
+                        {r.canArchive && (
                           <MenuItem tone="archive" onClick={() => { close(); void archive(r); }}>
                             Archive
                           </MenuItem>
