@@ -1,10 +1,11 @@
 import type { ReleaseListItem } from '@/types';
 import { MenuItem, ProgressBar, RowMenu, SoftWarning, StatusBadge, TypeBadge } from '@/components';
-import { formatCountdown, todayIso } from '@/lib/format';
+import { formatCountdown, formatReleaseDate, todayIso } from '@/lib/format';
 
 /**
- * The compact release card: Home renders it with a cover, the calendar preview without.
- * Actions live in the kebab so the card stays short enough to stack in a modal.
+ * The compact release card. Actions live in the kebab so it stays short enough to stack in a modal.
+ * Home renders it with a cover (whose click opens the release); the calendar preview has neither, so
+ * it opts into the explicit "Open release →" link instead.
  */
 export function ReleaseCard({
   r,
@@ -12,12 +13,14 @@ export function ReleaseCard({
   onEdit,
   onArchive,
   showCover = false,
+  showOpenLink = false,
 }: {
   r: ReleaseListItem;
   onOpen: () => void;
   onEdit: () => void;
   onArchive: () => void;
   showCover?: boolean;
+  showOpenLink?: boolean;
 }) {
   const countdown = formatCountdown(r.status, r.releaseDate);
 
@@ -73,14 +76,24 @@ export function ReleaseCard({
           </div>
           <p className="text-sm text-slate-400">{r.mainArtistName}</p>
         </div>
-        <div className="flex items-center gap-2 text-xs text-slate-400">
+        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
           <TypeBadge type={r.type} />
-          <span>{r.releaseDate}</span>
+          <span>{formatReleaseDate(r.releaseDate)}</span>
           {countdown && <span className="text-accent">· {countdown}</span>}
         </div>
         <div className="mt-auto">
-          <ProgressBar done={r.doneTasks} total={r.totalTasks} />
+          <ProgressBar
+            done={r.doneTasks}
+            total={r.totalTasks}
+            slim
+            label={`${r.doneTasks} / ${r.totalTasks} tasks`}
+          />
         </div>
+        {showOpenLink && (
+          <button onClick={onOpen} className="w-fit text-left text-sm text-accent hover:underline">
+            Open release →
+          </button>
+        )}
       </div>
     </div>
   );

@@ -140,8 +140,14 @@ skipped for now and is the only 2.2 work left). **M21:** the Home card moved to
 [`features/releases/components/ReleaseCard.tsx`](src/Zmg.Web/src/features/releases/components/ReleaseCard.tsx)
 — it's no longer Home's, since the M22 calendar preview will render it too. Its Edit/Archive `Button` pair
 collapsed into the same `RowMenu` kebab the M20 tables use (Archive gated on `releaseDate >= todayIso()`,
-matching `AllReleasesPage`, where before Home showed it unconditionally), padding tightened `p-4`→`p-3`/`gap-3`→`gap-2`,
-and the cover became opt-in via **`showCover`** (Home passes it; the calendar preview won't). **M23:** the
+matching `AllReleasesPage`, where before Home showed it unconditionally) and padding tightened
+`p-4`→`p-3`/`gap-3`→`gap-2`. **Two independent display flags, both default-off:** `showCover` (Home passes it —
+the cover *is* its click-to-open affordance) and `showOpenLink` (the coverless calendar preview will pass it for
+an explicit "Open release →"; Home doesn't need it). Matching the mockup also meant a **slim `ProgressBar` +
+"X / Y tasks"** — added optional `slim`/`label` props rather than a second bar, so `ReleaseHeader` keeps the
+default "N/M done · P%" — and **`formatReleaseDate`** ("Aug 22, 2026") in `lib/format.ts`, parsing local
+midnight (`+'T00:00:00'`) like `daysToRelease`, since bare `new Date('yyyy-MM-dd')` is UTC and drifts a day
+back in negative offsets — the same trap the M22 calendar plan flags for its cells. **M23:** the
 checklist rows' kebab "Move up"/"Move down" items are gone, replaced by inline ↑/↓ — extracted as shared
 [`ReorderArrows`](src/Zmg.Web/src/components/ReorderArrows.tsx) (`{ isFirst, isLast, onMove }`, disabled at
 the ends) and adopted by `TaskRow`, `TemplateTaskRow`, and `Tracklist` (which had owned the only copy of that
