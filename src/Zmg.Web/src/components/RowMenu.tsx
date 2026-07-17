@@ -62,7 +62,7 @@ export function RowMenu({
           <div className="fixed inset-0 z-20" onClick={close} />
           <div
             style={pos}
-            className="z-30 w-44 overflow-hidden rounded-lg border border-edge bg-panel py-1 text-sm shadow-lg"
+            className="z-30 w-44 overflow-hidden rounded-lg border border-edge bg-panel text-sm shadow-lg"
           >
             {children(close)}
           </div>
@@ -88,7 +88,7 @@ export function MenuItem({
     archive: 'text-amber-300',
   };
   return (
-    <button className={`block w-full px-3 py-2 text-left hover:bg-edge ${tones[tone]}`} onClick={onClick}>
+    <button className={`block w-full px-3 py-3 text-left hover:bg-edge ${tones[tone]}`} onClick={onClick}>
       {children}
     </button>
   );

@@ -10,7 +10,7 @@ lists; read **this** for current state and the cross-cutting knowledge the plans
 - [build-plan-1.2.md](build-plan-1.2.md) — archived releases (M11). Shipped.
 - [build-plan-2.0.md](build-plan-2.0.md) — songs & catalog (M12–M15). **M12–M15 shipped — v2.0 complete.**
 - [build-plan-2.1.md](build-plan-2.1.md) — UX refinements (M16–M18). **M16–M18 shipped — v2.1 complete.**
-- [build-plan-2.2.md](build-plan-2.2.md) — UX improvements (M19–M23). **M19 shipped; M20–M23 next.**
+- [build-plan-2.2.md](build-plan-2.2.md) — UX improvements (M19–M23). **M19–M20 shipped; M21–M23 next.**
 
 Newer plan versions go in new `build-plan-N.N.md` files; older ones stay frozen.
 
@@ -255,7 +255,7 @@ tests/Zmg.Api.Tests      integration tests (WebApplicationFactory + in-memory SQ
     `/artists/new` + `/artists/:id` pages (`GET /api/artists/{id}`), inline `ArtistForm` deleted. Also fixed:
     the delete guard now counts feat/collab credits (`ArtistDto.CreditCount`) so a feat-only artist blocks
     with a clean 409 instead of a FK 500.
-  - **M20 — Kebab menus** on the Releases + Catalog table rows (replace inline Archive/Delete/Edit buttons).
+  - **M20 — Kebab menus. ✅ Shipped.** on the Releases + Catalog table rows (replace inline Archive/Delete/Edit buttons).
   - **M21 — Compact `ReleaseCard`** (kebab actions, optional cover) that **replaces the Home cards** (Home
     keeps its cover) and is reused by the calendar preview.
   - **M22 — Releases calendar view.** A Table/Calendar toggle + hand-rolled month grid (`lib/calendar.ts`),

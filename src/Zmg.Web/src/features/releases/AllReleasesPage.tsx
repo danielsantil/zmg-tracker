@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { api, ApiError } from '@/api';
 import type { Artist, ReleaseListItem } from '@/types';
 import { ReleaseType } from '@/types';
-import { Button, SoftWarning, StatusBadge, Toast, TypeBadge, inputClass } from '@/components';
+import { Button, MenuItem, RowMenu, SoftWarning, StatusBadge, Toast, TypeBadge, inputClass } from '@/components';
 import { useConfirm } from '@/hooks/useConfirm';
 import { useToast } from '@/hooks/useToast';
 import { todayIso } from '@/lib/format';
@@ -166,18 +166,34 @@ export default function AllReleasesPage() {
                     <StatusBadge status={r.status} />
                   </td>
                   <td className="px-4 py-3">
-                    {/* Archive is only allowed for releases still to come (releaseDate >= today). */}
-                    {r.releaseDate >= today && (
-                      <Button
-                        variant="archive"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          archive(r);
-                        }}
-                      >
-                        Archive
-                      </Button>
-                    )}
+                    <div onClick={(e) => e.stopPropagation()} className="w-fit">
+                      <RowMenu label="Release actions">
+                        {(close) => (
+                          <>
+                            <MenuItem
+                              onClick={() => {
+                                close();
+                                navigate(`/releases/${r.id}/edit`);
+                              }}
+                            >
+                              Edit
+                            </MenuItem>
+                            {/* Archive is only allowed for releases still to come (releaseDate >= today). */}
+                            {r.releaseDate >= today && (
+                              <MenuItem
+                                tone="archive"
+                                onClick={() => {
+                                  close();
+                                  archive(r);
+                                }}
+                              >
+                                Archive
+                              </MenuItem>
+                            )}
+                          </>
+                        )}
+                      </RowMenu>
+                    </div>
                   </td>
                 </tr>
               ))}
