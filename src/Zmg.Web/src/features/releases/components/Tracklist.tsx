@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import type { Artist, SongArtistInput, SongListItem } from '@/types';
-import { InlineAddForm } from '@/components';
+import { InlineAddForm, ReorderArrows } from '@/components';
 import { SongPickerModal } from '@/features/catalog/components/SongPickerModal';
 import { NewTrackForm } from './NewTrackForm';
 
@@ -115,25 +115,12 @@ export function Tracklist({
                   </span>
 
                   {editable && (
-                    <div className="flex shrink-0 items-center gap-1">
-                      <button
-                        type="button"
-                        aria-label="Move up"
-                        disabled={i === 0}
-                        onClick={() => onMove(row, -1)}
-                        className="px-1.5 text-slate-500 hover:text-slate-300 disabled:opacity-30"
-                      >
-                        ↑
-                      </button>
-                      <button
-                        type="button"
-                        aria-label="Move down"
-                        disabled={i === rows.length - 1}
-                        onClick={() => onMove(row, 1)}
-                        className="px-1.5 text-slate-500 hover:text-slate-300 disabled:opacity-30"
-                      >
-                        ↓
-                      </button>
+                    <div className="flex shrink-0 items-center">
+                      <ReorderArrows
+                        isFirst={i === 0}
+                        isLast={i === rows.length - 1}
+                        onMove={(dir) => onMove(row, dir)}
+                      />
                       <button
                         type="button"
                         aria-label="Remove track"

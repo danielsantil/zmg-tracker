@@ -6,6 +6,7 @@ export { Modal } from './Modal';
 export { SoftWarning } from './SoftWarning';
 export { MenuItem, RowMenu } from './RowMenu';
 export { ProgressBar } from './ProgressBar';
+export { ReorderArrows } from './ReorderArrows';
 export { StatusBadge } from './StatusBadge';
 export { Toast, type ToastVariant } from './Toast';
 export { TypeBadge } from './TypeBadge';

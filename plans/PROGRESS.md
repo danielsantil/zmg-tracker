@@ -10,7 +10,7 @@ lists; read **this** for current state and the cross-cutting knowledge the plans
 - [build-plan-1.2.md](build-plan-1.2.md) — archived releases (M11). Shipped.
 - [build-plan-2.0.md](build-plan-2.0.md) — songs & catalog (M12–M15). **M12–M15 shipped — v2.0 complete.**
 - [build-plan-2.1.md](build-plan-2.1.md) — UX refinements (M16–M18). **M16–M18 shipped — v2.1 complete.**
-- [build-plan-2.2.md](build-plan-2.2.md) — UX improvements (M19–M23). **M19–M20 shipped; M21–M23 next.**
+- [build-plan-2.2.md](build-plan-2.2.md) — UX improvements (M19–M23). **M19–M21 + M23 shipped; M22 next.**
 
 Newer plan versions go in new `build-plan-N.N.md` files; older ones stay frozen.
 
@@ -135,6 +135,20 @@ blocks feat-only artists up front too ("still tied to N feat/collab credits"). B
 (table + counts, both delete branches incl. the credit case, create → list, edit prefill); `dotnet test` green
 (domain 62 / **API 102** — +GET-by-id/songCount/feat-delete-guard), `npm run lint`/`build` clean.
 
+**v2.2 M21 + M23 — compact card · one reorder control.** Two SPA-only milestones (M22, the calendar, was
+skipped for now and is the only 2.2 work left). **M21:** the Home card moved to
+[`features/releases/components/ReleaseCard.tsx`](src/Zmg.Web/src/features/releases/components/ReleaseCard.tsx)
+— it's no longer Home's, since the M22 calendar preview will render it too. Its Edit/Archive `Button` pair
+collapsed into the same `RowMenu` kebab the M20 tables use (Archive gated on `releaseDate >= todayIso()`,
+matching `AllReleasesPage`, where before Home showed it unconditionally), padding tightened `p-4`→`p-3`/`gap-3`→`gap-2`,
+and the cover became opt-in via **`showCover`** (Home passes it; the calendar preview won't). **M23:** the
+checklist rows' kebab "Move up"/"Move down" items are gone, replaced by inline ↑/↓ — extracted as shared
+[`ReorderArrows`](src/Zmg.Web/src/components/ReorderArrows.tsx) (`{ isFirst, isLast, onMove }`, disabled at
+the ends) and adopted by `TaskRow`, `TemplateTaskRow`, and `Tracklist` (which had owned the only copy of that
+markup). Arrows stay behind `!readOnly`, so the archived read-only detail shows none. `npm run lint` +
+`npm run build` clean; no backend touched, so `dotnet test` was deliberately not re-run (SPA-only blast radius).
+**Not yet browser-driven** — the kebab-on-card and the arrows want a visual pass at 375px and desktop.
+
 ---
 
 ## Cross-cutting decisions (not in any single plan)
@@ -149,7 +163,8 @@ blocks feat-only artists up front too ("still tied to N feat/collab credits"). B
   `TemplateApiTests.Editing_a_template_does_not_touch_existing_releases`).
 - **Reorder is move-up/move-down, not drag-and-drop.** The order endpoint takes the full ordered id
   list for a phase; the UI posts a single-swap result. Dependency-free, mobile-friendly; the endpoint
-  already supports arbitrary orderings if DnD is added later.
+  already supports arbitrary orderings if DnD is added later. **Its one UI control is inline ↑/↓ via
+  `components/ReorderArrows.tsx` (M23)** — never a kebab item, never a second copy of the arrow markup.
 - **Mutations return the single changed DTO** (or 204); the detail screen holds a flat task array and
   recomputes phase groups + progress client-side, so no re-fetch. Moving a task across phases appends
   to the target (`SortOrder = max+1`).
@@ -248,7 +263,7 @@ tests/Zmg.Api.Tests      integration tests (WebApplicationFactory + in-memory SQ
   ESLint migration. All browser-verified; see the journal. One thing never driven in the browser: the
   archive-confirm cascade *list* specifically (needs a release with dormant cascading songs) — the underlying
   `ConfirmDialog`/`Modal` + `ReactNode` body are otherwise verified.
-- **build-plan-2.2 — UX improvements (M19–M23). M19–M21 shipped; M22–M23 next.** See
+- **build-plan-2.2 — UX improvements (M19–M23). M19–M21 + M23 shipped; only M22 (calendar) left.** See
   [build-plan-2.2.md](build-plan-2.2.md) for full scope, mockup notes, and per-milestone test lists.
   - **M19 — Artists redesign. ✅ Shipped.** Table (Name · Releases · Songs · Actions) + `RowMenu` kebab;
     up-front smart delete (info modal vs. red confirm, `ConfirmOptions.hideCancel`); dedicated
@@ -263,8 +278,10 @@ tests/Zmg.Api.Tests      integration tests (WebApplicationFactory + in-memory SQ
     dependency-free; opens on today's month, "Next release" jump chip (hidden when nothing upcoming), mobile
     dots vs desktop chips; click → preview modal of compact cards. **No backend change** (`scope=all` already
     returns all dates).
-  - **M23 — Inline reorder arrows** on checklist rows (release detail + templates), replacing the kebab
-    "Move up/down"; extract a shared `ReorderArrows` used by both task rows and the `Tracklist`.
+  - **M23 — Inline reorder arrows. ✅ Shipped.** New shared
+    [`ReorderArrows`](src/Zmg.Web/src/components/ReorderArrows.tsx) on `TaskRow` + `TemplateTaskRow`
+    (arrows gated behind `!readOnly`), the kebab's "Move up/down" items dropped, and `Tracklist`
+    refactored onto it — one reorder control app-wide.
   - Branch `feat/v2.2-ux-improvements` exists; only the build-plan doc + this note are committed-in-spirit —
     no implementation code written yet.
 - **Phase 2 — DSP stats (after v2.2)** (the reason this exists over Notion/Trello): hang streaming/revenue data
