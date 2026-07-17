@@ -3,11 +3,17 @@ import { Link, useNavigate } from 'react-router-dom';
 import { api, ApiError } from '@/api';
 import type { Artist, ReleaseListItem } from '@/types';
 import { ReleaseType } from '@/types';
-import { Button, SoftWarning, StatusBadge, Toast, TypeBadge, inputClass } from '@/components';
+import { Button, MenuItem, RowMenu, SoftWarning, StatusBadge, Toast, TypeBadge, inputClass } from '@/components';
 import { useConfirm } from '@/hooks/useConfirm';
+import { usePersistedState } from '@/hooks/usePersistedState';
 import { useToast } from '@/hooks/useToast';
 import { todayIso } from '@/lib/format';
 import { archiveReleaseConfirm } from './archiveConfirm';
+import { ReleaseCalendar } from './components/ReleaseCalendar';
+
+const VIEWS = ['table', 'calendar'] as const;
+type View = (typeof VIEWS)[number];
+const isView = (v: unknown): v is View => VIEWS.includes(v as View);
 
 export default function AllReleasesPage() {
   const navigate = useNavigate();
@@ -18,6 +24,8 @@ export default function AllReleasesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Sticky so the calendar doesn't silently revert to the table on every visit.
+  const [view, setView] = usePersistedState<View>('releases.view', 'table', isView);
   const [artistId, setArtistId] = useState('');
   const [type, setType] = useState('');
   const [status, setStatus] = useState('');
@@ -111,8 +119,22 @@ export default function AllReleasesPage() {
         )}
       </div>
 
-      {/* Kept outside the table so it stays reachable even when there are no releases. */}
-      <div className="mb-3 flex justify-end">
+      {/* Kept outside the table so both stay reachable even when there are no releases. */}
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <div className="inline-flex rounded-lg border border-edge bg-panel p-0.5">
+          {VIEWS.map((v) => (
+            <button
+              key={v}
+              onClick={() => setView(v)}
+              aria-pressed={view === v}
+              className={`rounded-md px-3 py-1 text-sm font-medium capitalize transition ${
+                view === v ? 'bg-edge text-white' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              {v}
+            </button>
+          ))}
+        </div>
         <Link to="/releases/archived" className="text-sm text-slate-400 hover:text-accent">
           Archived Releases →
         </Link>
@@ -122,12 +144,15 @@ export default function AllReleasesPage() {
 
       {loading ? (
         <p className="text-slate-400">Loading…</p>
+      ) : view === 'calendar' ? (
+        /* The calendar reuses the fetched, already-filtered list — an empty month speaks for itself. */
+        <ReleaseCalendar releases={releases} onArchive={archive} />
       ) : releases.length === 0 ? (
         <div className="rounded-xl border border-dashed border-edge bg-panel/50 p-10 text-center text-slate-400">
           {hasFilters ? 'No releases match these filters.' : 'No releases yet.'}
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-edge bg-panel">
+        <div className="overflow-x-auto rounded-xl border border-edge bg-panel">
           <table className="w-full text-left text-sm">
             <thead className="border-b border-edge text-xs uppercase tracking-wide text-slate-500">
               <tr>
@@ -166,18 +191,34 @@ export default function AllReleasesPage() {
                     <StatusBadge status={r.status} />
                   </td>
                   <td className="px-4 py-3">
-                    {/* Archive is only allowed for releases still to come (releaseDate >= today). */}
-                    {r.releaseDate >= today && (
-                      <Button
-                        variant="archive"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          archive(r);
-                        }}
-                      >
-                        Archive
-                      </Button>
-                    )}
+                    <div onClick={(e) => e.stopPropagation()} className="w-fit">
+                      <RowMenu label="Release actions">
+                        {(close) => (
+                          <>
+                            <MenuItem
+                              onClick={() => {
+                                close();
+                                navigate(`/releases/${r.id}/edit`);
+                              }}
+                            >
+                              Edit
+                            </MenuItem>
+                            {/* Archive is only allowed for releases still to come (releaseDate >= today). */}
+                            {r.releaseDate >= today && (
+                              <MenuItem
+                                tone="archive"
+                                onClick={() => {
+                                  close();
+                                  archive(r);
+                                }}
+                              >
+                                Archive
+                              </MenuItem>
+                            )}
+                          </>
+                        )}
+                      </RowMenu>
+                    </div>
                   </td>
                 </tr>
               ))}

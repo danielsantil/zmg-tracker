@@ -4,6 +4,7 @@ import Home from './features/home/HomePage';
 import AllReleases from './features/releases/AllReleasesPage';
 import ArchivedReleases from './features/releases/ArchivedReleasesPage';
 import Artists from './features/artists/ArtistsPage';
+import ArtistForm from './features/artists/ArtistFormPage';
 import ReleaseForm from './features/releases/ReleaseFormPage';
 import ReleaseDetail from './features/releases/ReleaseDetailPage';
 import Catalog from './features/catalog/CatalogPage';
@@ -19,7 +20,9 @@ function Nav() {
     }`;
   return (
     <header className="sticky top-0 z-10 border-b border-edge bg-ink/80 backdrop-blur">
-      <div className="mx-auto flex max-w-5xl items-center gap-2 px-4 py-3">
+      {/* Wraps to a second row below ~440px: the five links don't fit a 375px phone, and an
+          unwrapped row made the whole document scroll sideways. */}
+      <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-2 gap-y-1 px-4 py-3">
         <NavLink to="/" className="mr-2 flex items-center gap-2 font-semibold text-white">
           <span className="grid h-7 w-7 place-items-center rounded-lg bg-accent text-sm">Z</span>
           <span className="hidden sm:inline">ZMG Tracker</span>
@@ -59,6 +62,8 @@ export default function App() {
             <Route path="/catalog/archived" element={<ArchivedSongs />} />
             <Route path="/catalog/:id" element={<SongDetail />} />
             <Route path="/artists" element={<Artists />} />
+            <Route path="/artists/new" element={<ArtistForm />} />
+            <Route path="/artists/:id" element={<ArtistForm />} />
             <Route path="/templates" element={<Templates />} />
             <Route path="/releases/new" element={<ReleaseForm />} />
             <Route path="/releases/:id" element={<ReleaseDetail />} />

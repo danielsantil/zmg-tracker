@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { ReleaseTaskDto } from '@/types';
 import { Phase } from '@/types';
-import { MenuItem, RowMenu, inputClass } from '@/components';
+import { MenuItem, ReorderArrows, RowMenu, inputClass } from '@/components';
 import { formatTimeframe } from '@/lib/format';
 import { TimeframeEditor } from './TimeframeEditor';
 import { MovePhaseItems } from './MovePhaseItems';
@@ -97,31 +97,30 @@ export function TaskRow({
         )}
 
         {!readOnly && (
-          <RowMenu>
-            {(close) => (
-              <>
-                <MenuItem onClick={() => { close(); startEdit('title'); }}>Rename</MenuItem>
-                <MenuItem onClick={() => { close(); startEdit('notes'); }}>
-                  {task.notes ? 'Edit notes' : 'Add notes'}
-                </MenuItem>
-                {task.phase === Phase.Pre && (
-                  <MenuItem onClick={() => { close(); setEditing('timeframe'); }}>
-                    {timeframe ? 'Edit timeframe' : 'Set timeframe'}
-                  </MenuItem>
+          <div className="flex shrink-0 items-center">
+            <ReorderArrows isFirst={isFirst} isLast={isLast} onMove={(dir) => onMove(task, dir)} />
+            <div className="ml-3">
+              <RowMenu>
+                {(close) => (
+                  <>
+                    <MenuItem onClick={() => { close(); startEdit('title'); }}>Rename</MenuItem>
+                    <MenuItem onClick={() => { close(); startEdit('notes'); }}>
+                      {task.notes ? 'Edit notes' : 'Add notes'}
+                    </MenuItem>
+                    {task.phase === Phase.Pre && (
+                      <MenuItem onClick={() => { close(); setEditing('timeframe'); }}>
+                        {timeframe ? 'Edit timeframe' : 'Set timeframe'}
+                      </MenuItem>
+                    )}
+                    <MovePhaseItems task={task} onUpdate={onUpdate} close={close} />
+                    <MenuItem tone="danger" onClick={() => { close(); onDelete(task); }}>
+                      Delete
+                    </MenuItem>
+                  </>
                 )}
-                <MovePhaseItems task={task} onUpdate={onUpdate} close={close} />
-                {!isFirst && (
-                  <MenuItem onClick={() => { close(); onMove(task, -1); }}>Move up</MenuItem>
-                )}
-                {!isLast && (
-                  <MenuItem onClick={() => { close(); onMove(task, 1); }}>Move down</MenuItem>
-                )}
-                <MenuItem tone="danger" onClick={() => { close(); onDelete(task); }}>
-                  Delete
-                </MenuItem>
-              </>
-            )}
-          </RowMenu>
+              </RowMenu>
+            </div>
+          </div>
         )}
       </div>
 

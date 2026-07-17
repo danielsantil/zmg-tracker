@@ -23,11 +23,23 @@ export function daysToRelease(date: string): number {
 }
 
 /**
+ * A release date as "Aug 22, 2026". Parsed as local midnight (never `new Date('yyyy-MM-dd')`,
+ * which is UTC and drifts a day back in negative offsets).
+ */
+export function formatReleaseDate(date: string): string {
+  return new Date(date + 'T00:00:00').toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+/**
  * Countdown string for an upcoming release ("3 days to release" / "Releases today"),
  * or null once it's released or not upcoming. Shared by release cards and the detail header.
  */
 export function formatCountdown(status: string, releaseDate: string): string | null {
   const days = daysToRelease(releaseDate);
   if (status !== 'Upcoming' || days < 0) return null;
-  return days === 0 ? 'Releases today' : `${days} days to release`;
+  return days === 0 ? 'Releases today' : `in ${days} days`;
 }

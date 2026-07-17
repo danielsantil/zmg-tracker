@@ -71,7 +71,7 @@ export default function ArchivedReleasesPage() {
           No archived releases.
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-edge bg-panel">
+        <div className="overflow-x-auto rounded-xl border border-edge bg-panel">
           <table className="w-full text-left text-sm">
             <thead className="border-b border-edge text-xs uppercase tracking-wide text-slate-500">
               <tr>

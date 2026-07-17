@@ -22,7 +22,15 @@ When asked to build/implement something without a specific milestone named:
 1. **Start by reading `plans/PROGRESS.md`** — its "Backlog / next steps" section names the next
    milestone. Confirm the target with me before writing code if it's ambiguous.
 2. Do the work against the relevant `plans/build-plan-*.md` (scope, wireframes, per-milestone test list).
-3. Run the tests (`dotnet test`) before considering it done.
+3. Verify **only what the change can break** — do not run the full suite by reflex:
+   - **SPA-only** (`src/Zmg.Web`, no API/DTO change): `npm run lint` and `npm run build`. Do **not**
+     run `dotnet test` or start the API.
+   - **Domain-only** (`src/Zmg.Domain`): `dotnet test tests/Zmg.Domain.Tests`, or a `--filter` on the
+     class you touched. Skip the API integration tests.
+   - **API/Infra**, or anything that changes a DTO, endpoint shape, or migration: full `dotnet test`.
+     This is the only case that needs both sides checked.
+   - Docs/plans/comments only: no verification.
+   When in doubt about the blast radius, ask me rather than running everything.
 4. **Finish by updating `plans/PROGRESS.md`** — add a journal entry for what shipped and adjust the
    "Backlog / next steps" so the next session knows the new current state.
 

@@ -7,8 +7,8 @@ import { Button, inputClass, Toast } from '@/components';
 import { useConfirm } from '@/hooks/useConfirm';
 import { useToast } from '@/hooks/useToast';
 import { PendingSection } from './components/PendingSection';
-import { ReleaseCard } from './components/ReleaseCard';
 import { EmptyState } from './components/EmptyState';
+import { ReleaseCard } from '../releases/components/ReleaseCard';
 import { archiveReleaseConfirm } from '../releases/archiveConfirm';
 
 export default function HomePage() {
@@ -123,6 +123,7 @@ export default function HomePage() {
             <ReleaseCard
               key={r.id}
               r={r}
+              showCover
               onOpen={() => navigate(`/releases/${r.id}`)}
               onEdit={() => navigate(`/releases/${r.id}/edit`)}
               onArchive={() => archive(r)}

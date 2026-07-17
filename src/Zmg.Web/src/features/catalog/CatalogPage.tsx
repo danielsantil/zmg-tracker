@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api, ApiError } from '@/api';
 import type { Artist, SongListItem } from '@/types';
-import { Button, Toast, inputClass } from '@/components';
+import { Button, MenuItem, RowMenu, Toast, inputClass } from '@/components';
 import { useConfirm } from '@/hooks/useConfirm';
 import { useToast } from '@/hooks/useToast';
 
@@ -130,12 +130,13 @@ export default function CatalogPage() {
           {hasFilters ? 'No songs match these filters.' : 'No songs yet — add one or create a release.'}
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-edge bg-panel">
+        <div className="overflow-x-auto rounded-xl border border-edge bg-panel">
           <table className="w-full text-left text-sm">
             <thead className="border-b border-edge text-xs uppercase tracking-wide text-slate-500">
               <tr>
                 <th className="px-4 py-3 font-medium">Name</th>
                 <th className="px-4 py-3 font-medium">Main Artist</th>
+                <th className="px-4 py-3 font-medium">Released</th>
                 <th className="px-4 py-3 font-medium">Action</th>
               </tr>
             </thead>
@@ -149,28 +150,37 @@ export default function CatalogPage() {
                   <td className="px-4 py-3 font-medium text-white">{s.title}</td>
                   <td className="px-4 py-3 text-slate-300">{s.mainArtistName}</td>
                   <td className="px-4 py-3">
-                    {s.isOrphan ? (
-                      <Button
-                        variant="danger"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          remove(s);
-                        }}
-                      >
-                        Delete
-                      </Button>
-                    ) : s.canArchive ? (
-                      <Button
-                        variant="archive"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          archive(s);
-                        }}
-                      >
-                        Archive
-                      </Button>
-                    ) : (
-                      <span className="text-xs text-slate-600">—</span>
+                    {s.releaseCount > 0 ? <span className="text-green-400">Yes</span> : <span className="text-gray-400">No</span>}
+                  </td>
+                  <td className="px-4 py-3">
+                    {(s.isOrphan || s.canArchive) && (
+                      <div onClick={(e) => e.stopPropagation()} className="w-fit">
+                        <RowMenu label="Song actions">
+                          {(close) =>
+                            s.isOrphan ? (
+                              <MenuItem
+                                tone="danger"
+                                onClick={() => {
+                                  close();
+                                  remove(s);
+                                }}
+                              >
+                                Delete
+                              </MenuItem>
+                            ) : (
+                              <MenuItem
+                                tone="archive"
+                                onClick={() => {
+                                  close();
+                                  archive(s);
+                                }}
+                              >
+                                Archive
+                              </MenuItem>
+                            )
+                          }
+                        </RowMenu>
+                      </div>
                     )}
                   </td>
                 </tr>

@@ -55,13 +55,13 @@ export default function SongFormPage() {
 
     setSaving(true);
     try {
-      const result = await api.songs.create({
+      await api.songs.create({
         title: title.trim(),
         mainArtistId,
         isrc: isrc.trim() || null,
         artists: songArtists,
       });
-      navigate(`/catalog/${result.data.id}`);
+      goBack();
     } catch (err) {
       setErrors(err instanceof ApiError ? err.errors : ['Failed to save song.']);
     } finally {

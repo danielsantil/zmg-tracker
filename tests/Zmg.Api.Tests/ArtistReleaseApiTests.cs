@@ -47,6 +47,37 @@ public class ArtistReleaseApiTests(ZmgApiFactory factory) : IClassFixture<ZmgApi
     }
 
     [Fact]
+    public async Task Get_artist_by_id_returns_it_or_404()
+    {
+        var client = factory.CreateClient();
+        var created = await CreateArtist(client, "Fetchable Artist");
+
+        var found = await client.GetAsync($"/api/artists/{created.Id}");
+        found.EnsureSuccessStatusCode();
+        var dto = (await found.Content.ReadFromJsonAsync<ArtistDto>())!;
+        Assert.Equal("Fetchable Artist", dto.Name);
+
+        var missing = await client.GetAsync($"/api/artists/{Guid.NewGuid()}");
+        Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
+    }
+
+    [Fact]
+    public async Task Artist_list_reports_song_count()
+    {
+        var client = factory.CreateClient();
+        var artist = await CreateArtist(client, "Songful Artist");
+
+        var songRes = await client.PostAsJsonAsync("/api/songs",
+            new SongCreateInput("Catalog Song", artist.Id, null, new List<SongArtistInput>()));
+        songRes.EnsureSuccessStatusCode();
+
+        var list = await client.GetFromJsonAsync<List<ArtistDto>>("/api/artists");
+        var row = list!.Single(a => a.Id == artist.Id);
+        Assert.Equal(1, row.SongCount);
+        Assert.Equal(0, row.ReleaseCount);
+    }
+
+    [Fact]
     public async Task Duplicate_artist_name_is_rejected()
     {
         var client = factory.CreateClient();
@@ -103,6 +134,27 @@ public class ArtistReleaseApiTests(ZmgApiFactory factory) : IClassFixture<ZmgApi
 
         var delete = await client.DeleteAsync($"/api/artists/{artist.Id}");
         Assert.Equal(HttpStatusCode.Conflict, delete.StatusCode);
+    }
+
+    [Fact]
+    public async Task Deleting_a_feat_only_artist_conflicts_not_500()
+    {
+        var client = factory.CreateClient();
+        var main = await CreateArtist(client, "Feat Main");
+        var feat = await CreateArtist(client, "Feat Guest");
+
+        var songRes = await client.PostAsJsonAsync("/api/songs", new SongCreateInput(
+            "Collab Song", main.Id, null,
+            new List<SongArtistInput> { new(feat.Id, ArtistRole.Featured) }));
+        songRes.EnsureSuccessStatusCode();
+
+        // The guest is not the main artist of any release/song — only a credit — but the
+        // Restrict FK still blocks the delete, so it must be a clean 409, never a FK 500.
+        var delete = await client.DeleteAsync($"/api/artists/{feat.Id}");
+        Assert.Equal(HttpStatusCode.Conflict, delete.StatusCode);
+
+        var list = await client.GetFromJsonAsync<List<ArtistDto>>("/api/artists");
+        Assert.Equal(1, list!.Single(a => a.Id == feat.Id).CreditCount);
     }
 
     [Fact]

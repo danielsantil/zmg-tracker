@@ -1,0 +1,72 @@
+/**
+ * Month-grid helpers for the releases calendar (M22). Every cell is a `yyyy-MM-dd` string built
+ * by hand so it can be compared lexicographically against a release's raw `releaseDate` — the
+ * grid never parses dates back out of `new Date('yyyy-MM-dd')`, which is UTC and drifts a day
+ * back in negative offsets (same rule as `formatReleaseDate`/`todayIso`).
+ */
+
+const pad = (n: number) => String(n).padStart(2, '0');
+
+/** `yyyy-MM-dd` for a y/m/d triple, with `month` 0-indexed like `Date`. */
+export function toIso(year: number, month: number, day: number): string {
+  return `${year}-${pad(month + 1)}-${pad(day)}`;
+}
+
+export interface YearMonth {
+  year: number;
+  /** 0-indexed, like `Date.getMonth()`. */
+  month: number;
+}
+
+/** The month containing `iso` (a `yyyy-MM-dd` string), read off the string rather than parsed. */
+export function monthOf(iso: string): YearMonth {
+  return { year: Number(iso.slice(0, 4)), month: Number(iso.slice(5, 7)) - 1 };
+}
+
+/** Shift a month by `delta` months, rolling the year over in either direction. */
+export function addMonths({ year, month }: YearMonth, delta: number): YearMonth {
+  const total = year * 12 + month + delta;
+  return { year: Math.floor(total / 12), month: ((total % 12) + 12) % 12 };
+}
+
+/** "August 2026" for the calendar header. */
+export function monthLabel({ year, month }: YearMonth): string {
+  return new Date(year, month, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+}
+
+/**
+ * The `yyyy-MM-dd` cells for the given month, Sunday-first, as 4–6 rows of 7 — every week the
+ * month touches, padded at each end with the adjacent months' days. A week with no day of this
+ * month in it is never emitted.
+ */
+export function monthGrid({ year, month }: YearMonth): string[][] {
+  const firstWeekday = new Date(year, month, 1).getDay();
+  // `new Date(y, m + 1, 0)` rolls back to the last day of *this* month, i.e. its length.
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  // Only the weeks the month actually touches (4–6): enough rows to cover the leading blanks plus
+  // every day, and no more. A fixed 6 would tack on a whole row belonging to the next month
+  // whenever the month fits in 5 — e.g. July 2026 (Wed start, 31 days = 34 cells) would trail an
+  // all-August week. The cost is that the grid's height changes with the month, which is correct:
+  // a row of days the month doesn't reach is worse than a stable height.
+  const weekCount = Math.ceil((firstWeekday + daysInMonth) / 7);
+  const weeks: string[][] = [];
+  // `new Date(y, m, 0)` is the last day of the previous month, so day 1 minus the weekday offset
+  // walks back into it; Date normalizes the overflow in both directions for us.
+  const start = new Date(year, month, 1 - firstWeekday);
+  for (let w = 0; w < weekCount; w++) {
+    const week: string[] = [];
+    for (let d = 0; d < 7; d++) {
+      const cell = new Date(start.getFullYear(), start.getMonth(), start.getDate() + w * 7 + d);
+      week.push(toIso(cell.getFullYear(), cell.getMonth(), cell.getDate()));
+    }
+    weeks.push(week);
+  }
+  return weeks;
+}
+
+/** Whether `iso` falls inside `ym` — a string compare on the `yyyy-MM` prefix. */
+export function isInMonth(iso: string, { year, month }: YearMonth): boolean {
+  return iso.slice(0, 7) === `${year}-${pad(month + 1)}`;
+}
+
+export const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];

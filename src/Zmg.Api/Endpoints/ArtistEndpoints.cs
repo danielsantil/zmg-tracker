@@ -13,6 +13,9 @@ public static class ArtistEndpoints
         group.MapGet("", async (IArtistService artists) =>
             Results.Ok(await artists.ListAsync()));
 
+        group.MapGet("/{id:guid}", async (Guid id, IArtistService artists) =>
+            (await artists.GetAsync(id)).ToOk());
+
         group.MapPost("", async (ArtistInput input, IArtistService artists) =>
             (await artists.CreateAsync(input)).ToCreated(a => $"/api/artists/{a.Id}"));
 

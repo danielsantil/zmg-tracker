@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 /**
  * Soft advisory glyph for a release. A single amber icon carries every warning the release has
@@ -7,6 +8,10 @@ import { useEffect, useRef, useState } from 'react';
  * was invisible on touch devices); the popover is positioned `fixed` from the button rect so it
  * escapes any `overflow-hidden` ancestor, dismissed by tapping the backdrop. Renders nothing when
  * there are no warnings, so callers can drop it in unconditionally.
+ *
+ * Portals to <body> for the same reason as `RowMenu`: `fixed` resolves against a transformed
+ * ancestor (`Modal`'s panel), not the viewport, so an in-place popover lands off-panel and under
+ * the backdrop. It therefore also has to clear the modal layer (z-40).
  */
 export function SoftWarning({ warnings }: { warnings: string[] }) {
   const [open, setOpen] = useState(false);
@@ -55,28 +60,31 @@ export function SoftWarning({ warnings }: { warnings: string[] }) {
       >
         ⚠
       </button>
-      {open && pos && (
-        <>
-          <div
-            className="fixed inset-0 z-20"
-            onClick={(e) => {
-              e.stopPropagation();
-              e.preventDefault();
-              setOpen(false);
-            }}
-          />
-          <div
-            style={pos}
-            className="z-30 whitespace-nowrap rounded-lg border border-edge bg-panel px-3 py-2 text-sm text-amber-300 shadow-lg"
-          >
-            <ul className="space-y-0.5">
-              {warnings.map((w) => (
-                <li key={w}>{w}</li>
-              ))}
-            </ul>
-          </div>
-        </>
-      )}
+      {open &&
+        pos &&
+        createPortal(
+          <>
+            <div
+              className="fixed inset-0 z-50"
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                setOpen(false);
+              }}
+            />
+            <div
+              style={pos}
+              className="z-50 whitespace-nowrap rounded-lg border border-edge bg-panel px-3 py-2 text-sm text-amber-300 shadow-lg"
+            >
+              <ul className="space-y-0.5">
+                {warnings.map((w) => (
+                  <li key={w}>{w}</li>
+                ))}
+              </ul>
+            </div>
+          </>,
+          document.body,
+        )}
     </>
   );
 }
