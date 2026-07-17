@@ -26,7 +26,7 @@ export function useReleaseTracks(
 
   useEffect(() => setTracks(initial), [initial]);
 
-  const refreshPending = () => queryClient.invalidateQueries({ queryKey: queryKeys.pending });
+  const refreshPending = () => void queryClient.invalidateQueries({ queryKey: queryKeys.pending });
 
   const orderedTracks = useMemo(
     () => [...tracks].sort((a, b) => a.trackNumber - b.trackNumber),

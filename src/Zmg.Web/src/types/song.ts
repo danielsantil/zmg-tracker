@@ -12,6 +12,13 @@ export interface SongArtistDto {
   role: ArtistRole;
 }
 
+/** Query filters for the songs list endpoint. */
+export interface SongListFilters {
+  q?: string;
+  scope?: 'all' | 'archived';
+  artistId?: string;
+}
+
 // Catalog (M13).
 export interface SongListItem {
   id: string;

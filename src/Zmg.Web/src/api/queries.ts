@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import type { ReleaseListFilters, SongListFilters } from '@/types';
 import { api } from './index';
 
 /**
@@ -10,8 +11,8 @@ import { api } from './index';
  * `api.artists.list()` call sites) — now one cached query serves them all.
  */
 
-export type ReleaseFilters = NonNullable<Parameters<typeof api.releases.list>[0]>;
-export type SongFilters = NonNullable<Parameters<typeof api.songs.list>[0]>;
+export type ReleaseFilters = ReleaseListFilters;
+export type SongFilters = SongListFilters;
 
 /**
  * Query-key factory — the single source of truth for keys, so hooks and `invalidateQueries` can't

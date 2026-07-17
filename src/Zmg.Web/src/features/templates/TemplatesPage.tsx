@@ -34,7 +34,7 @@ export default function TemplatesPage() {
   const grouped = byPhase(tasks);
 
   // Keep the create-release hint's live template count fresh after any edit.
-  const invalidateTemplates = () => queryClient.invalidateQueries({ queryKey: queryKeys.templates });
+  const invalidateTemplates = () => void queryClient.invalidateQueries({ queryKey: queryKeys.templates });
 
   async function addTask(phase: Phase, title: string) {
     if (!active) return;

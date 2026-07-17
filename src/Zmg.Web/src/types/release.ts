@@ -5,6 +5,15 @@ import type { TrackDto, TrackInput } from './track';
 /** The four derived statuses (`ReleaseStatus.cs`). Derived server-side, never stored. */
 export type ReleaseStatus = 'Upcoming' | 'Released' | 'Complete' | 'Archived';
 
+/** Query filters for the releases list endpoint. */
+export interface ReleaseListFilters {
+  artistId?: string;
+  type?: ReleaseType;
+  status?: string;
+  scope?: 'home' | 'all' | 'archived';
+  q?: string;
+}
+
 export interface ReleaseInput {
   title: string;
   type: ReleaseType;

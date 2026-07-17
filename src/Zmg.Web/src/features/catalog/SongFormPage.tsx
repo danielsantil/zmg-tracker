@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
+import clsx from 'clsx';
 import { api, ApiError } from '@/api';
 import { useArtists, queryKeys } from '@/api/queries';
 import type { SongArtistInput } from '@/types';
@@ -54,7 +55,7 @@ export default function SongFormPage() {
         isrc: isrc.trim() || null,
         artists: songArtists,
       });
-      queryClient.invalidateQueries({ queryKey: queryKeys.songs() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.songs() });
       goBack();
     } catch (err) {
       setErrors(err instanceof ApiError ? err.errors : ['Failed to save song.']);
@@ -83,7 +84,7 @@ export default function SongFormPage() {
       <form onSubmit={submit} className="space-y-4">
         <Field label="Title" error={fieldErrors.title}>
           <input
-            className={`${inputClass} ${fieldErrors.title ? inputErrorClass : ''}`}
+            className={clsx(inputClass, fieldErrors.title && inputErrorClass)}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="e.g. Luz"

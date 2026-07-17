@@ -1,4 +1,4 @@
-import type { TrackDto, TrackInput } from '@/types';
+import type { TrackDto, TrackInput, TrackReorderInput } from '@/types';
 import { request } from './client';
 
 // Tracks (v2.0: a Release↔Song join, addressed by songId, all under the release group).
@@ -10,7 +10,7 @@ export const tracksApi = {
     }),
   toggleFocus: (releaseId: string, songId: string) =>
     request<TrackDto>(`/api/releases/${releaseId}/tracks/${songId}/focus`, { method: 'PATCH' }),
-  reorder: (releaseId: string, input: { orderedSongIds: string[] }) =>
+  reorder: (releaseId: string, input: TrackReorderInput) =>
     request<void>(`/api/releases/${releaseId}/tracks/order`, {
       method: 'PUT',
       body: JSON.stringify(input),

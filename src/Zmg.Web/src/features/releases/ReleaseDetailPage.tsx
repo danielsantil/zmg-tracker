@@ -70,9 +70,9 @@ function ReleaseDetailView({ release }: { release: ReleaseDetail }) {
     if (!(await confirm(await archiveReleaseConfirm(release.id, release.title)))) return;
     try {
       await api.releases.archive(release.id);
-      queryClient.invalidateQueries({ queryKey: queryKeys.release(release.id) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.releases() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.pending });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.release(release.id) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.releases() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.pending });
     } catch (e) {
       showToast(errorMessage(e, 'Could not archive.'));
     }

@@ -64,7 +64,7 @@ export default function ArchivedSongsPage() {
                   variant="danger"
                   onClick={(e) => {
                     e.stopPropagation();
-                    remove(s);
+                    void remove(s);
                   }}
                 >
                   Delete

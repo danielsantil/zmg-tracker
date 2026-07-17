@@ -19,3 +19,8 @@ export interface TrackInput {
   isrc: string | null;
   artists: SongArtistInput[] | null;
 }
+
+/** Reorder payload: the full ordered song-id list for a release's tracklist. */
+export interface TrackReorderInput {
+  orderedSongIds: string[];
+}

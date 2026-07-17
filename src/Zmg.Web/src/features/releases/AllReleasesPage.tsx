@@ -143,12 +143,12 @@ export default function AllReleasesPage() {
                   <RowMenu label="Release actions">
                     {(close) => (
                       <>
-                        <MenuItem onClick={() => { close(); navigate(`/releases/${r.id}/edit`); }}>
+                        <MenuItem onClick={() => { close(); void navigate(`/releases/${r.id}/edit`); }}>
                           Edit
                         </MenuItem>
                         {/* Archive is only allowed for releases still to come (releaseDate >= today). */}
                         {r.releaseDate >= today && (
-                          <MenuItem tone="archive" onClick={() => { close(); archive(r); }}>
+                          <MenuItem tone="archive" onClick={() => { close(); void archive(r); }}>
                             Archive
                           </MenuItem>
                         )}

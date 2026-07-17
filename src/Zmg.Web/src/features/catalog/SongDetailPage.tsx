@@ -54,7 +54,7 @@ export default function SongDetailPage() {
         artists: songArtists,
       });
       queryClient.setQueryData(queryKeys.song(id), result.data);
-      queryClient.invalidateQueries({ queryKey: queryKeys.songs() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.songs() });
       showToast('Saved.', 'success');
     } catch (e) {
       setErrors(e instanceof ApiError ? e.errors : ['Failed to save song.']);

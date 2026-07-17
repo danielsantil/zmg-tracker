@@ -26,7 +26,7 @@ export function useReleaseTasks(
   // Reseed when the release query yields new data (initial load, refetch on focus/return).
   useEffect(() => setTasks(initial), [initial]);
 
-  const refreshPending = () => queryClient.invalidateQueries({ queryKey: queryKeys.pending });
+  const refreshPending = () => void queryClient.invalidateQueries({ queryKey: queryKeys.pending });
 
   const grouped = byPhase(tasks);
 

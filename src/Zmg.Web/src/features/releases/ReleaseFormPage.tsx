@@ -1,6 +1,7 @@
 import { useEffect, useReducer, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
+import clsx from 'clsx';
 import { api, ApiError } from '@/api';
 import { useArtists, useRelease, useTemplates, queryKeys } from '@/api/queries';
 import type { TrackInput } from '@/types';
@@ -158,9 +159,9 @@ export default function ReleaseFormPage() {
         tracks: isEdit ? null : cleanedTracks,
       };
       const result = isEdit && id ? await api.releases.update(id, input) : await api.releases.create(input);
-      queryClient.invalidateQueries({ queryKey: queryKeys.releases() });
-      if (isEdit && id) queryClient.invalidateQueries({ queryKey: queryKeys.release(id) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.songs() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.releases() });
+      if (isEdit && id) void queryClient.invalidateQueries({ queryKey: queryKeys.release(id) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.songs() });
       if (result.warnings.length > 0) {
         setWarnings(result.warnings);
       } else {
@@ -193,7 +194,7 @@ export default function ReleaseFormPage() {
       <form onSubmit={submit} className="space-y-4">
         <Field label="Title" error={fieldErrors.title}>
           <input
-            className={`${inputClass} ${fieldErrors.title ? inputErrorClass : ''}`}
+            className={clsx(inputClass, fieldErrors.title && inputErrorClass)}
             value={form.title}
             onChange={set('title')}
             placeholder="e.g. Luz"
@@ -226,7 +227,7 @@ export default function ReleaseFormPage() {
           <Field label="Release date" error={fieldErrors.releaseDate}>
             <input
               type="date"
-              className={`${inputClass} ${fieldErrors.releaseDate ? inputErrorClass : ''}`}
+              className={clsx(inputClass, fieldErrors.releaseDate && inputErrorClass)}
               value={form.releaseDate}
               onChange={set('releaseDate')}
             />

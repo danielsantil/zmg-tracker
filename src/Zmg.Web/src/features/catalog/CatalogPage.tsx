@@ -112,11 +112,11 @@ export default function CatalogPage() {
                     <RowMenu label="Song actions">
                       {(close) =>
                         s.isOrphan ? (
-                          <MenuItem tone="danger" onClick={() => { close(); remove(s); }}>
+                          <MenuItem tone="danger" onClick={() => { close(); void remove(s); }}>
                             Delete
                           </MenuItem>
                         ) : (
-                          <MenuItem tone="archive" onClick={() => { close(); archive(s); }}>
+                          <MenuItem tone="archive" onClick={() => { close(); void archive(s); }}>
                             Archive
                           </MenuItem>
                         )

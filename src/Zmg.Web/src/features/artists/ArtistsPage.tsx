@@ -48,7 +48,7 @@ export default function ArtistsPage() {
       return;
     try {
       await api.artists.delete(a.id);
-      queryClient.invalidateQueries({ queryKey: queryKeys.artists });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.artists });
     } catch (e) {
       // Concurrency safety net: a release/song could have been added since the list loaded.
       showToast(errorMessage(e, 'Failed to delete artist.'));
@@ -93,7 +93,7 @@ export default function ArtistsPage() {
                         tone="danger"
                         onClick={() => {
                           close();
-                          remove(a);
+                          void remove(a);
                         }}
                       >
                         Delete

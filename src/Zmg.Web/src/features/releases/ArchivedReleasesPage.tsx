@@ -72,7 +72,7 @@ export default function ArchivedReleasesPage() {
                   variant="danger"
                   onClick={(e) => {
                     e.stopPropagation();
-                    remove(r);
+                    void remove(r);
                   }}
                 >
                   Delete
