@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
@@ -19,5 +20,13 @@ export default defineConfig({
   build: {
     outDir: '../Zmg.Api/wwwroot',
     emptyOutDir: true,
+  },
+  test: {
+    // Pure-module tests only (no Testing Library — component tests are out of scope this round,
+    // M24.2). The `node` environment plus a small localStorage shim (src/test/setup.ts) avoids
+    // jsdom, whose ESM-only CSS dep breaks under Node < 22.12.
+    environment: 'node',
+    setupFiles: ['./src/test/setup.ts'],
+    include: ['src/**/*.test.ts'],
   },
 })

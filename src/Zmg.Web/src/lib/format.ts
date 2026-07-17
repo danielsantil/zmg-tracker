@@ -10,9 +10,15 @@ export function formatTimeframe(min: number | null, max: number | null): string 
   return `${max ?? min} days before`;
 }
 
-/** Today as a yyyy-MM-dd string, for lexicographic comparison against release dates. */
+/**
+ * Today as a yyyy-MM-dd string, for lexicographic comparison against release dates. Built from
+ * *local* parts, never `toISOString()` (which is UTC and returns tomorrow's date in a negative
+ * offset after 00:00 UTC — same rule as `formatReleaseDate`/`lib/calendar`).
+ */
 export function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
 
 export function daysToRelease(date: string): number {
