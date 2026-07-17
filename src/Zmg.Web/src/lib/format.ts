@@ -1,3 +1,5 @@
+import type { ReleaseStatus } from '@/types';
+
 /**
  * Human timeframe hint for a Pre task ("7–14 days before"), or null when no timeframe is set.
  * Max drives calculations; the range is display-only (v1.1 M8).
@@ -44,7 +46,7 @@ export function formatReleaseDate(date: string): string {
  * Countdown string for an upcoming release ("3 days to release" / "Releases today"),
  * or null once it's released or not upcoming. Shared by release cards and the detail header.
  */
-export function formatCountdown(status: string, releaseDate: string): string | null {
+export function formatCountdown(status: ReleaseStatus, releaseDate: string): string | null {
   const days = daysToRelease(releaseDate);
   if (status !== 'Upcoming' || days < 0) return null;
   return days === 0 ? 'Releases today' : `in ${days} days`;

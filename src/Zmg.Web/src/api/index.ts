@@ -21,4 +21,4 @@ export const api = {
   pending: pendingApi,
 };
 
-export { ApiError } from './client';
+export { ApiError, errorMessage } from './client';

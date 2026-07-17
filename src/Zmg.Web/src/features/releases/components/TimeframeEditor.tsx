@@ -1,22 +1,28 @@
 import { useState } from 'react';
-import type { ReleaseTaskDto } from '@/types';
 import { Button, inputClass } from '@/components';
 
 /**
- * Inline "days before release" editor for a Pre task (v1.1 M8). Min is display-only in the
- * hint; the max drives pending calculations. Leaving both blank clears the timeframe.
+ * Inline "days before release" editor for a Pre task (v1.1 M8). Min is display-only in the hint;
+ * the max drives pending calculations. Leaving both blank clears the timeframe.
+ *
+ * Shared by release tasks and template tasks — both carry `min/maxDaysBefore`. Release rows sit a
+ * checkbox-width in from the edge, so they pass `indent`; template rows have no checkbox column.
  */
 export function TimeframeEditor({
-  task,
+  min: initialMin,
+  max: initialMax,
+  indent = false,
   onSave,
   onCancel,
 }: {
-  task: ReleaseTaskDto;
+  min: number | null;
+  max: number | null;
+  indent?: boolean;
   onSave: (min: number | null, max: number | null) => void;
   onCancel: () => void;
 }) {
-  const [min, setMin] = useState(task.minDaysBefore?.toString() ?? '');
-  const [max, setMax] = useState(task.maxDaysBefore?.toString() ?? '');
+  const [min, setMin] = useState(initialMin?.toString() ?? '');
+  const [max, setMax] = useState(initialMax?.toString() ?? '');
 
   function parse(v: string): number | null {
     const n = parseInt(v, 10);
@@ -24,7 +30,7 @@ export function TimeframeEditor({
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2 px-4 pb-3 pl-12 text-sm text-slate-300">
+    <div className={`flex flex-wrap items-center gap-2 px-4 pb-3 text-sm text-slate-300 ${indent ? 'pl-12' : ''}`}>
       <span className="text-xs text-slate-500">Days before release:</span>
       <input
         autoFocus

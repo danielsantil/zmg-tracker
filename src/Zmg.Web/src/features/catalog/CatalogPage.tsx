@@ -1,10 +1,25 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { api, ApiError } from '@/api';
-import type { Artist, SongListItem } from '@/types';
-import { Button, MenuItem, RowMenu, Toast, inputClass } from '@/components';
-import { useConfirm } from '@/hooks/useConfirm';
+import { api } from '@/api';
+import { useSongs, useArtists, queryKeys } from '@/api/queries';
+import type { SongListItem } from '@/types';
+import {
+  ArtistSelect,
+  Button,
+  DataTable,
+  dataRowClass,
+  EmptyState,
+  ErrorBanner,
+  FilterBar,
+  Loading,
+  MenuItem,
+  RowMenu,
+  SearchInput,
+  Toast,
+} from '@/components';
 import { useToast } from '@/hooks/useToast';
+import { useConfirmDelete } from '@/hooks/useConfirmDelete';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 
 /**
  * The catalog (M13): every song, searchable by title, ordered by title. Release Date is derived
@@ -13,72 +28,44 @@ import { useToast } from '@/hooks/useToast';
  */
 export default function CatalogPage() {
   const navigate = useNavigate();
-  const confirm = useConfirm();
   const { toast, toastVariant, showToast } = useToast();
-  const [songs, setSongs] = useState<SongListItem[]>([]);
-  const [artists, setArtists] = useState<Artist[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState('');
   const [artistId, setArtistId] = useState('');
+  const debouncedQ = useDebouncedValue(q);
 
-  function load() {
-    setLoading(true);
-    setError(null);
-    api.songs
-      .list({ q: q.trim() || undefined, artistId: artistId || undefined })
-      .then(setSongs)
-      .catch((e) => setError(e instanceof ApiError ? e.message : 'Failed to load catalog.'))
-      .finally(() => setLoading(false));
-  }
+  const { data: artists = [] } = useArtists();
+  const { data: songs = [], isLoading, error } = useSongs({
+    q: debouncedQ.trim() || undefined,
+    artistId: artistId || undefined,
+  });
 
-  useEffect(() => {
-    api.artists.list().then(setArtists).catch(() => setError('Failed to load artists.'));
-  }, []);
+  const hasFilters = !!(q || artistId);
 
-  useEffect(() => {
-    const t = setTimeout(load, q ? 250 : 0);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, artistId]);
+  const archive = useConfirmDelete<SongListItem>({
+    confirm: (s) => ({
+      title: `Archive "${s.title}"?`,
+      body: <p>Archived songs are read-only and can't be restored.</p>,
+      confirmLabel: 'Archive',
+      confirmVariant: 'archive',
+    }),
+    mutate: (s) => api.songs.archive(s.id),
+    invalidate: [queryKeys.songs()],
+    errorFallback: 'Failed to archive.',
+    showToast,
+  });
 
-  const hasFilters = useMemo(() => q || artistId, [q, artistId]);
-
-  async function archive(s: SongListItem) {
-    if (
-      !(await confirm({
-        title: `Archive "${s.title}"?`,
-        body: <p>Archived songs are read-only and can't be restored.</p>,
-        confirmLabel: 'Archive',
-        confirmVariant: 'archive',
-      }))
-    )
-      return;
-    try {
-      await api.songs.archive(s.id);
-      load();
-    } catch (e) {
-      showToast(e instanceof ApiError ? e.message : 'Failed to archive.');
-    }
-  }
-
-  async function remove(s: SongListItem) {
-    if (
-      !(await confirm({
-        title: `Delete "${s.title}" from the catalog?`,
-        body: <p>This song was never released. This can't be undone.</p>,
-        confirmLabel: 'Delete',
-        confirmVariant: 'danger',
-      }))
-    )
-      return;
-    try {
-      await api.songs.delete(s.id);
-      load();
-    } catch (e) {
-      showToast(e instanceof ApiError ? e.message : 'Failed to delete.');
-    }
-  }
+  const remove = useConfirmDelete<SongListItem>({
+    confirm: (s) => ({
+      title: `Delete "${s.title}" from the catalog?`,
+      body: <p>This song was never released. This can't be undone.</p>,
+      confirmLabel: 'Delete',
+      confirmVariant: 'danger',
+    }),
+    mutate: (s) => api.songs.delete(s.id),
+    invalidate: [queryKeys.songs()],
+    errorFallback: 'Failed to delete.',
+    showToast,
+  });
 
   return (
     <div>
@@ -90,104 +77,57 @@ export default function CatalogPage() {
         <Button onClick={() => navigate('/catalog/new')}>+ New song</Button>
       </div>
 
-      <div className="mb-5 flex flex-wrap items-center gap-3">
-        <input
-          className={`${inputClass} max-w-[16rem]`}
-          placeholder="Search by title…"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-        />
-        <select className={`${inputClass} max-w-[12rem]`} value={artistId} onChange={(e) => setArtistId(e.target.value)}>
-          <option value="">All artists</option>
-          {artists.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.name}
-            </option>
-          ))}
-        </select>
-        {hasFilters && (
-          <Button
-            variant="ghost"
-            onClick={() => {
-              setQ('');
-              setArtistId('');
-            }}
-          >
-            Clear
-          </Button>
-        )}
-        <Link to="/catalog/archived" className="ml-auto shrink-0 text-sm text-slate-400 hover:text-accent">
-          Archived Songs →
-        </Link>
-      </div>
+      <FilterBar
+        onClear={hasFilters ? () => { setQ(''); setArtistId(''); } : undefined}
+        trailing={
+          <Link to="/catalog/archived" className="ml-auto shrink-0 text-sm text-slate-400 hover:text-accent">
+            Archived Songs →
+          </Link>
+        }
+      >
+        <SearchInput value={q} onChange={setQ} />
+        <ArtistSelect artists={artists} value={artistId} onChange={setArtistId} />
+      </FilterBar>
 
-      {error && <p className="rounded-lg bg-red-500/10 px-4 py-3 text-sm text-red-300">{error}</p>}
+      <ErrorBanner error={error ? 'Failed to load catalog.' : null} />
 
-      {loading ? (
-        <p className="text-slate-400">Loading…</p>
+      {isLoading ? (
+        <Loading />
       ) : songs.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-edge bg-panel/50 p-10 text-center text-slate-400">
+        <EmptyState>
           {hasFilters ? 'No songs match these filters.' : 'No songs yet — add one or create a release.'}
-        </div>
+        </EmptyState>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-edge bg-panel">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-edge text-xs uppercase tracking-wide text-slate-500">
-              <tr>
-                <th className="px-4 py-3 font-medium">Name</th>
-                <th className="px-4 py-3 font-medium">Main Artist</th>
-                <th className="px-4 py-3 font-medium">Released</th>
-                <th className="px-4 py-3 font-medium">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {songs.map((s) => (
-                <tr
-                  key={s.id}
-                  onClick={() => navigate(`/catalog/${s.id}`)}
-                  className="cursor-pointer border-b border-edge/50 last:border-b-0 hover:bg-edge/40"
-                >
-                  <td className="px-4 py-3 font-medium text-white">{s.title}</td>
-                  <td className="px-4 py-3 text-slate-300">{s.mainArtistName}</td>
-                  <td className="px-4 py-3">
-                    {s.releaseCount > 0 ? <span className="text-green-400">Yes</span> : <span className="text-gray-400">No</span>}
-                  </td>
-                  <td className="px-4 py-3">
-                    {(s.isOrphan || s.canArchive) && (
-                      <div onClick={(e) => e.stopPropagation()} className="w-fit">
-                        <RowMenu label="Song actions">
-                          {(close) =>
-                            s.isOrphan ? (
-                              <MenuItem
-                                tone="danger"
-                                onClick={() => {
-                                  close();
-                                  remove(s);
-                                }}
-                              >
-                                Delete
-                              </MenuItem>
-                            ) : (
-                              <MenuItem
-                                tone="archive"
-                                onClick={() => {
-                                  close();
-                                  archive(s);
-                                }}
-                              >
-                                Archive
-                              </MenuItem>
-                            )
-                          }
-                        </RowMenu>
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <DataTable headers={['Name', 'Main Artist', 'Released', 'Action']}>
+          {songs.map((s) => (
+            <tr key={s.id} onClick={() => navigate(`/catalog/${s.id}`)} className={dataRowClass}>
+              <td className="px-4 py-3 font-medium text-white">{s.title}</td>
+              <td className="px-4 py-3 text-slate-300">{s.mainArtistName}</td>
+              <td className="px-4 py-3">
+                {s.releaseCount > 0 ? <span className="text-green-400">Yes</span> : <span className="text-gray-400">No</span>}
+              </td>
+              <td className="px-4 py-3">
+                {(s.isOrphan || s.canArchive) && (
+                  <div onClick={(e) => e.stopPropagation()} className="w-fit">
+                    <RowMenu label="Song actions">
+                      {(close) =>
+                        s.isOrphan ? (
+                          <MenuItem tone="danger" onClick={() => { close(); remove(s); }}>
+                            Delete
+                          </MenuItem>
+                        ) : (
+                          <MenuItem tone="archive" onClick={() => { close(); archive(s); }}>
+                            Archive
+                          </MenuItem>
+                        )
+                      }
+                    </RowMenu>
+                  </div>
+                )}
+              </td>
+            </tr>
+          ))}
+        </DataTable>
       )}
 
       <Toast message={toast} variant={toastVariant} />

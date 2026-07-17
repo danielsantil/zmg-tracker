@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '@/api';
 import type { SongListItem } from '@/types';
 import { Modal, inputClass } from '@/components';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 
 /**
  * Pick an existing catalog song to put on a release (M18). Replaces the inline `SongPicker`: it
@@ -25,6 +26,8 @@ export function SongPickerModal({
   const [q, setQ] = useState('');
   const [results, setResults] = useState<SongListItem[]>([]);
   const [loading, setLoading] = useState(true);
+  // Browse-on-open is immediate; only typing pays the 250ms debounce.
+  const debouncedQ = useDebouncedValue(q, q.trim() ? 250 : 0);
 
   // Start each visit from a clean slate rather than the last search.
   useEffect(() => {
@@ -37,20 +40,16 @@ export function SongPickerModal({
 
   useEffect(() => {
     if (!open) return;
-    const term = q.trim();
+    const term = debouncedQ.trim();
     setLoading(true);
-    // Browse-on-open is immediate; only typing pays the 250ms debounce.
-    const t = setTimeout(async () => {
-      try {
-        setResults(await api.songs.list({ artistId: mainArtistId, q: term || undefined }));
-      } catch {
-        setResults([]);
-      } finally {
-        setLoading(false);
-      }
-    }, term ? 250 : 0);
-    return () => clearTimeout(t);
-  }, [open, q, mainArtistId]);
+    let cancelled = false;
+    api.songs
+      .list({ artistId: mainArtistId, q: term || undefined })
+      .then((songs) => { if (!cancelled) setResults(songs); })
+      .catch(() => { if (!cancelled) setResults([]); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [open, debouncedQ, mainArtistId]);
 
   const visible = results.filter((s) => !excludeIds.includes(s.id));
 

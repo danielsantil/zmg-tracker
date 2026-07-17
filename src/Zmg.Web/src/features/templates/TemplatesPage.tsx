@@ -1,13 +1,15 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { api, ApiError } from '@/api';
-import type { Template, TemplateTaskDto } from '@/types';
+import { useEffect, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { api, errorMessage } from '@/api';
+import { useTemplates, queryKeys } from '@/api/queries';
+import type { TemplateTaskDto } from '@/types';
 import { Phase, ReleaseType } from '@/types';
-import { Toast } from '@/components';
+import { ErrorBanner, Loading, Toast } from '@/components';
 import { useConfirm } from '@/hooks/useConfirm';
 import { useToast } from '@/hooks/useToast';
-import { PHASE_ORDER } from '@/lib/phase';
-import { TemplatePhaseSection } from './components/TemplatePhaseSection';
-import type { TemplatePatch } from './components/TemplateTaskRow';
+import { PHASE_ORDER, byPhase } from '@/lib/phase';
+import { PhaseSection } from '../releases/components/PhaseSection';
+import type { TaskPatch } from '../releases/components/TaskRow';
 
 const TYPE_TABS: { type: ReleaseType; label: string }[] = [
   { type: ReleaseType.Single, label: 'Single' },
@@ -16,60 +18,36 @@ const TYPE_TABS: { type: ReleaseType; label: string }[] = [
 
 export default function TemplatesPage() {
   const confirm = useConfirm();
-  const [templates, setTemplates] = useState<Template[]>([]);
-  const [tab, setTab] = useState<ReleaseType>(ReleaseType.Single);
-  const [tasks, setTasks] = useState<TemplateTaskDto[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
   const { toast, toastVariant, showToast } = useToast();
+  const { data: templates = [], isLoading, error } = useTemplates();
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const all = await api.templates.list();
-      setTemplates(all);
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Failed to load templates.');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const [tab, setTab] = useState<ReleaseType>(ReleaseType.Single);
+  // Keep a flat task array for the active template so mutations render without a re-fetch.
+  const [tasks, setTasks] = useState<TemplateTaskDto[]>([]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  // Keep a flat task array for the active template so mutations don't need a re-fetch.
   const active = templates.find((t) => t.type === tab);
   useEffect(() => {
     if (active) setTasks(active.phases.flatMap((p) => p.tasks));
   }, [active]);
 
-  const total = tasks.length;
+  const grouped = byPhase(tasks);
 
-  const byPhase = useMemo(() => {
-    const map = new Map<Phase, TemplateTaskDto[]>();
-    for (const phase of PHASE_ORDER) {
-      map.set(
-        phase,
-        tasks.filter((t) => t.phase === phase).sort((a, b) => a.sortOrder - b.sortOrder),
-      );
-    }
-    return map;
-  }, [tasks]);
+  // Keep the create-release hint's live template count fresh after any edit.
+  const invalidateTemplates = () => queryClient.invalidateQueries({ queryKey: queryKeys.templates });
 
   async function addTask(phase: Phase, title: string) {
     if (!active) return;
     try {
       const created = await api.templates.addTask(active.id, { title, phase });
       setTasks((ts) => [...ts, created]);
+      invalidateTemplates();
     } catch (e) {
-      showToast(e instanceof ApiError ? e.message : 'Could not add task.');
+      showToast(errorMessage(e, 'Could not add task.'));
     }
   }
 
-  async function updateTask(task: TemplateTaskDto, patch: TemplatePatch) {
+  async function updateTask(task: TemplateTaskDto, patch: TaskPatch) {
     try {
       // Full replace of editable fields — carry the current timeframe unless the patch overrides it.
       const saved = await api.templates.updateTask(task.id, {
@@ -79,8 +57,9 @@ export default function TemplatesPage() {
         maxDaysBefore: patch.maxDaysBefore !== undefined ? patch.maxDaysBefore : task.maxDaysBefore,
       });
       setTasks((ts) => ts.map((t) => (t.id === saved.id ? saved : t)));
+      invalidateTemplates();
     } catch (e) {
-      showToast(e instanceof ApiError ? e.message : 'Could not save task.');
+      showToast(errorMessage(e, 'Could not save task.'));
     }
   }
 
@@ -97,16 +76,17 @@ export default function TemplatesPage() {
     setTasks((ts) => ts.filter((t) => t.id !== task.id));
     try {
       await api.templates.deleteTask(task.id);
+      invalidateTemplates();
     } catch (e) {
       setTasks(prev);
-      showToast(e instanceof ApiError ? e.message : 'Could not delete task.');
+      showToast(errorMessage(e, 'Could not delete task.'));
     }
   }
 
   // Move a task up/down within its phase; persist the phase's new order.
   async function move(task: TemplateTaskDto, dir: -1 | 1) {
     if (!active) return;
-    const list = [...(byPhase.get(task.phase) ?? [])];
+    const list = [...(grouped.get(task.phase) ?? [])];
     const i = list.findIndex((t) => t.id === task.id);
     const j = i + dir;
     if (j < 0 || j >= list.length) return;
@@ -119,7 +99,7 @@ export default function TemplatesPage() {
       await api.templates.reorderTasks(active.id, { phase: task.phase, orderedTaskIds: list.map((t) => t.id) });
     } catch (e) {
       setTasks(prev);
-      showToast(e instanceof ApiError ? e.message : 'Could not reorder.');
+      showToast(errorMessage(e, 'Could not reorder.'));
     }
   }
 
@@ -127,9 +107,7 @@ export default function TemplatesPage() {
     <div>
       <div className="mb-4">
         <h1 className="text-2xl font-semibold text-white">Templates</h1>
-        <p className="text-sm text-slate-400">
-          The default checklist copied onto each new release.
-        </p>
+        <p className="text-sm text-slate-400">The default checklist copied onto each new release.</p>
       </div>
 
       <p className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-sm text-amber-200">
@@ -150,21 +128,21 @@ export default function TemplatesPage() {
         ))}
       </div>
 
-      {loading ? (
-        <p className="text-slate-400">Loading…</p>
+      {isLoading ? (
+        <Loading />
       ) : error ? (
-        <p className="rounded-lg bg-red-500/10 px-4 py-3 text-sm text-red-300">{error}</p>
+        <ErrorBanner error="Failed to load templates." />
       ) : !active ? (
         <p className="text-slate-400">No template found.</p>
       ) : (
         <>
-          <p className="mb-3 text-xs text-slate-500">{total} tasks in this template</p>
+          <p className="mb-3 text-xs text-slate-500">{tasks.length} tasks in this template</p>
           <div className="space-y-3">
             {PHASE_ORDER.map((phase) => (
-              <TemplatePhaseSection
+              <PhaseSection
                 key={phase}
                 phase={phase}
-                tasks={byPhase.get(phase) ?? []}
+                tasks={grouped.get(phase) ?? []}
                 onAdd={(title) => addTask(phase, title)}
                 onUpdate={updateTask}
                 onDelete={removeTask}

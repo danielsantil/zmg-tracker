@@ -2,6 +2,9 @@ import type { ReleaseType } from './enums';
 import type { PhaseGroup } from './task';
 import type { TrackDto, TrackInput } from './track';
 
+/** The four derived statuses (`ReleaseStatus.cs`). Derived server-side, never stored. */
+export type ReleaseStatus = 'Upcoming' | 'Released' | 'Complete' | 'Archived';
+
 export interface ReleaseInput {
   title: string;
   type: ReleaseType;
@@ -23,7 +26,7 @@ export interface ReleaseListItem {
   coverUrl: string | null;
   doneTasks: number;
   totalTasks: number;
-  status: string;
+  status: ReleaseStatus;
   upc: string | null;
   warnings: string[]; // soft advisories (e.g. "Missing UPC", "Album is empty")
 }
@@ -37,7 +40,7 @@ export interface ReleaseDetail {
   mainArtistName: string;
   coverUrl: string | null;
   notes: string | null;
-  status: string;
+  status: ReleaseStatus;
   doneTasks: number;
   totalTasks: number;
   phases: PhaseGroup[];

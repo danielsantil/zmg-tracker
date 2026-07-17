@@ -1,7 +1,12 @@
 export { Button } from './Button';
 export { ConfirmDialog, type ConfirmOptions } from './ConfirmDialog';
+export { DataTable, dataRowClass } from './DataTable';
+export { EmptyState } from './EmptyState';
+export { ErrorBanner } from './ErrorBanner';
 export { Field, inputClass, inputErrorClass } from './Field';
+export { FilterBar, ArtistSelect, TypeSelect, StatusSelect, SearchInput } from './FilterBar';
 export { InlineAddForm } from './InlineAddForm';
+export { Loading } from './Loading';
 export { Modal } from './Modal';
 export { SoftWarning } from './SoftWarning';
 export { MenuItem, RowMenu } from './RowMenu';
