@@ -18,6 +18,8 @@ import { archiveReleaseConfirm } from './archiveConfirm';
 import type { TaskPatch } from './components/TaskRow';
 
 export default function ReleaseDetailPage() {
+  // Invariant: this component only mounts on the /releases/:id route, so `id` is always present.
+  // The handlers below assert it (`id!`) rather than re-guarding in every one.
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const goBack = useBackNavigation();
@@ -183,6 +185,7 @@ export default function ReleaseDetailPage() {
       })),
     [orderedTracks],
   );
+  // Invariant: trackRows is derived from orderedTracks (keyed by songId), so every row maps back.
   const track = (row: TracklistRow) => orderedTracks.find((t) => t.songId === row.key)!;
 
   // Returns false when the add was rejected (keeps NewTrackForm open so the title can be changed).
@@ -210,16 +213,18 @@ export default function ReleaseDetailPage() {
 
   // Look up the clashing catalog song (scoped to this artist) so the prompt can offer to link it.
   async function promptDuplicate(rawTitle: string) {
+    if (!release) return;
     const title = rawTitle.trim();
     const wanted = title.toLowerCase();
     let existing: SongListItem | null = null;
     try {
-      const matches = await api.songs.list({ artistId: release!.mainArtistId, q: title });
+      const matches = await api.songs.list({ artistId: release.mainArtistId, q: title });
       existing = matches.find((s) => !s.isArchived && s.title.trim().toLowerCase() === wanted) ?? null;
     } catch {
       existing = null;
     }
-    const onRelease = !!existing && orderedTracks.some((t) => t.songId === existing!.id);
+    const found = existing;
+    const onRelease = found != null && orderedTracks.some((t) => t.songId === found.id);
     setDupPrompt({ title, existing, onRelease });
   }
 
@@ -394,7 +399,8 @@ export default function ReleaseDetailPage() {
               {dupPrompt.existing && !dupPrompt.onRelease && (
                 <Button
                   onClick={async () => {
-                    const song = dupPrompt.existing!;
+                    const song = dupPrompt.existing;
+                    if (!song) return;
                     setDupPrompt(null);
                     await addExistingTrack(song.id);
                   }}
