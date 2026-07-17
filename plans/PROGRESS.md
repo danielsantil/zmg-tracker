@@ -169,6 +169,37 @@ dismisses on **any** scroll event (its menu is `fixed`-positioned from the butto
 page), so the stray horizontal scroll closed every kebab before a click landed — worth remembering for the
 M22 calendar, whose preview modal sits over the same primitive.
 
+**v2.2 M22 — releases calendar view.** A **Table/Calendar** segmented toggle sits below the filters
+(local `view` state, default `'table'`); the calendar consumes the **already-filtered `scope=all` list**
+rather than fetching, so every filter constrains it for free and no backend changed.
+[`lib/calendar.ts`](src/Zmg.Web/src/lib/calendar.ts) holds the date math and
+[`ReleaseCalendar`](src/Zmg.Web/src/features/releases/components/ReleaseCalendar.tsx) the grid — both
+dependency-free per the plan's survey. **Timezone discipline throughout:** cells are `yyyy-MM-dd` strings
+built by hand (`toIso`) and releases group by their raw `releaseDate` string, so the grid never parses a date
+back out of `new Date('yyyy-MM-dd')` (UTC, drifts a day back in negative offsets) — `monthOf`/`isInMonth` read
+the year/month straight off the string. The grid is a fixed **6×7** (`monthGrid`) so paging months doesn't
+reflow the page; adjacent-month days are dimmed but still render their releases, which is why July shows Aug 8.
+One responsive grid at all sizes: `≥sm` gets up to 2 type-tinted title chips + "+N more", mobile gets up to 3
+colored dots with the whole cell as one tap target (accent = single, emerald = album), and the weekday header
+degrades `Sun`→`S`. Clicking any chip/dot/"+N more" opens a `Modal` of that day's compact `ReleaseCard`s
+(`showOpenLink`, no cover) — the M21 flags landing exactly as designed.
+
+**Overlay bug this exposed (pre-existing, fixed here).** M22 is the first place a `RowMenu` renders **inside**
+a `Modal`, and the kebab's Archive item was **unclickable** — `elementFromPoint` at its own rect returned the
+modal backdrop. Cause: `RowMenu` (and `SoftWarning`) position their popovers `fixed` from the button's rect,
+but a `fixed` element inside a **transformed** ancestor resolves against *that ancestor* instead of the
+viewport — and `Modal`'s panel is `sm:-translate-x/y-1/2`. The menu landed off-panel, then got clipped by the
+panel's `overflow-y-auto` and buried under the backdrop. Both now **portal to `<body>`** (like `Modal` already
+did, and for the same reason its docstring gives), which removes the transformed ancestor from the chain so
+`fixed` is viewport-relative again; their `z-20`/`z-30` had to become **`z-50`** to clear the modal layer (40),
+since a portal also leaves the modal's stacking context. Table/Home kebabs are unaffected — verified the menu
+still lands under its button there. **Browser-verified desktop + 375px:** toggle, opens on today's month,
+prev/next/Today, the "Next release · <date>" chip jumping and *vanishing* when a Released-only filter leaves
+nothing upcoming, a 3-release day as chips **and** dots, preview → Open release, and Archive-from-preview
+end-to-end — which incidentally drove the **archive-confirm cascade list** the backlog had flagged as never
+browser-verified (it correctly listed the song about to cascade). `npm run lint` + `npm run build` clean;
+`dotnet test` deliberately not re-run (SPA-only blast radius).
+
 ---
 
 ## Cross-cutting decisions (not in any single plan)
@@ -280,9 +311,8 @@ tests/Zmg.Api.Tests      integration tests (WebApplicationFactory + in-memory SQ
 
 - **Shipped:** v2.0 (M12–M15) and **build-plan-2.1 (M16–M18)** — overlays/confirm, toast variants,
   `SongPickerModal` + unified `Tracklist`, plus the song-uniqueness/immutable-artist integrity fixes and the
-  ESLint migration. All browser-verified; see the journal. One thing never driven in the browser: the
-  archive-confirm cascade *list* specifically (needs a release with dormant cascading songs) — the underlying
-  `ConfirmDialog`/`Modal` + `ReactNode` body are otherwise verified.
+  ESLint migration. All browser-verified; see the journal. (The archive-confirm cascade *list*, long flagged here
+  as never driven, was finally verified during M22 — it listed the cascading song correctly.)
 - **build-plan-2.2 — UX improvements (M19–M23). M19–M21 + M23 shipped; only M22 (calendar) left.** See
   [build-plan-2.2.md](build-plan-2.2.md) for full scope, mockup notes, and per-milestone test lists.
   - **M19 — Artists redesign. ✅ Shipped.** Table (Name · Releases · Songs · Actions) + `RowMenu` kebab;
@@ -294,14 +324,17 @@ tests/Zmg.Api.Tests      integration tests (WebApplicationFactory + in-memory SQ
   - **M21 — Compact `ReleaseCard`. ✅ Shipped.** Moved to `features/releases/components/ReleaseCard.tsx`
     (old `features/home/components/ReleaseCard.tsx` deleted); kebab actions, `showCover` opt-in, ready for
     the M22 calendar preview.
-  - **M22 — Releases calendar view.** A Table/Calendar toggle + hand-rolled month grid (`lib/calendar.ts`),
-    dependency-free; opens on today's month, "Next release" jump chip (hidden when nothing upcoming), mobile
-    dots vs desktop chips; click → preview modal of compact cards. **No backend change** (`scope=all` already
-    returns all dates).
+  - **M22 — Releases calendar view. ✅ Shipped.** Table/Calendar toggle + hand-rolled month grid
+    ([`lib/calendar.ts`](src/Zmg.Web/src/lib/calendar.ts) +
+    [`ReleaseCalendar`](src/Zmg.Web/src/features/releases/components/ReleaseCalendar.tsx)), dependency-free;
+    opens on today's month, "Next release" jump chip (hidden when nothing upcoming), mobile dots vs desktop
+    chips; click → preview modal of compact cards. No backend change. Also fixed a latent overlay bug it
+    exposed — see the journal entry below.
   - **M23 — Inline reorder arrows. ✅ Shipped.** New shared
     [`ReorderArrows`](src/Zmg.Web/src/components/ReorderArrows.tsx) on `TaskRow` + `TemplateTaskRow`
     (arrows gated behind `!readOnly`), the kebab's "Move up/down" items dropped, and `Tracklist`
     refactored onto it — one reorder control app-wide.
+  - **v2.2 is now feature-complete (M19–M23 all shipped).** Next: compact this journal for 2.2, then Phase 2.
   - Branch `feat/v2.2-ux-improvements` exists; only the build-plan doc + this note are committed-in-spirit —
     no implementation code written yet.
 - **Phase 2 — DSP stats (after v2.2)** (the reason this exists over Notion/Trello): hang streaming/revenue data

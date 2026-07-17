@@ -8,6 +8,7 @@ import { useConfirm } from '@/hooks/useConfirm';
 import { useToast } from '@/hooks/useToast';
 import { todayIso } from '@/lib/format';
 import { archiveReleaseConfirm } from './archiveConfirm';
+import { ReleaseCalendar } from './components/ReleaseCalendar';
 
 export default function AllReleasesPage() {
   const navigate = useNavigate();
@@ -18,6 +19,7 @@ export default function AllReleasesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [view, setView] = useState<'table' | 'calendar'>('table');
   const [artistId, setArtistId] = useState('');
   const [type, setType] = useState('');
   const [status, setStatus] = useState('');
@@ -111,8 +113,22 @@ export default function AllReleasesPage() {
         )}
       </div>
 
-      {/* Kept outside the table so it stays reachable even when there are no releases. */}
-      <div className="mb-3 flex justify-end">
+      {/* Kept outside the table so both stay reachable even when there are no releases. */}
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <div className="inline-flex rounded-lg border border-edge bg-panel p-0.5">
+          {(['table', 'calendar'] as const).map((v) => (
+            <button
+              key={v}
+              onClick={() => setView(v)}
+              aria-pressed={view === v}
+              className={`rounded-md px-3 py-1 text-sm font-medium capitalize transition ${
+                view === v ? 'bg-edge text-white' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              {v}
+            </button>
+          ))}
+        </div>
         <Link to="/releases/archived" className="text-sm text-slate-400 hover:text-accent">
           Archived Releases →
         </Link>
@@ -122,6 +138,9 @@ export default function AllReleasesPage() {
 
       {loading ? (
         <p className="text-slate-400">Loading…</p>
+      ) : view === 'calendar' ? (
+        /* The calendar reuses the fetched, already-filtered list — an empty month speaks for itself. */
+        <ReleaseCalendar releases={releases} onArchive={archive} />
       ) : releases.length === 0 ? (
         <div className="rounded-xl border border-dashed border-edge bg-panel/50 p-10 text-center text-slate-400">
           {hasFilters ? 'No releases match these filters.' : 'No releases yet.'}
