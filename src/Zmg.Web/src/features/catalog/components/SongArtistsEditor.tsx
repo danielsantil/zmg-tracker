@@ -41,7 +41,7 @@ export function SongArtistsEditor({
         const entry = value.find((f) => f.artistId === a.id);
         return (
           <div key={a.id} className="flex items-center gap-3">
-            <label className="flex flex-1 items-center gap-2 text-sm text-slate-200">
+            <label className="flex flex-1 items-center gap-2 text-sm text-body">
               <input
                 type="checkbox"
                 checked={Boolean(entry)}

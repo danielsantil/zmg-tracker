@@ -22,7 +22,7 @@ export function ProgressBar({
           style={{ width: `${pct}%` }}
         />
       </div>
-      <div className="mt-1 text-xs text-slate-400">
+      <div className="mt-1 text-xs text-muted">
         {label ?? `${done}/${total} done · ${pct}%`}
       </div>
     </div>

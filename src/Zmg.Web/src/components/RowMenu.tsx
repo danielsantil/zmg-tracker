@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { cva } from 'class-variance-authority';
+import { EllipsisVertical } from 'lucide-react';
 
 /**
  * The `⋮` row-actions button plus its dropdown. The menu renders with `fixed`
@@ -60,10 +61,10 @@ export function RowMenu({
       <button
         ref={btnRef}
         aria-label={label}
-        className="grid h-8 w-8 place-items-center rounded-lg text-slate-400 hover:bg-edge hover:text-slate-200"
+        className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-edge hover:text-body"
         onClick={() => (open ? setOpen(false) : openMenu())}
       >
-        ⋮
+        <EllipsisVertical className="h-4 w-4" aria-hidden />
       </button>
       {open &&
         pos &&
@@ -87,9 +88,9 @@ export function RowMenu({
 const menuItem = cva('block w-full px-3 py-3 text-left hover:bg-edge', {
   variants: {
     tone: {
-      default: 'text-slate-200',
-      danger: 'text-red-300',
-      archive: 'text-amber-300',
+      default: 'text-body',
+      danger: 'text-dangerFg',
+      archive: 'text-warnFg',
     },
   },
   defaultVariants: { tone: 'default' },

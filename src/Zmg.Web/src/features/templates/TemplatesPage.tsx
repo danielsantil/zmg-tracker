@@ -107,11 +107,11 @@ export default function TemplatesPage() {
   return (
     <div>
       <div className="mb-4">
-        <h1 className="text-2xl font-semibold text-white">Templates</h1>
-        <p className="text-sm text-slate-400">The default checklist copied onto each new release.</p>
+        <h1 className="text-2xl font-semibold text-strong">Templates</h1>
+        <p className="text-sm text-muted">The default checklist copied onto each new release.</p>
       </div>
 
-      <p className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-sm text-amber-200">
+      <p className="mb-4 rounded-lg border border-warn/30 bg-warn/10 px-4 py-2.5 text-sm text-warnFg">
         Changes apply to future releases only — existing releases keep their own copy.
       </p>
 
@@ -121,7 +121,7 @@ export default function TemplatesPage() {
             key={t.type}
             onClick={() => setTab(t.type)}
             className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition ${
-              tab === t.type ? 'bg-accent text-white' : 'text-slate-400 hover:text-slate-200'
+              tab === t.type ? 'bg-accent text-white' : 'text-muted hover:text-body'
             }`}
           >
             {t.label}
@@ -134,10 +134,10 @@ export default function TemplatesPage() {
       ) : error ? (
         <ErrorBanner error="Failed to load templates." />
       ) : !active ? (
-        <p className="text-slate-400">No template found.</p>
+        <p className="text-muted">No template found.</p>
       ) : (
         <>
-          <p className="mb-3 text-xs text-slate-500">{tasks.length} tasks in this template</p>
+          <p className="mb-3 text-xs text-subtle">{tasks.length} tasks in this template</p>
           <div className="space-y-3">
             {PHASE_ORDER.map((phase) => (
               <PhaseSection

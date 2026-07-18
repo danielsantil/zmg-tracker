@@ -18,11 +18,11 @@ import { ReleaseCard } from './ReleaseCard';
 /** Type-tinted so a day's releases are scannable at a glance without reading the titles. */
 const chipTone: Record<ReleaseType, string> = {
   [ReleaseType.Single]: 'bg-accent/20 text-accent ring-1 ring-accent/30',
-  [ReleaseType.Album]: 'bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-500/30',
+  [ReleaseType.Album]: 'bg-ok/20 text-okFg ring-1 ring-ok/30',
 };
 const dotTone: Record<ReleaseType, string> = {
   [ReleaseType.Single]: 'bg-accent',
-  [ReleaseType.Album]: 'bg-emerald-400',
+  [ReleaseType.Album]: 'bg-ok',
 };
 
 /**
@@ -74,22 +74,22 @@ export function ReleaseCalendar({
           <button
             onClick={() => setYm(addMonths(ym, -1))}
             aria-label="Previous month"
-            className="rounded-lg px-2 py-1 text-slate-400 hover:bg-edge hover:text-white"
+            className="rounded-lg px-2 py-1 text-muted hover:bg-edge hover:text-strong"
           >
             ‹
           </button>
           <button
             onClick={() => setYm(addMonths(ym, 1))}
             aria-label="Next month"
-            className="rounded-lg px-2 py-1 text-slate-400 hover:bg-edge hover:text-white"
+            className="rounded-lg px-2 py-1 text-muted hover:bg-edge hover:text-strong"
           >
             ›
           </button>
         </div>
-        <h2 className="text-base font-semibold text-white">{monthLabel(ym)}</h2>
+        <h2 className="text-base font-semibold text-strong">{monthLabel(ym)}</h2>
         <button
           onClick={() => setYm(monthOf(today))}
-          className="rounded-lg bg-edge px-2.5 py-1 text-xs font-medium text-slate-200 hover:bg-edge/70"
+          className="rounded-lg bg-edge px-2.5 py-1 text-xs font-medium text-body hover:bg-edge/70"
         >
           Today
         </button>
@@ -103,7 +103,7 @@ export function ReleaseCalendar({
         )}
       </div>
 
-      <div className="grid grid-cols-7 border-b border-edge text-center text-[11px] uppercase tracking-wide text-slate-500">
+      <div className="grid grid-cols-7 border-b border-edge text-center text-[11px] uppercase tracking-wide text-subtle">
         {WEEKDAYS.map((d) => (
           <div key={d} className="py-2">
             {/* Mobile cells are too narrow for "Wed" — the first letter still orients the grid. */}
@@ -130,8 +130,8 @@ export function ReleaseCalendar({
                   isToday
                     ? 'mx-auto grid h-5 w-5 place-items-center rounded-full bg-accent font-semibold text-white sm:mx-0'
                     : inMonth
-                      ? 'text-slate-400'
-                      : 'text-slate-600'
+                      ? 'text-muted'
+                      : 'text-subtle'
                 }`}
               >
                 {Number(iso.slice(8, 10))}
@@ -152,7 +152,7 @@ export function ReleaseCalendar({
                 {day.length > 2 && (
                   <button
                     onClick={() => setSelected(iso)}
-                    className="px-1.5 text-left text-[11px] text-slate-400 hover:text-white"
+                    className="px-1.5 text-left text-[11px] text-muted hover:text-strong"
                   >
                     +{day.length - 2} more
                   </button>

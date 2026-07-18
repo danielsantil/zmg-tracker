@@ -70,19 +70,19 @@ export function Tracklist({
 
   return (
     <section className="overflow-hidden rounded-xl border border-edge bg-panel">
-      <div className="px-4 py-3 font-semibold text-white">
-        {heading} <span className="text-sm font-normal text-slate-400">({rows.length})</span>
+      <div className="px-4 py-3 font-semibold text-strong">
+        {heading} <span className="text-sm font-normal text-muted">({rows.length})</span>
       </div>
 
       <div className="border-t border-edge">
         {rows.length === 0 ? (
-          <p className="px-4 py-3 text-sm text-slate-500">{emptyText}</p>
+          <p className="px-4 py-3 text-sm text-subtle">{emptyText}</p>
         ) : (
           <ul>
             {rows.map((row, i) => (
               <li key={row.key} className="border-b border-edge/50 last:border-b-0">
                 <div className="flex items-center gap-3 px-4 py-2.5">
-                  <span className="w-6 shrink-0 text-right text-sm tabular-nums text-slate-500">
+                  <span className="w-6 shrink-0 text-right text-sm tabular-nums text-subtle">
                     {row.trackNumber}
                   </span>
 
@@ -94,7 +94,7 @@ export function Tracklist({
                       disabled={!editable}
                       onClick={() => onToggleFocus(row)}
                       className={`shrink-0 text-lg leading-none transition ${
-                        row.isFocusTrack ? 'text-amber-400' : 'text-slate-600 hover:text-slate-400'
+                        row.isFocusTrack ? 'text-warnFg' : 'text-subtle hover:text-muted'
                       } ${editable ? '' : 'cursor-default'}`}
                     >
                       {row.isFocusTrack ? '★' : '☆'}
@@ -103,15 +103,15 @@ export function Tracklist({
 
                   <span className="flex-1 text-sm">
                     {row.songId ? (
-                      <Link to={`/catalog/${row.songId}`} className="text-slate-100 hover:text-accent">
+                      <Link to={`/catalog/${row.songId}`} className="text-strong hover:text-accent">
                         {row.title}
                       </Link>
                     ) : (
-                      <span className="text-slate-100">{row.title}</span>
+                      <span className="text-strong">{row.title}</span>
                     )}
-                    {row.isFocusTrack && <span className="ml-2 text-xs text-amber-400/80">focus</span>}
-                    {row.isSongArchived && <span className="ml-2 text-xs text-slate-500">archived</span>}
-                    {row.isrc && <span className="ml-2 text-xs text-slate-500">{row.isrc}</span>}
+                    {row.isFocusTrack && <span className="ml-2 text-xs text-warnFg/80">focus</span>}
+                    {row.isSongArchived && <span className="ml-2 text-xs text-subtle">archived</span>}
+                    {row.isrc && <span className="ml-2 text-xs text-subtle">{row.isrc}</span>}
                   </span>
 
                   {editable && (
@@ -125,7 +125,7 @@ export function Tracklist({
                         type="button"
                         aria-label="Remove track"
                         onClick={() => onRemove(row)}
-                        className="ml-3 px-1.5 text-red-400/70 hover:text-red-300"
+                        className="ml-3 px-1.5 text-dangerFg/70 hover:text-dangerFg"
                       >
                         ✕
                       </button>
@@ -155,12 +155,12 @@ export function Tracklist({
                 type="button"
                 disabled={!mainArtistId}
                 onClick={() => setPickerOpen(true)}
-                className="rounded-lg px-2 py-1.5 text-sm text-slate-400 hover:text-accent disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:text-slate-400"
+                className="rounded-lg px-2 py-1.5 text-sm text-muted hover:text-accent disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:text-muted"
               >
                 + Add existing song
               </button>
               {!mainArtistId && (
-                <span className="ml-2 text-xs text-slate-500">Pick a main artist first</span>
+                <span className="ml-2 text-xs text-subtle">Pick a main artist first</span>
               )}
             </div>
           </>

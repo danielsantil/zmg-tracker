@@ -1,6 +1,8 @@
 import { NavLink, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Moon, Sun } from 'lucide-react';
 import { ConfirmProvider } from './hooks/ConfirmProvider';
+import { useTheme } from './hooks/useTheme';
 import Home from './features/home/HomePage';
 import AllReleases from './features/releases/AllReleasesPage';
 import ArchivedReleases from './features/releases/ArchivedReleasesPage';
@@ -14,18 +16,35 @@ import SongForm from './features/catalog/SongFormPage';
 import SongDetail from './features/catalog/SongDetailPage';
 import Templates from './features/templates/TemplatesPage';
 
+// Shows the mode you'd switch TO: a sun in dark mode (→ light), a moon in light mode (→ dark).
+function ThemeToggle() {
+  const { theme, toggle } = useTheme();
+  const Icon = theme === 'dark' ? Sun : Moon;
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+      className="ml-auto grid h-8 w-8 place-items-center rounded-lg text-muted transition hover:bg-edge hover:text-body"
+    >
+      <Icon className="h-4 w-4" aria-hidden />
+    </button>
+  );
+}
+
 function Nav() {
   const link = ({ isActive }: { isActive: boolean }) =>
     `rounded-lg px-3 py-1.5 text-sm font-medium transition ${
-      isActive ? 'bg-edge text-white' : 'text-slate-400 hover:text-slate-200'
+      isActive ? 'bg-edge text-strong' : 'text-muted hover:text-body'
     }`;
   return (
     <header className="sticky top-0 z-10 border-b border-edge bg-ink/80 backdrop-blur">
       {/* Wraps to a second row below ~440px: the five links don't fit a 375px phone, and an
           unwrapped row made the whole document scroll sideways. */}
       <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-2 gap-y-1 px-4 py-3">
-        <NavLink to="/" className="mr-2 flex items-center gap-2 font-semibold text-white">
-          <span className="grid h-7 w-7 place-items-center rounded-lg bg-accent text-sm">Z</span>
+        <NavLink to="/" className="mr-2 flex items-center gap-2 font-semibold text-strong">
+          {/* text-white, not inherited text-strong: the Z sits on the solid accent in both themes. */}
+          <span className="grid h-7 w-7 place-items-center rounded-lg bg-accent text-sm text-white">Z</span>
           <span className="hidden sm:inline">ZMG Tracker</span>
         </NavLink>
         <NavLink to="/" end className={link}>
@@ -43,6 +62,7 @@ function Nav() {
         <NavLink to="/templates" className={link}>
           Templates
         </NavLink>
+        <ThemeToggle />
       </div>
     </header>
   );

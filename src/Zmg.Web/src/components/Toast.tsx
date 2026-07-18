@@ -3,6 +3,8 @@ import { cva } from 'class-variance-authority';
 export type ToastVariant = 'success' | 'error' | 'info';
 
 const toast = cva(
+  // text-white (not text-strong): the variant backgrounds are saturated solids in both themes, so
+  // the text must stay white — text-strong would flip to dark slate in light mode and vanish.
   'fixed bottom-4 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 rounded-lg px-4 py-2 text-sm text-white shadow-lg mb-[env(safe-area-inset-bottom)] motion-safe:animate-[toast-in_150ms_ease-out]',
   {
     variants: {

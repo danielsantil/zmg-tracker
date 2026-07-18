@@ -104,7 +104,7 @@ export function TaskRow<T extends ChecklistTask>({
           />
         ) : (
           <button
-            className={`flex-1 text-left text-sm ${isDone ? 'text-slate-500 line-through' : 'text-slate-100'} ${readOnly ? 'cursor-default' : ''}`}
+            className={`flex-1 text-left text-sm ${isDone ? 'text-subtle line-through' : 'text-strong'} ${readOnly ? 'cursor-default' : ''}`}
             disabled={readOnly}
             onClick={() => {
               if (readOnly) return;
@@ -118,7 +118,7 @@ export function TaskRow<T extends ChecklistTask>({
               <span className="ml-2 whitespace-nowrap text-xs text-accent/80">· {timeframe}</span>
             )}
             {supportsNotes && notes && (
-              <span className="ml-1.5 text-xs text-slate-500" title="Has notes" aria-label="Has notes">
+              <span className="ml-1.5 text-xs text-subtle" title="Has notes" aria-label="Has notes">
                 ✎
               </span>
             )}
@@ -181,7 +181,7 @@ export function TaskRow<T extends ChecklistTask>({
         />
       )}
       {supportsNotes && editing !== 'notes' && notes && (
-        <p className="px-4 pb-2.5 pl-12 text-xs text-slate-400">{notes}</p>
+        <p className="px-4 pb-2.5 pl-12 text-xs text-muted">{notes}</p>
       )}
     </li>
   );

@@ -71,8 +71,8 @@ export default function CatalogPage() {
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold text-white">Catalog</h1>
-          <p className="text-sm text-slate-400">Every song, by title.</p>
+          <h1 className="text-2xl font-semibold text-strong">Catalog</h1>
+          <p className="text-sm text-muted">Every song, by title.</p>
         </div>
         <Button onClick={() => navigate('/catalog/new')}>+ New song</Button>
       </div>
@@ -80,7 +80,7 @@ export default function CatalogPage() {
       <FilterBar
         onClear={hasFilters ? () => { setQ(''); setArtistId(''); } : undefined}
         trailing={
-          <Link to="/catalog/archived" className="ml-auto shrink-0 text-sm text-slate-400 hover:text-accent">
+          <Link to="/catalog/archived" className="ml-auto shrink-0 text-sm text-muted hover:text-accent">
             Archived Songs →
           </Link>
         }
@@ -98,17 +98,24 @@ export default function CatalogPage() {
           {hasFilters ? 'No songs match these filters.' : 'No songs yet — add one or create a release.'}
         </EmptyState>
       ) : (
-        <DataTable headers={['Name', 'Main Artist', 'Released', 'Action']}>
+        <DataTable
+          headers={[
+            { label: 'Name' },
+            { label: 'Main Artist' },
+            { label: 'Released' },
+            { label: '', className: 'text-right' },
+          ]}
+        >
           {songs.map((s) => (
             <tr key={s.id} onClick={() => navigate(`/catalog/${s.id}`)} className={dataRowClass}>
-              <td className="px-4 py-3 font-medium text-white">{s.title}</td>
-              <td className="px-4 py-3 text-slate-300">{s.mainArtistName}</td>
+              <td className="px-4 py-3 font-medium text-strong">{s.title}</td>
+              <td className="px-4 py-3 text-body">{s.mainArtistName}</td>
               <td className="px-4 py-3">
-                {s.releaseCount > 0 ? <span className="text-green-400">Yes</span> : <span className="text-gray-400">No</span>}
+                {s.releaseCount > 0 ? <span className="text-okFg">Yes</span> : <span className="text-muted">No</span>}
               </td>
-              <td className="px-4 py-3">
+              <td className="px-4 py-3 text-right">
                 {(s.isOrphan || s.canArchive) && (
-                  <div onClick={(e) => e.stopPropagation()} className="w-fit">
+                  <div onClick={(e) => e.stopPropagation()} className="flex justify-end">
                     <RowMenu label="Song actions">
                       {(close) =>
                         s.isOrphan ? (

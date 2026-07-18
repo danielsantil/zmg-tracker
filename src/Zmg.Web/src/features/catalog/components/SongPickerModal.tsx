@@ -65,9 +65,9 @@ export function SongPickerModal({
 
       <div className="mt-3 max-h-[50vh] overflow-y-auto rounded-lg border border-edge">
         {loading ? (
-          <p className="px-3 py-2 text-sm text-slate-500">Loading…</p>
+          <p className="px-3 py-2 text-sm text-subtle">Loading…</p>
         ) : visible.length === 0 ? (
-          <p className="px-3 py-2 text-sm text-slate-500">
+          <p className="px-3 py-2 text-sm text-subtle">
             {q.trim() ? 'No matches.' : 'No songs by this artist yet.'}
           </p>
         ) : (
@@ -79,8 +79,8 @@ export function SongPickerModal({
                   onClick={() => onSelect(s)}
                   className="block w-full px-3 py-2 text-left hover:bg-edge/40"
                 >
-                  <span className="block text-sm text-slate-100">{s.title}</span>
-                  <span className="block text-xs text-slate-500">
+                  <span className="block text-sm text-strong">{s.title}</span>
+                  <span className="block text-xs text-subtle">
                     {s.releaseDate ?? 'Unreleased'}
                     {s.isrc && ` · ${s.isrc}`}
                   </span>

@@ -50,7 +50,7 @@ export function Modal({
         aria-label={title}
         className="fixed inset-x-0 bottom-0 max-h-[85vh] overflow-y-auto rounded-t-2xl border border-edge bg-panel p-5 shadow-xl outline-none sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:w-full sm:max-w-md sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl"
       >
-        {title && <h2 className="mb-3 text-lg font-semibold text-white">{title}</h2>}
+        {title && <h2 className="mb-3 text-lg font-semibold text-strong">{title}</h2>}
         {children}
       </div>
     </div>,

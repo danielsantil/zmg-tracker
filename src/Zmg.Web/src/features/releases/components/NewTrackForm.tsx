@@ -51,7 +51,7 @@ export function NewTrackForm({
       <div className="border-t border-edge px-3 py-2">
         <button
           type="button"
-          className="rounded-lg px-2 py-1.5 text-sm text-slate-400 hover:text-accent"
+          className="rounded-lg px-2 py-1.5 text-sm text-muted hover:text-accent"
           onClick={() => setAdding(true)}
         >
           + Add track
@@ -74,7 +74,7 @@ export function NewTrackForm({
         }}
       />
       <details className="text-sm">
-        <summary className="cursor-pointer text-xs text-slate-500 hover:text-slate-300">
+        <summary className="cursor-pointer text-xs text-subtle hover:text-body">
           Details (optional)
         </summary>
         <div className="mt-2 space-y-2">

@@ -37,7 +37,7 @@ export function ConfirmDialog({
 
   return (
     <Modal open={open} onClose={() => onResolve(false)} title={options?.title}>
-      {options?.body && <div className="text-sm text-slate-300">{options.body}</div>}
+      {options?.body && <div className="text-sm text-body">{options.body}</div>}
       <div className="mt-5 flex justify-end gap-2">
         {!options?.hideCancel && (
           <Button variant="ghost" onClick={() => onResolve(false)}>

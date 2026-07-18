@@ -6,10 +6,11 @@ const button = cva(
   {
     variants: {
       variant: {
+        // Solid accent → white text in BOTH themes (text-strong flips to dark in light mode).
         primary: 'bg-accent text-white hover:bg-accent/90',
-        ghost: 'bg-edge text-slate-200 hover:bg-edge/70',
-        danger: 'bg-red-500/15 text-red-300 ring-1 ring-red-500/30 hover:bg-red-500/25',
-        archive: 'bg-amber-500/15 text-amber-300 ring-1 ring-amber-500/30 hover:bg-amber-500/25',
+        ghost: 'bg-edge text-body hover:bg-edge/70',
+        danger: 'bg-danger/15 text-dangerFg ring-1 ring-danger/30 hover:bg-danger/25',
+        archive: 'bg-warn/15 text-warnFg ring-1 ring-warn/30 hover:bg-warn/25',
       },
     },
     defaultVariants: { variant: 'primary' },

@@ -105,11 +105,11 @@ export function TracksEditor({
         <div className="rounded-lg border border-edge bg-panel p-3">
           {row.songId ? (
             <div className="flex items-center gap-2">
-              <span className="flex-1 text-sm text-slate-100">{row.title}</span>
-              <span className="text-xs text-slate-500">from catalog</span>
+              <span className="flex-1 text-sm text-strong">{row.title}</span>
+              <span className="text-xs text-subtle">from catalog</span>
               <button
                 type="button"
-                className="text-xs text-slate-400 hover:text-accent"
+                className="text-xs text-muted hover:text-accent"
                 onClick={() => update(row.key, { songId: null, title: '' })}
               >
                 Change
@@ -119,7 +119,7 @@ export function TracksEditor({
             <>
               {newSongFields(row)}
               <div className="mt-2">
-                <span className="mr-2 text-xs text-slate-500">or</span>
+                <span className="mr-2 text-xs text-subtle">or</span>
                 <Button
                   type="button"
                   variant="ghost"
@@ -129,7 +129,7 @@ export function TracksEditor({
                   Add existing song
                 </Button>
                 {!mainArtistId && (
-                  <span className="ml-2 text-xs text-slate-500">Pick a main artist first</span>
+                  <span className="ml-2 text-xs text-subtle">Pick a main artist first</span>
                 )}
               </div>
             </>
@@ -159,7 +159,7 @@ export function TracksEditor({
     songId: r.songId,
     details: r.songId ? undefined : (
       <details className="text-sm">
-        <summary className="cursor-pointer text-xs text-slate-500 hover:text-slate-300">
+        <summary className="cursor-pointer text-xs text-subtle hover:text-body">
           Details (optional)
         </summary>
         <div className="mt-2">{newSongFields(r)}</div>

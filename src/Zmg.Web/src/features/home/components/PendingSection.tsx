@@ -24,25 +24,25 @@ export function PendingSection({ pending }: { pending: PendingAction[] }) {
 
   if (pending.length === 0) return null;
   return (
-    <section className="mb-6 overflow-hidden rounded-xl border border-amber-500/25 bg-amber-500/[0.06]">
+    <section className="mb-6 overflow-hidden rounded-xl border border-warn/25 bg-warn/[0.06]">
       <button
-        className="flex w-full items-center gap-2 px-4 py-3 text-left font-semibold text-amber-200"
+        className="flex w-full items-center gap-2 px-4 py-3 text-left font-semibold text-warnFg"
         onClick={() => setOpen((o) => !o)}
       >
-        <span className="text-amber-200/60">{open ? '▾' : '▸'}</span>
-        Pending Tasks <span className="text-sm font-normal text-amber-200/70">({pending.length})</span>
+        <span className="text-warnFg/60">{open ? '▾' : '▸'}</span>
+        Pending Tasks <span className="text-sm font-normal text-warnFg/70">({pending.length})</span>
       </button>
       {open && (
-        <ul className="max-h-[11rem] overflow-y-auto border-t border-amber-500/20">
+        <ul className="max-h-[11rem] overflow-y-auto border-t border-warn/20">
           {pending.map((p, i) => (
-            <li key={`${p.releaseId ?? p.songId}-${p.taskId ?? p.kind}-${i}`} className="border-b border-amber-500/10 last:border-b-0">
+            <li key={`${p.releaseId ?? p.songId}-${p.taskId ?? p.kind}-${i}`} className="border-b border-warn/10 last:border-b-0">
               <Link
                 to={nextPage(p)}
-                className="flex items-center justify-between gap-3 px-4 py-2.5 hover:bg-amber-500/[0.06]"
+                className="flex items-center justify-between gap-3 px-4 py-2.5 hover:bg-warn/[0.06]"
               >
                 <span className="min-w-0">
-                  <span className="text-sm text-slate-100">{p.label}</span>
-                  <span className="ml-2 text-xs text-slate-400">
+                  <span className="text-sm text-strong">{p.label}</span>
+                  <span className="ml-2 text-xs text-muted">
                     {p.subject} · {p.artistName}
                   </span>
                 </span>
@@ -52,7 +52,7 @@ export function PendingSection({ pending }: { pending: PendingAction[] }) {
                       {p.daysToRelease === 0 ? 'Releases today' : `${p.daysToRelease} days to release`}
                     </span>
                   ) : (
-                    <span className="whitespace-nowrap text-amber-300">Data</span>
+                    <span className="whitespace-nowrap text-warnFg">Data</span>
                   )}
                 </span>
               </Link>

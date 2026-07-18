@@ -42,13 +42,13 @@ export function PhaseSection<T extends ChecklistTask>({
   const [open, setOpen] = useState(!(collapsible && allDone));
 
   const header = (
-    <span className="flex items-center gap-2 font-semibold text-white">
-      {collapsible && <span className="text-slate-500">{open ? '▾' : '▸'}</span>}
+    <span className="flex items-center gap-2 font-semibold text-strong">
+      {collapsible && <span className="text-subtle">{open ? '▾' : '▸'}</span>}
       {phaseLabels[phase].toUpperCase()}
-      <span className="text-sm font-normal text-slate-400">
+      <span className="text-sm font-normal text-muted">
         {tracksProgress ? `(${done}/${total})` : `(${total})`}
       </span>
-      {allDone && <span className="text-emerald-400">✓</span>}
+      {allDone && <span className="text-okFg">✓</span>}
     </span>
   );
 
@@ -68,7 +68,7 @@ export function PhaseSection<T extends ChecklistTask>({
       {open && (
         <div className="border-t border-edge">
           {tasks.length === 0 ? (
-            <p className="px-4 py-3 text-sm text-slate-500">No tasks in this phase.</p>
+            <p className="px-4 py-3 text-sm text-subtle">No tasks in this phase.</p>
           ) : (
             <ul>
               {tasks.map((t, i) => (

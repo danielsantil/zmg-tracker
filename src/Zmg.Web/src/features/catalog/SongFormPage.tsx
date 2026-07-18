@@ -69,7 +69,7 @@ export default function SongFormPage() {
   if (artists.length === 0) {
     return (
       <EmptyState>
-        <p className="text-slate-300">You need at least one artist before adding a song.</p>
+        <p className="text-body">You need at least one artist before adding a song.</p>
         <Button className="mt-4" onClick={() => navigate('/artists')}>
           Go to Artists
         </Button>
@@ -79,7 +79,7 @@ export default function SongFormPage() {
 
   return (
     <div className="mx-auto max-w-xl">
-      <h1 className="mb-6 text-2xl font-semibold text-white">New song</h1>
+      <h1 className="mb-6 text-2xl font-semibold text-strong">New song</h1>
 
       <form onSubmit={submit} className="space-y-4">
         <Field label="Title" error={fieldErrors.title}>

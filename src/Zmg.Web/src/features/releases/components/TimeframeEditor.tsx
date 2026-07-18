@@ -30,8 +30,8 @@ export function TimeframeEditor({
   }
 
   return (
-    <div className={`flex flex-wrap items-center gap-2 px-4 pb-3 text-sm text-slate-300 ${indent ? 'pl-12' : ''}`}>
-      <span className="text-xs text-slate-500">Days before release:</span>
+    <div className={`flex flex-wrap items-center gap-2 px-4 pb-3 text-sm text-body ${indent ? 'pl-12' : ''}`}>
+      <span className="text-xs text-subtle">Days before release:</span>
       <input
         autoFocus
         type="number"
@@ -41,7 +41,7 @@ export function TimeframeEditor({
         value={min}
         onChange={(e) => setMin(e.target.value)}
       />
-      <span className="text-slate-500">–</span>
+      <span className="text-subtle">–</span>
       <input
         type="number"
         min={0}
