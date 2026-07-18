@@ -97,6 +97,7 @@ export default function TemplatesPage() {
     setTasks((ts) => ts.map((t) => reordered.find((r) => r.id === t.id) ?? t));
     try {
       await api.templates.reorderTasks(active.id, { phase: task.phase, orderedTaskIds: list.map((t) => t.id) });
+      invalidateTemplates();
     } catch (e) {
       setTasks(prev);
       showToast(errorMessage(e, 'Could not reorder.'));

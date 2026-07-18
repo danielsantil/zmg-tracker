@@ -160,7 +160,10 @@ export default function ReleaseFormPage() {
       };
       const result = isEdit && id ? await api.releases.update(id, input) : await api.releases.create(input);
       void queryClient.invalidateQueries({ queryKey: queryKeys.releases() });
-      if (isEdit && id) void queryClient.invalidateQueries({ queryKey: queryKeys.release(id) });
+      if (isEdit && id) {
+        void queryClient.invalidateQueries({ queryKey: queryKeys.release(id) });
+        void queryClient.invalidateQueries({ queryKey: queryKeys.pending });
+      }
       void queryClient.invalidateQueries({ queryKey: queryKeys.songs() });
       if (result.warnings.length > 0) {
         setWarnings(result.warnings);
