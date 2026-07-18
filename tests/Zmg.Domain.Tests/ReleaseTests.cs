@@ -22,23 +22,14 @@ public class ReleaseTests
         Assert.True(release.IsDistributed);
     }
 
-    [Fact]
-    public void NeedsWarning_is_silent_until_distributed()
+    // v2.0: UPC-only (ISRC moved to the song). The warning fires only once distributed with a blank UPC.
+    [Theory]
+    [InlineData(false, null, false)]  // not distributed → silent
+    [InlineData(true, null, true)]    // distributed, blank UPC → warn
+    [InlineData(true, "   ", true)]   // distributed, whitespace UPC → warn
+    [InlineData(true, "u", false)]    // distributed, UPC present → clear
+    public void NeedsWarning_fires_only_when_distributed_and_upc_blank(bool distributed, string? upc, bool expected)
     {
-        Assert.False(Release.NeedsWarning(distributed: false, upc: null));
-    }
-
-    [Fact]
-    public void NeedsWarning_fires_on_a_blank_upc_once_distributed()
-    {
-        // v2.0: UPC-only (ISRC moved to the song).
-        Assert.True(Release.NeedsWarning(distributed: true, upc: null));
-        Assert.True(Release.NeedsWarning(distributed: true, upc: "   "));
-    }
-
-    [Fact]
-    public void NeedsWarning_is_false_when_upc_present()
-    {
-        Assert.False(Release.NeedsWarning(distributed: true, upc: "u"));
+        Assert.Equal(expected, Release.NeedsWarning(distributed, upc));
     }
 }

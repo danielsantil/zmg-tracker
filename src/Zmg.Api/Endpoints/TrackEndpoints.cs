@@ -16,19 +16,19 @@ public static class TrackEndpoints
         var group = app.MapGroup("/api/releases").WithTags("Tracks");
 
         // Add a track (existing catalog song or new inline song), appended after the last track.
-        group.MapPost("/{releaseId:guid}/tracks", async (Guid releaseId, TrackInput input, ITrackService tracks) =>
-            (await tracks.AddAsync(releaseId, input)).ToCreated(t => $"/api/releases/{releaseId}/tracks/{t.SongId}"));
+        group.MapPost("/{releaseId:guid}/tracks", async (Guid releaseId, TrackInput input, ITrackService tracks, CancellationToken ct) =>
+            (await tracks.AddAsync(releaseId, input, ct)).ToCreated(t => $"/api/releases/{releaseId}/tracks/{t.SongId}"));
 
         // Toggle the focus-track flag (the quick daily action).
-        group.MapPatch("/{releaseId:guid}/tracks/{songId:guid}/focus", async (Guid releaseId, Guid songId, ITrackService tracks) =>
-            (await tracks.ToggleFocusAsync(releaseId, songId)).ToOk());
+        group.MapPatch("/{releaseId:guid}/tracks/{songId:guid}/focus", async (Guid releaseId, Guid songId, ITrackService tracks, CancellationToken ct) =>
+            (await tracks.ToggleFocusAsync(releaseId, songId, ct)).ToOk());
 
         // Reorder tracks; TrackNumber follows the given songId order (1-based).
-        group.MapPut("/{releaseId:guid}/tracks/order", async (Guid releaseId, ReorderTracksInput input, ITrackService tracks) =>
-            (await tracks.ReorderAsync(releaseId, input)).ToNoContent());
+        group.MapPut("/{releaseId:guid}/tracks/order", async (Guid releaseId, ReorderTracksInput input, ITrackService tracks, CancellationToken ct) =>
+            (await tracks.ReorderAsync(releaseId, input, ct)).ToNoContent());
 
         // Remove a track (the join only; the song survives) and close the gap in numbering.
-        group.MapDelete("/{releaseId:guid}/tracks/{songId:guid}", async (Guid releaseId, Guid songId, ITrackService tracks) =>
-            (await tracks.DeleteAsync(releaseId, songId)).ToNoContent());
+        group.MapDelete("/{releaseId:guid}/tracks/{songId:guid}", async (Guid releaseId, Guid songId, ITrackService tracks, CancellationToken ct) =>
+            (await tracks.DeleteAsync(releaseId, songId, ct)).ToNoContent());
     }
 }

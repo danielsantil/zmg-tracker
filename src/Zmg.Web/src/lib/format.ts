@@ -10,9 +10,15 @@ export function formatTimeframe(min: number | null, max: number | null): string 
   return `${max ?? min} days before`;
 }
 
-/** Today as a yyyy-MM-dd string, for lexicographic comparison against release dates. */
+/**
+ * Today as a yyyy-MM-dd string, for lexicographic comparison against release dates. Built from
+ * *local* parts, never `toISOString()` (which is UTC and returns tomorrow's date in a negative
+ * offset after 00:00 UTC — same rule as `formatReleaseDate`/`lib/calendar`).
+ */
 export function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
 
 export function daysToRelease(date: string): number {
@@ -36,10 +42,10 @@ export function formatReleaseDate(date: string): string {
 
 /**
  * Countdown string for an upcoming release ("3 days to release" / "Releases today"),
- * or null once it's released or not upcoming. Shared by release cards and the detail header.
+ * or null once it's released. Shared by release cards and the detail header.
  */
-export function formatCountdown(status: string, releaseDate: string): string | null {
+export function formatCountdown(releaseDate: string): string | null {
   const days = daysToRelease(releaseDate);
-  if (status !== 'Upcoming' || days < 0) return null;
-  return days === 0 ? 'Releases today' : `in ${days} days`;
+  if (days < 0) return null;
+  return days === 0 ? 'Releasing today' : `in ${days} days`;
 }

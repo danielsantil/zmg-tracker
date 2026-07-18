@@ -13,41 +13,45 @@ namespace Zmg.Api.Services;
 /// </summary>
 public sealed class PendingService(ZmgDbContext db) : IPendingService
 {
-    public async Task<IReadOnlyList<PendingAction>> ListAsync()
+    public async Task<IReadOnlyList<PendingAction>> ListAsync(CancellationToken ct = default)
     {
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
-        // Release-owned actions (task-due, missing-UPC, empty-album). Tracks drive the empty-album nag.
-        var releases = await db.Releases
+        // Read-only aggregation (AsNoTracking): the engine only reads the graph, never persists. Narrowing
+        // to a projection was considered (M25 task 3) but PendingActions.Compute consumes the whole Release
+        // graph; projecting would drag the rule out of Domain, so we keep the entity load and drop tracking.
+        var releases = await db.Releases.AsNoTracking()
             .Where(r => r.ArchivedAt == null) // archived releases are read-only; no actions
             .Include(r => r.MainArtist)
             .Include(r => r.Tasks)
             .Include(r => r.Tracks)
-            .ToListAsync();
+            .ToListAsync(ct);
         var releaseActions = releases.SelectMany(r => PendingActions.Compute(r, today));
 
         // Song-owned actions (missing-ISRC). A song is "distributed" when any linked, non-archived
         // release has its Distribute-to-DSPs task checked; deleted links are already hidden by the filter.
-        var songs = await db.Songs
+        var songs = await db.Songs.AsNoTracking()
             .Where(s => s.ArchivedAt == null)
             .Include(s => s.MainArtist)
             .Include(s => s.ReleaseLinks).ThenInclude(t => t.Release).ThenInclude(r => r!.Tasks)
-            .ToListAsync();
+            .ToListAsync(ct);
         var songActions = songs.SelectMany(s => PendingActions.ComputeForSong(s, IsDistributed(s)));
 
         return PendingActions.Order(releaseActions.Concat(songActions));
     }
 
-    public async Task<IReadOnlyList<PendingAction>> ListByReleaseIdAsync(Guid releaseId)
+    public async Task<IReadOnlyList<PendingAction>> ListByReleaseIdAsync(Guid releaseId, CancellationToken ct = default)
     {
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
-        var release = await db.Releases
+        // Identity-resolution no-tracking: the song→ReleaseLinks→Release include path cycles back, which
+        // plain AsNoTracking rejects. Read-only aggregation, so no change tracking is wanted.
+        var release = await db.Releases.AsNoTrackingWithIdentityResolution()
             .Include(r => r.MainArtist)
             .Include(r => r.Tasks)
             .Include(r => r.Tracks).ThenInclude(t => t.Song).ThenInclude(s => s!.MainArtist)
             .Include(r => r.Tracks).ThenInclude(t => t.Song).ThenInclude(s => s!.ReleaseLinks)
                 .ThenInclude(t => t.Release).ThenInclude(r => r!.Tasks)
-            .FirstOrDefaultAsync(r => r.Id == releaseId);
+            .FirstOrDefaultAsync(r => r.Id == releaseId, ct);
 
         // Archived releases are read-only — surface no pending actions on their detail either.
         if (release is null || release.IsArchived) return [];

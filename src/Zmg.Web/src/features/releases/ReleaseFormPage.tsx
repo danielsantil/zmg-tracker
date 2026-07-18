@@ -1,127 +1,170 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useReducer, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
+import clsx from 'clsx';
 import { api, ApiError } from '@/api';
-import type { Artist, TrackInput } from '@/types';
+import { useArtists, useRelease, useTemplates, queryKeys } from '@/api/queries';
+import type { TrackInput } from '@/types';
 import { ReleaseType } from '@/types';
-import { Button, Field, inputClass, inputErrorClass } from '@/components';
+import { Button, EmptyState, ErrorBanner, Field, Loading, inputClass, inputErrorClass } from '@/components';
 import { useBackNavigation } from '@/hooks/useBackNavigation';
 import { TracksEditor } from './components/TracksEditor';
 import { emptyTrack } from './components/trackInput';
 
-// Known seeded template sizes (build-plan.md §5.4). A template endpoint arrives in M3;
-// until then these drive the "checklist will start from N tasks" hint.
-const TEMPLATE_TASK_COUNT: Record<ReleaseType, number> = {
-  [ReleaseType.Single]: 31,
-  [ReleaseType.Album]: 41,
+interface FormState {
+  title: string;
+  type: ReleaseType;
+  releaseDate: string;
+  mainArtistId: string;
+  coverUrl: string;
+  notes: string;
+  upc: string;
+  tracks: TrackInput[]; // create-only. A single starts with one fixed row; an album starts empty.
+}
+
+type TextField = 'title' | 'releaseDate' | 'mainArtistId' | 'coverUrl' | 'notes' | 'upc';
+
+type FormAction =
+  | { kind: 'set'; field: TextField; value: string }
+  | { kind: 'setType'; value: ReleaseType }
+  | { kind: 'setTracks'; value: TrackInput[] }
+  | { kind: 'hydrate'; value: Partial<FormState> };
+
+const initialForm: FormState = {
+  title: '',
+  type: ReleaseType.Single,
+  releaseDate: '',
+  mainArtistId: '',
+  coverUrl: '',
+  notes: '',
+  upc: '',
+  tracks: [emptyTrack()],
 };
+
+function formReducer(state: FormState, action: FormAction): FormState {
+  switch (action.kind) {
+    case 'set':
+      return { ...state, [action.field]: action.value };
+    // Switching type resets the Tracks section to its type's baseline (single = 1 fixed row, album = empty).
+    case 'setType':
+      return { ...state, type: action.value, tracks: action.value === ReleaseType.Single ? [emptyTrack()] : [] };
+    case 'setTracks':
+      return { ...state, tracks: action.value };
+    case 'hydrate':
+      return { ...state, ...action.value };
+  }
+}
+
+/** Client-side validation, lifted out of submit. Mirrors the API 400s (track guards are create-only). */
+function validateForm(state: FormState, isEdit: boolean): { fieldErrors: { title?: string; releaseDate?: string }; formErrors: string[] } {
+  const fieldErrors: { title?: string; releaseDate?: string } = {};
+  if (!state.title.trim()) fieldErrors.title = 'Release title is required.';
+  if (!state.releaseDate) fieldErrors.releaseDate = 'Release date is required.';
+  if (fieldErrors.title || fieldErrors.releaseDate) return { fieldErrors, formErrors: [] };
+
+  const formErrors: string[] = [];
+  if (!isEdit) {
+    // A row is valid if it's an existing catalog song (songId) or a new title.
+    const filled = state.tracks.filter((t) => t.songId || (t.title ?? '').trim());
+    if (state.type === ReleaseType.Single && filled.length !== 1) {
+      formErrors.push('A single must have exactly one track.');
+    } else if (state.tracks.some((t) => !t.songId && !(t.title ?? '').trim())) {
+      formErrors.push('Every new track needs a title (or pick an existing song).');
+    }
+  }
+  return { fieldErrors, formErrors };
+}
 
 export default function ReleaseFormPage() {
   const { id } = useParams();
   const isEdit = Boolean(id);
   const navigate = useNavigate();
   const goBack = useBackNavigation();
+  const queryClient = useQueryClient();
 
-  const [artists, setArtists] = useState<Artist[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: artists = [], isLoading: artistsLoading } = useArtists();
+  const { data: templates = [] } = useTemplates();
+  const { data: editing, isLoading: releaseLoading } = useRelease(isEdit ? id : undefined);
+
+  const [form, dispatch] = useReducer(formReducer, initialForm);
   const [errors, setErrors] = useState<string[]>([]);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
-  // Per-field client-side validation (title / release date required). Populated on save.
   const [fieldErrors, setFieldErrors] = useState<{ title?: string; releaseDate?: string }>({});
 
-  const [title, setTitle] = useState('');
-  const [type, setType] = useState<ReleaseType>(ReleaseType.Single);
-  const [releaseDate, setReleaseDate] = useState('');
-  const [mainArtistId, setMainArtistId] = useState('');
-  const [coverUrl, setCoverUrl] = useState('');
-  const [notes, setNotes] = useState('');
-  const [upc, setUpc] = useState('');
-  // Tracks are create-only. A single starts with exactly one fixed row; an album starts empty.
-  const [tracks, setTracks] = useState<TrackInput[]>([emptyTrack()]);
-
+  // Hydrate the form from the release being edited, once it arrives.
   useEffect(() => {
-    (async () => {
-      try {
-        const arts = await api.artists.list();
-        setArtists(arts);
-        if (isEdit && id) {
-          const r = await api.releases.get(id);
-          setTitle(r.title);
-          setType(r.type);
-          setReleaseDate(r.releaseDate);
-          setMainArtistId(r.mainArtistId);
-          setCoverUrl(r.coverUrl ?? '');
-          setNotes(r.notes ?? '');
-          setUpc(r.upc ?? '');
-        } else if (arts.length > 0) {
-          setMainArtistId(arts[0].id);
-        }
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [id, isEdit]);
+    if (!editing) return;
+    dispatch({
+      kind: 'hydrate',
+      value: {
+        title: editing.title,
+        type: editing.type,
+        releaseDate: editing.releaseDate,
+        mainArtistId: editing.mainArtistId,
+        coverUrl: editing.coverUrl ?? '',
+        notes: editing.notes ?? '',
+        upc: editing.upc ?? '',
+      },
+    });
+  }, [editing]);
 
-  // Switching type resets the Tracks section to its type's baseline (single = 1 fixed row, album = empty).
-  function changeType(next: ReleaseType) {
-    setType(next);
-    setTracks(next === ReleaseType.Single ? [emptyTrack()] : []);
-  }
+  // Default the main artist to the first once the roster loads (create only, and only while unset).
+  useEffect(() => {
+    if (!isEdit && !form.mainArtistId && artists.length > 0) {
+      dispatch({ kind: 'set', field: 'mainArtistId', value: artists[0].id });
+    }
+  }, [isEdit, form.mainArtistId, artists]);
+
+  const set = (field: TextField) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
+    dispatch({ kind: 'set', field, value: e.target.value });
+
+  // Live template size for the hint — drives off the real /api/templates count (no stale constant).
+  const templateTaskCount = templates.find((t) => t.type === form.type)?.phases.reduce((n, p) => n + p.tasks.length, 0);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setErrors([]);
     setWarnings([]);
-    setFieldErrors({});
 
-    // Required-field validation on the FE so missing title/date surface as red fields
-    // (not just an API error at the bottom).
-    const fe: { title?: string; releaseDate?: string } = {};
-    if (!title.trim()) fe.title = 'Release title is required.';
-    if (!releaseDate) fe.releaseDate = 'Release date is required.';
-    if (fe.title || fe.releaseDate) {
-      setFieldErrors(fe);
+    const { fieldErrors: fe, formErrors } = validateForm(form, isEdit);
+    setFieldErrors(fe);
+    if (fe.title || fe.releaseDate) return;
+    if (formErrors.length > 0) {
+      setErrors(formErrors);
       return;
-    }
-
-    // Client-side guards mirror the API 400s (create only). A row is valid if it's an existing
-    // catalog song (songId) or a new title.
-    if (!isEdit) {
-      const filled = tracks.filter((t) => t.songId || (t.title ?? '').trim());
-      if (type === ReleaseType.Single && filled.length !== 1) {
-        setErrors(['A single must have exactly one track.']);
-        return;
-      }
-      if (tracks.some((t) => !t.songId && !(t.title ?? '').trim())) {
-        setErrors(['Every new track needs a title (or pick an existing song).']);
-        return;
-      }
     }
 
     setSaving(true);
     try {
-      const cleanedTracks: TrackInput[] = tracks.map((t) =>
+      const cleanedTracks: TrackInput[] = form.tracks.map((t) =>
         t.songId
           ? { songId: t.songId, title: null, isrc: null, artists: null }
           : {
-            songId: null,
-            title: (t.title ?? '').trim(),
-            isrc: (t.isrc ?? '').trim() || null,
-            artists: t.artists && t.artists.length > 0 ? t.artists : null,
-          },
+              songId: null,
+              title: (t.title ?? '').trim(),
+              isrc: (t.isrc ?? '').trim() || null,
+              artists: t.artists && t.artists.length > 0 ? t.artists : null,
+            },
       );
 
       const input = {
-        title,
-        type,
-        releaseDate: releaseDate || null,
-        mainArtistId,
-        coverUrl: coverUrl || null,
-        notes: notes || null,
-        upc: upc || null,
+        title: form.title,
+        type: form.type,
+        releaseDate: form.releaseDate || null,
+        mainArtistId: form.mainArtistId,
+        coverUrl: form.coverUrl || null,
+        notes: form.notes || null,
+        upc: form.upc || null,
         tracks: isEdit ? null : cleanedTracks,
       };
       const result = isEdit && id ? await api.releases.update(id, input) : await api.releases.create(input);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.releases() });
+      if (isEdit && id) {
+        void queryClient.invalidateQueries({ queryKey: queryKeys.release(id) });
+        void queryClient.invalidateQueries({ queryKey: queryKeys.pending });
+      }
+      void queryClient.invalidateQueries({ queryKey: queryKeys.songs() });
       if (result.warnings.length > 0) {
         setWarnings(result.warnings);
       } else {
@@ -134,16 +177,16 @@ export default function ReleaseFormPage() {
     }
   }
 
-  if (loading) return <p className="text-slate-400">Loading…</p>;
+  if (artistsLoading || (isEdit && releaseLoading)) return <Loading />;
 
   if (artists.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-edge bg-panel/50 p-10 text-center">
+      <EmptyState>
         <p className="text-slate-300">You need at least one artist before creating a release.</p>
         <Button className="mt-4" onClick={() => navigate('/artists')}>
           Go to Artists
         </Button>
-      </div>
+      </EmptyState>
     );
   }
 
@@ -154,16 +197,16 @@ export default function ReleaseFormPage() {
       <form onSubmit={submit} className="space-y-4">
         <Field label="Title" error={fieldErrors.title}>
           <input
-            className={`${inputClass} ${fieldErrors.title ? inputErrorClass : ''}`}
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            className={clsx(inputClass, fieldErrors.title && inputErrorClass)}
+            value={form.title}
+            onChange={set('title')}
             placeholder="e.g. Luz"
             autoFocus
           />
         </Field>
 
         <Field label="Main artist">
-          <select className={inputClass} value={mainArtistId} onChange={(e) => setMainArtistId(e.target.value)}>
+          <select className={inputClass} value={form.mainArtistId} onChange={set('mainArtistId')}>
             {artists.map((a) => (
               <option key={a.id} value={a.id}>
                 {a.name}
@@ -176,8 +219,8 @@ export default function ReleaseFormPage() {
           <Field label="Release type">
             <select
               className={inputClass}
-              value={type}
-              onChange={(e) => changeType(Number(e.target.value) as ReleaseType)}
+              value={form.type}
+              onChange={(e) => dispatch({ kind: 'setType', value: Number(e.target.value) as ReleaseType })}
               disabled={isEdit}
             >
               <option value={ReleaseType.Single}>Single</option>
@@ -187,50 +230,44 @@ export default function ReleaseFormPage() {
           <Field label="Release date" error={fieldErrors.releaseDate}>
             <input
               type="date"
-              className={`${inputClass} ${fieldErrors.releaseDate ? inputErrorClass : ''}`}
-              value={releaseDate}
-              onChange={(e) => setReleaseDate(e.target.value)}
+              className={clsx(inputClass, fieldErrors.releaseDate && inputErrorClass)}
+              value={form.releaseDate}
+              onChange={set('releaseDate')}
             />
           </Field>
         </div>
 
-        {!isEdit && (
+        {!isEdit && templateTaskCount !== undefined && (
           <p className="rounded-lg bg-accent/10 px-3 py-2 text-sm text-accent">
-            Checklist will start from the {type === ReleaseType.Album ? 'Album' : 'Single'} template (
-            {TEMPLATE_TASK_COUNT[type]} tasks).
+            Checklist will start from the {form.type === ReleaseType.Album ? 'Album' : 'Single'} template (
+            {templateTaskCount} tasks).
           </p>
         )}
 
         <Field label="Cover URL" hint="Optional — shown on release cards">
-          <input className={inputClass} value={coverUrl} onChange={(e) => setCoverUrl(e.target.value)} placeholder="https://…" />
+          <input className={inputClass} value={form.coverUrl} onChange={set('coverUrl')} placeholder="https://…" />
         </Field>
 
         <Field label="UPC" hint="Optional — blank until DSP distribution">
-          <input className={`${inputClass} max-w-[16rem]`} value={upc} onChange={(e) => setUpc(e.target.value)} placeholder="e.g. 0123456789012" />
+          <input className={`${inputClass} max-w-[16rem]`} value={form.upc} onChange={set('upc')} placeholder="e.g. 0123456789012" />
         </Field>
 
         <Field label="Notes" hint="Optional">
-          <textarea className={inputClass} rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />
+          <textarea className={inputClass} rows={3} value={form.notes} onChange={set('notes')} />
         </Field>
 
         {/* Tracks are set at create only; editing them happens via the release detail (and the catalog). */}
         {!isEdit && (
           <TracksEditor
-            key={type}
-            type={type}
-            onChange={setTracks}
+            key={form.type}
+            type={form.type}
+            onChange={(value) => dispatch({ kind: 'setTracks', value })}
             artists={artists}
-            mainArtistId={mainArtistId}
+            mainArtistId={form.mainArtistId}
           />
         )}
 
-        {errors.length > 0 && (
-          <ul className="mb-4 rounded-lg bg-red-500/10 px-4 py-2 text-sm text-red-300">
-            {errors.map((msg) => (
-              <li key={msg}>{msg}</li>
-            ))}
-          </ul>
-        )}
+        <ErrorBanner error={errors} />
 
         {warnings.length > 0 && (
           <div className="mb-4 rounded-lg bg-amber-500/10 px-4 py-3 text-sm text-amber-200">

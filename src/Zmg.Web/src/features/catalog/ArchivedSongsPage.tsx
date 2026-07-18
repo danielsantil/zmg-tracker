@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { api, ApiError } from '@/api';
+import { api } from '@/api';
+import { useSongs, queryKeys } from '@/api/queries';
 import type { SongListItem } from '@/types';
-import { Button, Toast } from '@/components';
-import { useConfirm } from '@/hooks/useConfirm';
+import { Button, DataTable, dataRowClass, EmptyState, ErrorBanner, Loading, Toast } from '@/components';
 import { useToast } from '@/hooks/useToast';
+import { useConfirmDelete } from '@/hooks/useConfirmDelete';
 
 /**
  * Archived Songs (M15) — the terminal, read-only bucket, mirroring Archived Releases. Table is
@@ -13,43 +13,21 @@ import { useToast } from '@/hooks/useToast';
  */
 export default function ArchivedSongsPage() {
   const navigate = useNavigate();
-  const confirm = useConfirm();
   const { toast, toastVariant, showToast } = useToast();
-  const [songs, setSongs] = useState<SongListItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: songs = [], isLoading, error } = useSongs({ scope: 'archived' });
 
-  function load() {
-    setLoading(true);
-    setError(null);
-    api.songs
-      .list({ scope: 'archived' })
-      .then(setSongs)
-      .catch((e) => setError(e instanceof ApiError ? e.message : 'Failed to load archived songs.'))
-      .finally(() => setLoading(false));
-  }
-
-  useEffect(() => {
-    load();
-  }, []);
-
-  async function remove(s: SongListItem) {
-    if (
-      !(await confirm({
-        title: `Delete "${s.title}"?`,
-        body: <p>This can't be undone.</p>,
-        confirmLabel: 'Delete',
-        confirmVariant: 'danger',
-      }))
-    )
-      return;
-    try {
-      await api.songs.delete(s.id);
-      load();
-    } catch (e) {
-      showToast(e instanceof ApiError ? e.message : 'Failed to delete.');
-    }
-  }
+  const remove = useConfirmDelete<SongListItem>({
+    confirm: (s) => ({
+      title: `Delete "${s.title}"?`,
+      body: <p>This can't be undone.</p>,
+      confirmLabel: 'Delete',
+      confirmVariant: 'danger',
+    }),
+    mutate: (s) => api.songs.delete(s.id),
+    invalidate: [queryKeys.songs()],
+    errorFallback: 'Failed to delete.',
+    showToast,
+  });
 
   return (
     <div>
@@ -61,57 +39,40 @@ export default function ArchivedSongsPage() {
         <p className="text-sm text-slate-400">Archived songs are read-only and can't be restored.</p>
       </div>
 
-      {error && <p className="rounded-lg bg-red-500/10 px-4 py-3 text-sm text-red-300">{error}</p>}
+      <ErrorBanner error={error ? 'Failed to load archived songs.' : null} />
 
-      {loading ? (
-        <p className="text-slate-400">Loading…</p>
+      {isLoading ? (
+        <Loading />
       ) : songs.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-edge bg-panel/50 p-10 text-center text-slate-400">
-          No archived songs.
-        </div>
+        <EmptyState>No archived songs.</EmptyState>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-edge bg-panel">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-edge text-xs uppercase tracking-wide text-slate-500">
-              <tr>
-                <th className="px-4 py-3 font-medium">Name</th>
-                <th className="px-4 py-3 font-medium">Main Artist</th>
-                <th className="px-4 py-3 font-medium">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {songs.map((s) => (
-                <tr
-                  key={s.id}
-                  onClick={() => navigate(`/catalog/${s.id}`)}
-                  className="cursor-pointer border-b border-edge/50 last:border-b-0 hover:bg-edge/40"
+        <DataTable headers={['Name', 'Main Artist', 'Action']}>
+          {songs.map((s) => (
+            <tr key={s.id} onClick={() => navigate(`/catalog/${s.id}`)} className={dataRowClass}>
+              <td className="px-4 py-3">
+                <Link
+                  to={`/catalog/${s.id}`}
+                  onClick={(e) => e.stopPropagation()}
+                  className="font-medium text-white hover:text-accent"
                 >
-                  <td className="px-4 py-3">
-                    <Link
-                      to={`/catalog/${s.id}`}
-                      onClick={(e) => e.stopPropagation()}
-                      className="font-medium text-white hover:text-accent"
-                    >
-                      {s.title}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3 text-slate-300">{s.mainArtistName}</td>
-                  <td className="px-4 py-3">
-                    <Button
-                      variant="danger"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        remove(s);
-                      }}
-                    >
-                      Delete
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                  {s.title}
+                </Link>
+              </td>
+              <td className="px-4 py-3 text-slate-300">{s.mainArtistName}</td>
+              <td className="px-4 py-3">
+                <Button
+                  variant="danger"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void remove(s);
+                  }}
+                >
+                  Delete
+                </Button>
+              </td>
+            </tr>
+          ))}
+        </DataTable>
       )}
 
       <Toast message={toast} variant={toastVariant} />

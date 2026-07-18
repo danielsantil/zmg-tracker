@@ -15,24 +15,24 @@ public static class TaskEndpoints
     {
         var taskGroup = app.MapGroup("/api/tasks").WithTags("Tasks");
         var releaseGroup = app.MapGroup("/api/releases").WithTags("Tasks");
-        
+
         // Add an ad-hoc task to a release, appended to the end of its phase.
-        releaseGroup.MapPost("/{releaseId:guid}/tasks", async (Guid releaseId, AddTaskInput input, IReleaseTaskService tasks) =>
-            (await tasks.AddAsync(releaseId, input)).ToCreated(t => $"/api/tasks/{t.Id}"));
+        releaseGroup.MapPost("/{releaseId:guid}/tasks", async (Guid releaseId, AddTaskInput input, IReleaseTaskService tasks, CancellationToken ct) =>
+            (await tasks.AddAsync(releaseId, input, ct)).ToCreated(t => $"/api/tasks/{t.Id}"));
 
         // Rename / move phase / edit notes.
-        taskGroup.MapPut("/{id:guid}", async (Guid id, UpdateTaskInput input, IReleaseTaskService tasks) =>
-            (await tasks.UpdateAsync(id, input)).ToOk());
+        taskGroup.MapPut("/{id:guid}", async (Guid id, UpdateTaskInput input, IReleaseTaskService tasks, CancellationToken ct) =>
+            (await tasks.UpdateAsync(id, input, ct)).ToOk());
 
         // Check / uncheck, stamping CompletedAt on the transition to done.
-        taskGroup.MapPatch("/{id:guid}/toggle", async (Guid id, IReleaseTaskService tasks) =>
-            (await tasks.ToggleAsync(id)).ToOk());
+        taskGroup.MapPatch("/{id:guid}/toggle", async (Guid id, IReleaseTaskService tasks, CancellationToken ct) =>
+            (await tasks.ToggleAsync(id, ct)).ToOk());
 
         // Reorder tasks within a single phase; SortOrder follows the given id order.
-        releaseGroup.MapPut("/{releaseId:guid}/tasks/order", async (Guid releaseId, ReorderTasksInput input, IReleaseTaskService tasks) =>
-            (await tasks.ReorderAsync(releaseId, input)).ToNoContent());
+        releaseGroup.MapPut("/{releaseId:guid}/tasks/order", async (Guid releaseId, ReorderTasksInput input, IReleaseTaskService tasks, CancellationToken ct) =>
+            (await tasks.ReorderAsync(releaseId, input, ct)).ToNoContent());
 
-        taskGroup.MapDelete("/{id:guid}", async (Guid id, IReleaseTaskService tasks) =>
-            (await tasks.DeleteAsync(id)).ToNoContent());
+        taskGroup.MapDelete("/{id:guid}", async (Guid id, IReleaseTaskService tasks, CancellationToken ct) =>
+            (await tasks.DeleteAsync(id, ct)).ToNoContent());
     }
 }

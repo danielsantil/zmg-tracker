@@ -8,9 +8,11 @@ namespace Zmg.Api.Tests;
 
 /// <summary>
 /// M11 — the archive lifecycle: archiving a future release, the archive/remove guards, the
-/// archived scope, and that archived releases contribute no pending actions.
+/// archived scope, and that archived releases contribute no pending actions. Shares one host
+/// (IClassFixture): every assertion is scoped to its own release id and each test uses a uniquely-named
+/// artist, so the shared seeded DB never collides (M25 — was 8 host boots).
 /// </summary>
-public class ReleaseArchiveApiTests
+public class ReleaseArchiveApiTests(ZmgApiFactory factory) : IClassFixture<ZmgApiFactory>
 {
     private static readonly DateOnly Today = DateOnly.FromDateTime(DateTime.UtcNow);
 
@@ -37,7 +39,6 @@ public class ReleaseArchiveApiTests
     [Fact]
     public async Task Archiving_a_future_release_moves_it_to_the_archived_scope()
     {
-        using var factory = new ZmgApiFactory();
         var client = factory.CreateClient();
         var artist = await CreateArtist(client, "Archive Artist");
         var id = await CreateRelease(client, artist, "Upcoming Single", Today.AddDays(30));
@@ -60,7 +61,6 @@ public class ReleaseArchiveApiTests
     [Fact]
     public async Task Archiving_a_past_release_is_rejected()
     {
-        using var factory = new ZmgApiFactory();
         var client = factory.CreateClient();
         var artist = await CreateArtist(client, "Past Artist");
         var id = await CreateRelease(client, artist, "Already Out", Today.AddDays(-5));
@@ -72,7 +72,6 @@ public class ReleaseArchiveApiTests
     [Fact]
     public async Task Archiving_twice_is_rejected()
     {
-        using var factory = new ZmgApiFactory();
         var client = factory.CreateClient();
         var artist = await CreateArtist(client, "Twice Artist");
         var id = await CreateRelease(client, artist, "Once", Today.AddDays(10));
@@ -85,7 +84,6 @@ public class ReleaseArchiveApiTests
     [Fact]
     public async Task Remove_soft_deletes_an_archived_release()
     {
-        using var factory = new ZmgApiFactory();
         var client = factory.CreateClient();
         var artist = await CreateArtist(client, "Remove Artist");
         var id = await CreateRelease(client, artist, "To Remove", Today.AddDays(10));
@@ -102,7 +100,6 @@ public class ReleaseArchiveApiTests
     [Fact]
     public async Task Remove_on_an_active_release_is_rejected()
     {
-        using var factory = new ZmgApiFactory();
         var client = factory.CreateClient();
         var artist = await CreateArtist(client, "Active Artist");
         var id = await CreateRelease(client, artist, "Still Active", Today.AddDays(10));
@@ -114,7 +111,6 @@ public class ReleaseArchiveApiTests
     [Fact]
     public async Task Archive_preview_lists_an_exclusive_upcoming_song()
     {
-        using var factory = new ZmgApiFactory();
         var client = factory.CreateClient();
         var artist = await CreateArtist(client, "Preview Artist");
         var id = await CreateRelease(client, artist, "Preview Single", Today.AddDays(30));
@@ -126,7 +122,6 @@ public class ReleaseArchiveApiTests
     [Fact]
     public async Task Archive_preview_excludes_a_previously_released_song()
     {
-        using var factory = new ZmgApiFactory();
         var client = factory.CreateClient();
         var artist = await CreateArtist(client, "Shared Preview Artist");
 
@@ -152,7 +147,6 @@ public class ReleaseArchiveApiTests
     [Fact]
     public async Task Archived_release_contributes_no_pending_actions()
     {
-        using var factory = new ZmgApiFactory();
         var client = factory.CreateClient();
         var artist = await CreateArtist(client, "Pending Artist");
         // A release 3 days out is inside the Distribute/Pitch window, so it would normally pend.

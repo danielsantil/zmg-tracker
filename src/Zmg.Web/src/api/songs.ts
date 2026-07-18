@@ -2,6 +2,7 @@ import type {
   CreatedWithWarnings,
   SongCreateInput,
   SongDetail,
+  SongListFilters,
   SongListItem,
   SongUpdateInput,
 } from '@/types';
@@ -9,7 +10,7 @@ import { request } from './client';
 
 // Catalog (M13).
 export const songsApi = {
-  list: (filters?: { q?: string; scope?: 'all' | 'archived'; artistId?: string }) => {
+  list: (filters?: SongListFilters) => {
     const qs = new URLSearchParams();
     if (filters?.q) qs.set('q', filters.q);
     if (filters?.scope) qs.set('scope', filters.scope);

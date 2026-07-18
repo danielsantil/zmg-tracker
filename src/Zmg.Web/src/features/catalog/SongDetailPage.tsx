@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { api, ApiError } from '@/api';
-import type { Artist, SongArtistInput, SongDetail } from '@/types';
-import { Button, Field, Toast, TypeBadge, inputClass } from '@/components';
+import { useSong, useArtists, queryKeys } from '@/api/queries';
+import type { SongArtistInput } from '@/types';
+import { Button, ErrorBanner, Field, Loading, Toast, TypeBadge, inputClass } from '@/components';
 import { useToast } from '@/hooks/useToast';
 import { useBackNavigation } from '@/hooks/useBackNavigation';
 import { SongArtistsEditor } from './components/SongArtistsEditor';
@@ -17,12 +19,12 @@ import { SongArtistsEditor } from './components/SongArtistsEditor';
 export default function SongDetailPage() {
   const { id } = useParams<{ id: string }>();
   const goBack = useBackNavigation();
+  const queryClient = useQueryClient();
   const { toast, toastVariant, showToast } = useToast();
 
-  const [song, setSong] = useState<SongDetail | null>(null);
-  const [artists, setArtists] = useState<Artist[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: song, isLoading, error } = useSong(id);
+  const { data: artists = [] } = useArtists();
+
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
 
@@ -31,26 +33,14 @@ export default function SongDetailPage() {
   const [isrc, setIsrc] = useState('');
   const [songArtists, setSongArtists] = useState<SongArtistInput[]>([]);
 
-  const hydrate = useCallback((s: SongDetail) => {
-    setSong(s);
-    setTitle(s.title);
-    setMainArtistId(s.mainArtistId);
-    setIsrc(s.isrc ?? '');
-    setSongArtists(s.artists.map((a) => ({ artistId: a.artistId, role: a.role })));
-  }, []);
-
+  // Hydrate the editable fields whenever the query yields the song (load, or refetch after save).
   useEffect(() => {
-    if (!id) return;
-    setLoading(true);
-    setError(null);
-    Promise.all([api.songs.get(id), api.artists.list()])
-      .then(([s, arts]) => {
-        hydrate(s);
-        setArtists(arts);
-      })
-      .catch((e) => setError(e instanceof ApiError ? e.message : 'Failed to load song.'))
-      .finally(() => setLoading(false));
-  }, [id, hydrate]);
+    if (!song) return;
+    setTitle(song.title);
+    setMainArtistId(song.mainArtistId);
+    setIsrc(song.isrc ?? '');
+    setSongArtists(song.artists.map((a) => ({ artistId: a.artistId, role: a.role })));
+  }, [song]);
 
   async function save() {
     if (!id) return;
@@ -63,7 +53,9 @@ export default function SongDetailPage() {
         isrc: isrc.trim() || null,
         artists: songArtists,
       });
-      hydrate(result.data);
+      queryClient.setQueryData(queryKeys.song(id), result.data);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.songs() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.pending });
       showToast('Saved.', 'success');
     } catch (e) {
       setErrors(e instanceof ApiError ? e.errors : ['Failed to save song.']);
@@ -72,8 +64,8 @@ export default function SongDetailPage() {
     }
   }
 
-  if (loading) return <p className="text-slate-400">Loading…</p>;
-  if (error) return <p className="rounded-lg bg-red-500/10 px-4 py-3 text-sm text-red-300">{error}</p>;
+  if (isLoading) return <Loading />;
+  if (error) return <ErrorBanner error="Failed to load song." />;
   if (!song) return null;
 
   // Drift is intentional (compilations, collab albums) — informational only, never blocks.
@@ -135,13 +127,7 @@ export default function SongDetailPage() {
           />
         </Field>
 
-      {errors.length > 0 && (
-        <ul className="mb-4 rounded-lg bg-red-500/10 px-4 py-2 text-sm text-red-300">
-          {errors.map((msg) => (
-            <li key={msg}>{msg}</li>
-          ))}
-        </ul>
-      )}
+        <ErrorBanner error={errors} />
 
         {!archived && (
           <div className="flex gap-2">

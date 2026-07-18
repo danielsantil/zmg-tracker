@@ -21,4 +21,5 @@ export const api = {
   pending: pendingApi,
 };
 
-export { ApiError } from './client';
+export { ApiError, errorMessage } from './client';
+export { DUPLICATE_SONG_TITLE_MESSAGE } from './serverMessages';

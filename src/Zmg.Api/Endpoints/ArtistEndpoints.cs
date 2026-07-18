@@ -10,19 +10,19 @@ public static class ArtistEndpoints
     {
         var group = app.MapGroup("/api/artists").WithTags("Artists");
 
-        group.MapGet("", async (IArtistService artists) =>
-            Results.Ok(await artists.ListAsync()));
+        group.MapGet("", async (IArtistService artists, CancellationToken ct) =>
+            Results.Ok(await artists.ListAsync(ct)));
 
-        group.MapGet("/{id:guid}", async (Guid id, IArtistService artists) =>
-            (await artists.GetAsync(id)).ToOk());
+        group.MapGet("/{id:guid}", async (Guid id, IArtistService artists, CancellationToken ct) =>
+            (await artists.GetAsync(id, ct)).ToOk());
 
-        group.MapPost("", async (ArtistInput input, IArtistService artists) =>
-            (await artists.CreateAsync(input)).ToCreated(a => $"/api/artists/{a.Id}"));
+        group.MapPost("", async (ArtistInput input, IArtistService artists, CancellationToken ct) =>
+            (await artists.CreateAsync(input, ct)).ToCreated(a => $"/api/artists/{a.Id}"));
 
-        group.MapPut("/{id:guid}", async (Guid id, ArtistInput input, IArtistService artists) =>
-            (await artists.UpdateAsync(id, input)).ToOk());
+        group.MapPut("/{id:guid}", async (Guid id, ArtistInput input, IArtistService artists, CancellationToken ct) =>
+            (await artists.UpdateAsync(id, input, ct)).ToOk());
 
-        group.MapDelete("/{id:guid}", async (Guid id, IArtistService artists) =>
-            (await artists.DeleteAsync(id)).ToNoContent());
+        group.MapDelete("/{id:guid}", async (Guid id, IArtistService artists, CancellationToken ct) =>
+            (await artists.DeleteAsync(id, ct)).ToNoContent());
     }
 }

@@ -77,7 +77,10 @@ public record ReleaseListItemDto(
     int TotalTasks,
     string Status,
     string? Upc,
-    List<string> Warnings);
+    List<string> Warnings,
+    // CanArchive (M25): the server-derived "may be manually archived" flag (upcoming and not already
+    // archived), so the SPA stops re-deriving releaseDate >= today. Mirrors SongListItem.CanArchive.
+    bool CanArchive);
 
 public record ReleaseDetailDto(
     Guid Id,
@@ -95,7 +98,8 @@ public record ReleaseDetailDto(
     List<TrackDto> Tracks,
     string? Upc,
     List<string> Warnings,
-    bool IsArchived);
+    bool IsArchived,
+    bool CanArchive);
 
 // Titles of the songs that would cascade-archive alongside this release (M15 cascade preview).
 public record ArchivePreviewDto(List<string> SongsToArchive);

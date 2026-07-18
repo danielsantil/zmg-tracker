@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Zmg.Api.Contracts;
+using Zmg.Api.Extensions;
 using Zmg.Api.Services.Interfaces;
 using Zmg.Domain;
 using Zmg.Domain.Entities;
@@ -18,12 +19,12 @@ public sealed class SongService(ZmgDbContext db) : ISongService
     // scope=archived returns archived songs (ArchivedAt desc); any other scope returns active ones
     // ordered by title. Orphans (no links) are included by design. Deleted songs are hidden by the
     // global query filter. q is a case-insensitive title search.
-    public async Task<IReadOnlyList<SongListItemDto>> ListAsync(string? q, string? scope, Guid? artistId)
+    public async Task<IReadOnlyList<SongListItemDto>> ListAsync(string? q, string? scope, Guid? artistId, CancellationToken ct = default)
     {
         var isArchived = string.Equals(scope, "archived", StringComparison.OrdinalIgnoreCase);
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
-        var query = db.Songs.AsQueryable();
+        var query = db.Songs.AsNoTracking();
         query = isArchived ? query.Where(s => s.ArchivedAt != null) : query.Where(s => s.ArchivedAt == null);
         if (artistId is { } aid) query = query.Where(s => s.MainArtistId == aid);
         if (!string.IsNullOrWhiteSpace(q))
@@ -54,17 +55,12 @@ public sealed class SongService(ZmgDbContext db) : ISongService
                     && !s.ReleaseLinks.Any(t => t.Release!.ReleaseDate < today),
                 // IsOrphan (M15): no (non-deleted) release links.
                 !s.ReleaseLinks.Any()))
-            .ToListAsync();
+            .ToListAsync(ct);
     }
 
-    public async Task<OperationResult<SongDetailDto>> GetAsync(Guid id)
+    public async Task<OperationResult<SongDetailDto>> GetAsync(Guid id, CancellationToken ct = default)
     {
-        var song = await db.Songs
-            .Include(s => s.MainArtist)
-            .Include(s => s.Artists).ThenInclude(a => a.Artist)
-            .Include(s => s.ReleaseLinks.Where(x => x.Release!.ArchivedAt == null))
-            .ThenInclude(t => t.Release).ThenInclude(r => r!.MainArtist)
-            .FirstOrDefaultAsync(s => s.Id == id);
+        var song = await db.Songs.AsNoTracking().WithDetailIncludes().FirstOrDefaultAsync(s => s.Id == id, ct);
         if (song is null) return OperationResult<SongDetailDto>.NotFound();
 
         return OperationResult<SongDetailDto>.Success(ToDetail(song));
@@ -72,15 +68,15 @@ public sealed class SongService(ZmgDbContext db) : ISongService
 
     // Create a catalog song directly (M2.0 improvement). Same rules as an inline release song, minus
     // the release: title/main-artist validated, ISRC cleaned, feats/collabs deduped. Born an orphan
-    // (no release links). A title clashing with another active same-artist song is a non-blocking warning.
-    public async Task<OperationResult<SongDetailDto>> CreateAsync(SongCreateInput input)
+    // (no release links). A title clashing with another active same-artist song is a hard error.
+    public async Task<OperationResult<SongDetailDto>> CreateAsync(SongCreateInput input, CancellationToken ct = default)
     {
         var mainArtistExists = input.MainArtistId != Guid.Empty
-            && await db.Artists.AnyAsync(a => a.Id == input.MainArtistId);
-        var otherTitles = await db.Songs
+            && await db.Artists.AsNoTracking().AnyAsync(a => a.Id == input.MainArtistId, ct);
+        var otherTitles = await db.Songs.AsNoTracking()
             .Where(s => s.MainArtistId == input.MainArtistId && s.ArchivedAt == null)
             .Select(s => s.Title)
-            .ToListAsync();
+            .ToListAsync(ct);
 
         var validation = Validation.ValidateSong(input.Title, input.MainArtistId, mainArtistExists, otherTitles);
         if (!validation.IsValid)
@@ -88,23 +84,20 @@ public sealed class SongService(ZmgDbContext db) : ISongService
 
         var song = SongMapping.NewSong(input.MainArtistId, input.Title, input.Isrc, input.Artists);
         db.Songs.Add(song);
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(ct);
 
-        var created = await db.Songs
-            .Include(s => s.MainArtist)
-            .Include(s => s.Artists).ThenInclude(x => x.Artist)
-            .Include(s => s.ReleaseLinks.Where(x => x.Release!.ArchivedAt == null))
-            .ThenInclude(t => t.Release).ThenInclude(r => r!.MainArtist)
-            .FirstAsync(s => s.Id == song.Id);
+        // Re-query with the full graph: the new SongArtist rows carry no Artist navigation, and MainArtist
+        // isn't loaded, so mapping needs the names the includes bring in.
+        var created = await db.Songs.AsNoTracking().WithDetailIncludes().FirstAsync(s => s.Id == song.Id, ct);
         return OperationResult<SongDetailDto>.Success(ToDetail(created), validation.Warnings);
     }
 
     // Update: title/main-artist validated, ISRC cleaned, feat/collab artists replaced (deduped,
-    // excluding the main artist). Always editable in M13 (the 409-when-archived guard is M15). A
-    // rename clashing with another active song of the same main artist returns a non-blocking warning.
-    public async Task<OperationResult<SongDetailDto>> UpdateAsync(Guid id, SongUpdateInput input)
+    // excluding the main artist). A rename clashing with another active song of the same main artist is
+    // a hard error. Archived songs are read-only (M15).
+    public async Task<OperationResult<SongDetailDto>> UpdateAsync(Guid id, SongUpdateInput input, CancellationToken ct = default)
     {
-        var song = await db.Songs.Include(s => s.Artists).FirstOrDefaultAsync(s => s.Id == id);
+        var song = await db.Songs.Include(s => s.Artists).FirstOrDefaultAsync(s => s.Id == id, ct);
         if (song is null) return OperationResult<SongDetailDto>.NotFound();
         if (song.IsArchived)
             return OperationResult<SongDetailDto>.Conflict(new[] { "Archived songs are read-only." });
@@ -114,10 +107,10 @@ public sealed class SongService(ZmgDbContext db) : ISongService
         if (input.MainArtistId != song.MainArtistId)
             return OperationResult<SongDetailDto>.Conflict(new[] { "A song's main artist can't be changed after creation." });
 
-        var otherTitles = await db.Songs
+        var otherTitles = await db.Songs.AsNoTracking()
             .Where(s => s.MainArtistId == song.MainArtistId && s.Id != id && s.ArchivedAt == null)
             .Select(s => s.Title)
-            .ToListAsync();
+            .ToListAsync(ct);
 
         var validation = Validation.ValidateSong(input.Title, song.MainArtistId, mainArtistExists: true, otherTitles);
         if (!validation.IsValid)
@@ -134,24 +127,19 @@ public sealed class SongService(ZmgDbContext db) : ISongService
             song.Artists.Add(new SongArtist { SongId = song.Id, ArtistId = a.ArtistId, Role = a.Role });
         }
 
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(ct);
 
-        var updated = await db.Songs
-            .Include(s => s.MainArtist)
-            .Include(s => s.Artists).ThenInclude(x => x.Artist)
-            .Include(s => s.ReleaseLinks.Where(x => x.Release!.ArchivedAt == null))
-            .ThenInclude(t => t.Release).ThenInclude(r => r!.MainArtist)
-            .FirstAsync(s => s.Id == id);
+        var updated = await db.Songs.AsNoTracking().WithDetailIncludes().FirstAsync(s => s.Id == id, ct);
         return OperationResult<SongDetailDto>.Success(ToDetail(updated), validation.Warnings);
     }
 
     // Manual archive (M15): a terminal, non-restorable state — mirrors the release lifecycle. In practice
     // this applies mostly to orphans; songs on active releases archive via the release-archive cascade.
-    public async Task<OperationResult> ArchiveAsync(Guid id)
+    public async Task<OperationResult> ArchiveAsync(Guid id, CancellationToken ct = default)
     {
         var song = await db.Songs
             .Include(s => s.ReleaseLinks).ThenInclude(t => t.Release)
-            .FirstOrDefaultAsync(s => s.Id == id);
+            .FirstOrDefaultAsync(s => s.Id == id, ct);
         if (song is null) return OperationResult.NotFound();
         if (song.IsArchived) return OperationResult.Conflict(new[] { "Song is already archived." });
 
@@ -162,18 +150,18 @@ public sealed class SongService(ZmgDbContext db) : ISongService
             return OperationResult.Conflict(new[] { "A released song can't be archived." });
 
         song.ArchivedAt = DateTime.UtcNow;
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(ct);
         return OperationResult.Success();
     }
 
     // Soft delete (M15): allowed only for an archived song or an orphan (never released). Songs are never
     // hard-deleted — the row is stamped DeletedAt and hidden by the global query filter; the Track query
     // filter drops any stale join rows with it.
-    public async Task<OperationResult> DeleteAsync(Guid id)
+    public async Task<OperationResult> DeleteAsync(Guid id, CancellationToken ct = default)
     {
         var song = await db.Songs
             .Include(s => s.ReleaseLinks)
-            .FirstOrDefaultAsync(s => s.Id == id);
+            .FirstOrDefaultAsync(s => s.Id == id, ct);
         if (song is null) return OperationResult.NotFound();
 
         var isOrphan = song.ReleaseLinks.Count == 0;
@@ -181,7 +169,7 @@ public sealed class SongService(ZmgDbContext db) : ISongService
             return OperationResult.Conflict(new[] { "Only archived or never-released songs can be removed." });
 
         song.DeletedAt = DateTime.UtcNow;
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(ct);
         return OperationResult.Success();
     }
 

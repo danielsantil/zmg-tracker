@@ -1,8 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
+import clsx from 'clsx';
 import { api, ApiError } from '@/api';
-import type { Artist, SongArtistInput } from '@/types';
-import { Button, Field, inputClass, inputErrorClass } from '@/components';
+import { useArtists, queryKeys } from '@/api/queries';
+import type { SongArtistInput } from '@/types';
+import { Button, EmptyState, ErrorBanner, Field, Loading, inputClass, inputErrorClass } from '@/components';
 import { useBackNavigation } from '@/hooks/useBackNavigation';
 import { SongArtistsEditor } from './components/SongArtistsEditor';
 
@@ -13,9 +16,9 @@ import { SongArtistsEditor } from './components/SongArtistsEditor';
 export default function SongFormPage() {
   const navigate = useNavigate();
   const goBack = useBackNavigation();
+  const queryClient = useQueryClient();
+  const { data: artists = [], isLoading } = useArtists();
 
-  const [artists, setArtists] = useState<Artist[]>([]);
-  const [loading, setLoading] = useState(true);
   const [errors, setErrors] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<{ title?: string }>({});
@@ -25,17 +28,8 @@ export default function SongFormPage() {
   const [isrc, setIsrc] = useState('');
   const [songArtists, setSongArtists] = useState<SongArtistInput[]>([]);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const arts = await api.artists.list();
-        setArtists(arts);
-        if (arts.length > 0) setMainArtistId(arts[0].id);
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, []);
+  // Default the main artist to the first once the roster loads (and only while none is chosen).
+  const effectiveMainArtistId = mainArtistId || artists[0]?.id || '';
 
   // Switching the main artist drops it from any feat/collab selection (the editor already hides it).
   function changeMainArtist(id: string) {
@@ -57,10 +51,11 @@ export default function SongFormPage() {
     try {
       await api.songs.create({
         title: title.trim(),
-        mainArtistId,
+        mainArtistId: effectiveMainArtistId,
         isrc: isrc.trim() || null,
         artists: songArtists,
       });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.songs() });
       goBack();
     } catch (err) {
       setErrors(err instanceof ApiError ? err.errors : ['Failed to save song.']);
@@ -69,16 +64,16 @@ export default function SongFormPage() {
     }
   }
 
-  if (loading) return <p className="text-slate-400">Loading…</p>;
+  if (isLoading) return <Loading />;
 
   if (artists.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-edge bg-panel/50 p-10 text-center">
+      <EmptyState>
         <p className="text-slate-300">You need at least one artist before adding a song.</p>
         <Button className="mt-4" onClick={() => navigate('/artists')}>
           Go to Artists
         </Button>
-      </div>
+      </EmptyState>
     );
   }
 
@@ -89,7 +84,7 @@ export default function SongFormPage() {
       <form onSubmit={submit} className="space-y-4">
         <Field label="Title" error={fieldErrors.title}>
           <input
-            className={`${inputClass} ${fieldErrors.title ? inputErrorClass : ''}`}
+            className={clsx(inputClass, fieldErrors.title && inputErrorClass)}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="e.g. Luz"
@@ -98,7 +93,7 @@ export default function SongFormPage() {
         </Field>
 
         <Field label="Main artist">
-          <select className={inputClass} value={mainArtistId} onChange={(e) => changeMainArtist(e.target.value)}>
+          <select className={inputClass} value={effectiveMainArtistId} onChange={(e) => changeMainArtist(e.target.value)}>
             {artists.map((a) => (
               <option key={a.id} value={a.id}>
                 {a.name}
@@ -121,17 +116,11 @@ export default function SongFormPage() {
             artists={artists}
             value={songArtists}
             onChange={setSongArtists}
-            mainArtistId={mainArtistId}
+            mainArtistId={effectiveMainArtistId}
           />
         </Field>
 
-        {errors.length > 0 && (
-          <ul className="mb-4 rounded-lg bg-red-500/10 px-4 py-2 text-sm text-red-300">
-            {errors.map((msg) => (
-              <li key={msg}>{msg}</li>
-            ))}
-          </ul>
-        )}
+        <ErrorBanner error={errors} />
 
         <div className="flex gap-2">
           <Button type="submit" disabled={saving}>

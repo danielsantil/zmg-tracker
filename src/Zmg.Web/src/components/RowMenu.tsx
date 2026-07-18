@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { cva } from 'class-variance-authority';
 
 /**
  * The `⋮` row-actions button plus its dropdown. The menu renders with `fixed`
@@ -82,23 +83,29 @@ export function RowMenu({
   );
 }
 
-/** `tone` mirrors the Button variants: red for hard deletes, amber for archive. */
+// `tone` mirrors the Button variants: red for hard deletes, amber for archive.
+const menuItem = cva('block w-full px-3 py-3 text-left hover:bg-edge', {
+  variants: {
+    tone: {
+      default: 'text-slate-200',
+      danger: 'text-red-300',
+      archive: 'text-amber-300',
+    },
+  },
+  defaultVariants: { tone: 'default' },
+});
+
 export function MenuItem({
   children,
   onClick,
-  tone = 'default',
+  tone,
 }: {
   children: ReactNode;
   onClick: () => void;
   tone?: 'default' | 'danger' | 'archive';
 }) {
-  const tones = {
-    default: 'text-slate-200',
-    danger: 'text-red-300',
-    archive: 'text-amber-300',
-  };
   return (
-    <button className={`block w-full px-3 py-3 text-left hover:bg-edge ${tones[tone]}`} onClick={onClick}>
+    <button className={menuItem({ tone })} onClick={onClick}>
       {children}
     </button>
   );

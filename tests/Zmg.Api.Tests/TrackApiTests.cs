@@ -24,7 +24,7 @@ public class TrackApiTests(ZmgApiFactory factory) : IClassFixture<ZmgApiFactory>
         HttpClient client, Guid artistId, string title, ReleaseType type, List<TrackInput>? tracks)
     {
         var res = await client.PostAsJsonAsync("/api/releases", new ReleaseInput(
-            title, type, new DateOnly(2026, 8, 14), artistId, null, null, tracks));
+            title, type, TestDates.Upcoming, artistId, null, null, tracks));
         res.EnsureSuccessStatusCode();
         return (await res.Content.ReadFromJsonAsync<CreatedWithWarnings<ReleaseDetailDto>>())!.Data;
     }
@@ -114,11 +114,11 @@ public class TrackApiTests(ZmgApiFactory factory) : IClassFixture<ZmgApiFactory>
         var artist = await CreateArtist(client, "Bad Single Artist");
 
         var zero = await client.PostAsJsonAsync("/api/releases", new ReleaseInput(
-            "Zero", ReleaseType.Single, new DateOnly(2026, 8, 14), artist.Id, null, null, null));
+            "Zero", ReleaseType.Single, TestDates.Upcoming, artist.Id, null, null, null));
         Assert.Equal(HttpStatusCode.BadRequest, zero.StatusCode);
 
         var two = await client.PostAsJsonAsync("/api/releases", new ReleaseInput(
-            "Two", ReleaseType.Single, new DateOnly(2026, 8, 14), artist.Id, null, null,
+            "Two", ReleaseType.Single, TestDates.Upcoming, artist.Id, null, null,
             new List<TrackInput> { NewTrack("A"), NewTrack("B") }));
         Assert.Equal(HttpStatusCode.BadRequest, two.StatusCode);
     }
@@ -143,7 +143,7 @@ public class TrackApiTests(ZmgApiFactory factory) : IClassFixture<ZmgApiFactory>
 
         // A new-title track re-using that title for the same artist (case-insensitive) → 400.
         var res = await client.PostAsJsonAsync("/api/releases", new ReleaseInput(
-            "Echo Album", ReleaseType.Album, new DateOnly(2026, 8, 14), artist.Id, null, null,
+            "Echo Album", ReleaseType.Album, TestDates.Upcoming, artist.Id, null, null,
             new List<TrackInput> { NewTrack("echo") }));
         Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
     }
@@ -155,7 +155,7 @@ public class TrackApiTests(ZmgApiFactory factory) : IClassFixture<ZmgApiFactory>
         var artist = await CreateArtist(client, "Twin Title Artist");
 
         var res = await client.PostAsJsonAsync("/api/releases", new ReleaseInput(
-            "Twins", ReleaseType.Album, new DateOnly(2026, 8, 14), artist.Id, null, null,
+            "Twins", ReleaseType.Album, TestDates.Upcoming, artist.Id, null, null,
             new List<TrackInput> { NewTrack("Same"), NewTrack("same") }));
         Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
     }
@@ -279,18 +279,8 @@ public class TrackApiTests(ZmgApiFactory factory) : IClassFixture<ZmgApiFactory>
         Assert.Equal(new[] { 1, 2, 3 }, after.Select(t => t.TrackNumber).ToArray());
     }
 
-    [Fact]
-    public async Task Reorder_with_missing_ids_is_rejected()
-    {
-        var client = factory.CreateClient();
-        var album = await CreateAlbum(client, "Bad Reorder Track Artist", "Bad Reorder Track Album");
-        var a = await AddTrack(client, album.Id, NewTrack("A"));
-        await AddTrack(client, album.Id, NewTrack("B"));
-
-        var res = await client.PutAsJsonAsync($"/api/releases/{album.Id}/tracks/order",
-            new ReorderTracksInput(new List<Guid> { a.SongId }));
-        Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
-    }
+    // Reorder-with-missing-ids rejection is covered by ReorderTests (the rule) + OperationResultExtensions
+    // (Invalid→400); the happy-path reorder above proves this endpoint's wiring (M25 — was triple-covered).
 
     [Fact]
     public async Task Toggle_focus_flips_the_flag()
@@ -327,7 +317,7 @@ public class TrackApiTests(ZmgApiFactory factory) : IClassFixture<ZmgApiFactory>
             new List<TrackInput> { NewTrack("Fixed") });
 
         var res = await client.PutAsJsonAsync($"/api/releases/{single.Id}", new ReleaseInput(
-            "Fixed", ReleaseType.Album, new DateOnly(2026, 8, 14), artist.Id, null, null, null));
+            "Fixed", ReleaseType.Album, TestDates.Upcoming, artist.Id, null, null, null));
         Assert.Equal(HttpStatusCode.Conflict, res.StatusCode);
     }
 }

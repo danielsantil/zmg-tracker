@@ -70,7 +70,7 @@ export function TracksEditor({
   }
 
   // songIds already chosen in other rows — exclude them from the picker.
-  const chosenIds = rows.filter((r) => r.songId).map((r) => r.songId!);
+  const chosenIds = rows.flatMap((r) => (r.songId ? [r.songId] : []));
 
   // The new song's own fields. Only for a row that isn't a catalog song (which owns its own).
   function newSongFields(row: EditorRow) {

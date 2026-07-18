@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { api, ApiError } from '@/api';
+import { useQueryClient } from '@tanstack/react-query';
+import { api, errorMessage } from '@/api';
+import { useArtists, queryKeys } from '@/api/queries';
 import type { Artist } from '@/types';
-import { Button, MenuItem, RowMenu, Toast } from '@/components';
+import { Button, DataTable, dataRowClass, EmptyState, Loading, MenuItem, RowMenu, Toast } from '@/components';
 import { useConfirm } from '@/hooks/useConfirm';
 import { useToast } from '@/hooks/useToast';
 
@@ -15,22 +16,9 @@ import { useToast } from '@/hooks/useToast';
 export default function ArtistsPage() {
   const navigate = useNavigate();
   const confirm = useConfirm();
+  const queryClient = useQueryClient();
   const { toast, toastVariant, showToast } = useToast();
-  const [artists, setArtists] = useState<Artist[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  async function load() {
-    setLoading(true);
-    try {
-      setArtists(await api.artists.list());
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    load();
-  }, []);
+  const { data: artists = [], isLoading } = useArtists();
 
   async function remove(a: Artist) {
     const dependents = a.releaseCount + a.songCount + a.creditCount;
@@ -60,10 +48,10 @@ export default function ArtistsPage() {
       return;
     try {
       await api.artists.delete(a.id);
-      load();
+      void queryClient.invalidateQueries({ queryKey: queryKeys.artists });
     } catch (e) {
       // Concurrency safety net: a release/song could have been added since the list loaded.
-      showToast(e instanceof ApiError ? e.message : 'Failed to delete artist.');
+      showToast(errorMessage(e, 'Failed to delete artist.'));
     }
   }
 
@@ -77,64 +65,46 @@ export default function ArtistsPage() {
         <Button onClick={() => navigate('/artists/new')}>+ New artist</Button>
       </div>
 
-      {loading ? (
-        <p className="text-slate-400">Loading…</p>
+      {isLoading ? (
+        <Loading />
       ) : artists.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-edge bg-panel/50 p-10 text-center text-slate-400">
-          No artists yet. Add one to start creating releases.
-        </p>
+        <EmptyState>No artists yet. Add one to start creating releases.</EmptyState>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-edge bg-panel">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-edge text-xs uppercase tracking-wide text-slate-500">
-              <tr>
-                <th className="px-4 py-3 font-medium">Name</th>
-                <th className="px-4 py-3 font-medium">Releases</th>
-                <th className="px-4 py-3 font-medium">Songs</th>
-                <th className="px-4 py-3 font-medium">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {artists.map((a) => (
-                <tr
-                  key={a.id}
-                  onClick={() => navigate(`/artists/${a.id}`)}
-                  className="cursor-pointer border-b border-edge/50 last:border-b-0 hover:bg-edge/40"
+        <DataTable headers={['Name', 'Releases', 'Songs', 'Actions']}>
+          {artists.map((a) => (
+            <tr key={a.id} onClick={() => navigate(`/artists/${a.id}`)} className={dataRowClass}>
+              <td className="px-4 py-3">
+                <Link
+                  to={`/artists/${a.id}`}
+                  onClick={(e) => e.stopPropagation()}
+                  className="font-medium text-white hover:text-accent"
                 >
-                  <td className="px-4 py-3">
-                    <Link
-                      to={`/artists/${a.id}`}
-                      onClick={(e) => e.stopPropagation()}
-                      className="font-medium text-white hover:text-accent"
-                    >
-                      {a.name}
-                    </Link>
-                    {a.notes && <p className="text-xs text-slate-500">{a.notes}</p>}
-                  </td>
-                  <td className="px-4 py-3 text-slate-300">{a.releaseCount}</td>
-                  <td className="px-4 py-3 text-slate-300">{a.songCount}</td>
-                  <td className="px-4 py-3">
-                    <div onClick={(e) => e.stopPropagation()} className="w-fit">
-                      <RowMenu label="Artist actions">
-                        {(close) => (
-                          <MenuItem
-                            tone="danger"
-                            onClick={() => {
-                              close();
-                              remove(a);
-                            }}
-                          >
-                            Delete
-                          </MenuItem>
-                        )}
-                      </RowMenu>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                  {a.name}
+                </Link>
+                {a.notes && <p className="text-xs text-slate-500">{a.notes}</p>}
+              </td>
+              <td className="px-4 py-3 text-slate-300">{a.releaseCount}</td>
+              <td className="px-4 py-3 text-slate-300">{a.songCount}</td>
+              <td className="px-4 py-3">
+                <div onClick={(e) => e.stopPropagation()} className="w-fit">
+                  <RowMenu label="Artist actions">
+                    {(close) => (
+                      <MenuItem
+                        tone="danger"
+                        onClick={() => {
+                          close();
+                          void remove(a);
+                        }}
+                      >
+                        Delete
+                      </MenuItem>
+                    )}
+                  </RowMenu>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </DataTable>
       )}
 
       <Toast message={toast} variant={toastVariant} />

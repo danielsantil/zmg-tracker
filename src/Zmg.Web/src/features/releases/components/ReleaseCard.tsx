@@ -1,6 +1,6 @@
 import type { ReleaseListItem } from '@/types';
 import { MenuItem, ProgressBar, RowMenu, SoftWarning, StatusBadge, TypeBadge } from '@/components';
-import { formatCountdown, formatReleaseDate, todayIso } from '@/lib/format';
+import { formatCountdown, formatReleaseDate } from '@/lib/format';
 
 /**
  * The compact release card. Actions live in the kebab so it stays short enough to stack in a modal.
@@ -22,7 +22,7 @@ export function ReleaseCard({
   showCover?: boolean;
   showOpenLink?: boolean;
 }) {
-  const countdown = formatCountdown(r.status, r.releaseDate);
+  const countdown = formatCountdown(r.releaseDate);
 
   return (
     <div className="flex flex-col overflow-hidden rounded-xl border border-edge bg-panel">
@@ -57,8 +57,8 @@ export function ReleaseCard({
                     >
                       Edit
                     </MenuItem>
-                    {/* Archive is only allowed for releases still to come (releaseDate >= today). */}
-                    {r.releaseDate >= todayIso() && (
+                    {/* Archive affordance follows the server's canArchive (upcoming & not archived). */}
+                    {r.canArchive && (
                       <MenuItem
                         tone="archive"
                         onClick={() => {

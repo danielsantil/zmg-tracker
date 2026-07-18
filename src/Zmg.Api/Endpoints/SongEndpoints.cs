@@ -15,27 +15,27 @@ public static class SongEndpoints
         var group = app.MapGroup("/api/songs").WithTags("Songs");
 
         // List; q filters by title, artistId filters by main artist, scope=archived returns archived songs (default: active).
-        group.MapGet("", async (string? q, string? scope, Guid? artistId, ISongService songs) =>
-            Results.Ok(await songs.ListAsync(q, scope, artistId)));
+        group.MapGet("", async (string? q, string? scope, Guid? artistId, ISongService songs, CancellationToken ct) =>
+            Results.Ok(await songs.ListAsync(q, scope, artistId, ct)));
 
         // Detail with feats/collabs and every linked release.
-        group.MapGet("/{id:guid}", async (Guid id, ISongService songs) =>
-            (await songs.GetAsync(id)).ToOk());
+        group.MapGet("/{id:guid}", async (Guid id, ISongService songs, CancellationToken ct) =>
+            (await songs.GetAsync(id, ct)).ToOk());
 
         // Create a catalog song directly (no release). Returns the new song + any warnings.
-        group.MapPost("", async (SongCreateInput input, ISongService songs) =>
-            (await songs.CreateAsync(input)).ToCreatedWithWarnings(s => $"/api/songs/{s.Id}"));
+        group.MapPost("", async (SongCreateInput input, ISongService songs, CancellationToken ct) =>
+            (await songs.CreateAsync(input, ct)).ToCreatedWithWarnings(s => $"/api/songs/{s.Id}"));
 
         // Edit title / main artist / ISRC / feats-collabs. Returns the updated song + any warnings.
-        group.MapPut("/{id:guid}", async (Guid id, SongUpdateInput input, ISongService songs) =>
-            (await songs.UpdateAsync(id, input)).ToOkWithWarnings());
+        group.MapPut("/{id:guid}", async (Guid id, SongUpdateInput input, ISongService songs, CancellationToken ct) =>
+            (await songs.UpdateAsync(id, input, ct)).ToOkWithWarnings());
 
         // Archive: terminal, non-restorable (M15). Mostly orphans — active-release songs cascade via the release.
-        group.MapPost("/{id:guid}/archive", async (Guid id, ISongService songs) =>
-            (await songs.ArchiveAsync(id)).ToNoContent());
+        group.MapPost("/{id:guid}/archive", async (Guid id, ISongService songs, CancellationToken ct) =>
+            (await songs.ArchiveAsync(id, ct)).ToNoContent());
 
         // Remove: soft-delete, allowed for an archived song or an orphan. Songs are never hard-deleted. M15.
-        group.MapDelete("/{id:guid}", async (Guid id, ISongService songs) =>
-            (await songs.DeleteAsync(id)).ToNoContent());
+        group.MapDelete("/{id:guid}", async (Guid id, ISongService songs, CancellationToken ct) =>
+            (await songs.DeleteAsync(id, ct)).ToNoContent());
     }
 }

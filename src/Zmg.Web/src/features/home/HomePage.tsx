@@ -1,70 +1,42 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { api, ApiError } from '@/api';
-import type { Artist, PendingAction, ReleaseListItem } from '@/types';
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { api } from '@/api';
+import { useReleases, useArtists, usePending, queryKeys } from '@/api/queries';
+import type { ReleaseListItem } from '@/types';
 import { ReleaseType } from '@/types';
-import { Button, inputClass, Toast } from '@/components';
-import { useConfirm } from '@/hooks/useConfirm';
+import { ArtistSelect, Button, EmptyState, ErrorBanner, FilterBar, Loading, StatusSelect, Toast, TypeSelect } from '@/components';
 import { useToast } from '@/hooks/useToast';
+import { useConfirmDelete } from '@/hooks/useConfirmDelete';
 import { PendingSection } from './components/PendingSection';
-import { EmptyState } from './components/EmptyState';
 import { ReleaseCard } from '../releases/components/ReleaseCard';
 import { archiveReleaseConfirm } from '../releases/archiveConfirm';
 
 export default function HomePage() {
   const navigate = useNavigate();
-  const confirm = useConfirm();
   const { toast, toastVariant, showToast } = useToast();
-  const [releases, setReleases] = useState<ReleaseListItem[]>([]);
-  const [artists, setArtists] = useState<Artist[]>([]);
-  const [pending, setPending] = useState<PendingAction[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   const [artistId, setArtistId] = useState('');
   const [type, setType] = useState('');
   const [status, setStatus] = useState('');
 
-  async function load() {
-    setLoading(true);
-    setError(null);
-    try {
-      const [rels, arts, pend] = await Promise.all([
-        api.releases.list({
-          scope: 'home',
-          artistId: artistId || undefined,
-          type: type === '' ? undefined : (Number(type) as ReleaseType),
-          status: status || undefined,
-        }),
-        api.artists.list(),
-        api.pending.list(),
-      ]);
-      setReleases(rels);
-      setArtists(arts);
-      setPending(pend);
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Failed to load home.');
-    } finally {
-      setLoading(false);
-    }
-  }
+  const { data: artists = [] } = useArtists();
+  const { data: pending = [] } = usePending();
+  const { data: releases = [], isLoading, error } = useReleases({
+    scope: 'home',
+    artistId: artistId || undefined,
+    type: type === '' ? undefined : (Number(type) as ReleaseType),
+    status: status || undefined,
+  });
 
-  useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [artistId, type, status]);
+  const hasFilters = !!(artistId || type || status);
 
-  const hasFilters = useMemo(() => artistId || type || status, [artistId, type, status]);
-
-  async function archive(r: ReleaseListItem) {
-    if (!(await confirm(await archiveReleaseConfirm(r.id, r.title)))) return;
-    try {
-      await api.releases.archive(r.id);
-      load();
-    } catch (e) {
-      showToast(e instanceof ApiError ? e.message : 'Failed to archive.');
-    }
-  }
+  const archive = useConfirmDelete<ReleaseListItem>({
+    confirm: (r) => archiveReleaseConfirm(r.id, r.title),
+    mutate: (r) => api.releases.archive(r.id),
+    invalidate: [queryKeys.releases(), queryKeys.pending],
+    errorFallback: 'Failed to archive.',
+    showToast,
+  });
 
   return (
     <div>
@@ -78,45 +50,34 @@ export default function HomePage() {
 
       <PendingSection pending={pending} />
 
-      <div className="mb-5 flex flex-wrap gap-3">
-        <select className={`${inputClass} max-w-[12rem]`} value={artistId} onChange={(e) => setArtistId(e.target.value)}>
-          <option value="">All artists</option>
-          {artists.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.name}
-            </option>
-          ))}
-        </select>
-        <select className={`${inputClass} max-w-[10rem]`} value={type} onChange={(e) => setType(e.target.value)}>
-          <option value="">All types</option>
-          <option value="0">Single</option>
-          <option value="1">Album</option>
-        </select>
-        <select className={`${inputClass} max-w-[10rem]`} value={status} onChange={(e) => setStatus(e.target.value)}>
-          <option value="">All statuses</option>
-          <option value="Upcoming">Upcoming</option>
-          <option value="Complete">Complete</option>
-        </select>
-        {hasFilters && (
-          <Button
-            variant="ghost"
-            onClick={() => {
-              setArtistId('');
-              setType('');
-              setStatus('');
-            }}
-          >
-            Clear
-          </Button>
-        )}
-      </div>
+      <FilterBar onClear={hasFilters ? () => { setArtistId(''); setType(''); setStatus(''); } : undefined}>
+        <ArtistSelect artists={artists} value={artistId} onChange={setArtistId} />
+        <TypeSelect value={type} onChange={setType} />
+        <StatusSelect value={status} onChange={setStatus} options={['Upcoming', 'Complete']} />
+      </FilterBar>
 
-      {error && <p className="rounded-lg bg-red-500/10 px-4 py-3 text-sm text-red-300">{error}</p>}
+      <ErrorBanner error={error ? 'Failed to load home.' : null} />
 
-      {loading ? (
-        <p className="text-slate-400">Loading…</p>
+      {isLoading ? (
+        <Loading />
       ) : releases.length === 0 ? (
-        <EmptyState hasArtists={artists.length > 0} />
+        <EmptyState>
+          <p className="text-slate-300">No upcoming releases.</p>
+          <p className="mt-1 text-sm text-slate-500">
+            {artists.length > 0 ? (
+              <>
+                Create one from the{' '}
+                <Link to="/releases/new" className="text-accent underline">New release</Link> form, or browse{' '}
+                <Link to="/releases" className="text-accent underline">All Releases</Link>.
+              </>
+            ) : (
+              <>
+                Start by adding an artist on the{' '}
+                <Link to="/artists" className="text-accent underline">Artists</Link> page.
+              </>
+            )}
+          </p>
+        </EmptyState>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {releases.map((r) => (

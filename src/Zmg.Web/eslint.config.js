@@ -14,6 +14,11 @@ export default tseslint.config(
     languageOptions: {
       ecmaVersion: 2022,
       globals: globals.browser,
+      // Type-aware linting so no-floating-promises can see Promise-returning calls.
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
     },
     plugins: {
       'react-hooks': reactHooks,
@@ -23,6 +28,10 @@ export default tseslint.config(
       'react-hooks/rules-of-hooks': 'error',
       'react-hooks/exhaustive-deps': 'warn',
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
+      // Catch fire-and-forget promises (an un-voided fetch/mutation). Intentional fire-and-forget
+      // (cache invalidation) is marked `void`. no-misused-promises is left off on purpose — it
+      // flags every async onClick, whose returned promise React harmlessly ignores.
+      '@typescript-eslint/no-floating-promises': 'error',
     },
   },
 );

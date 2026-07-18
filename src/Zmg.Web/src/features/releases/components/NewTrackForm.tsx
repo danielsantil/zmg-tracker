@@ -69,7 +69,7 @@ export function NewTrackForm({
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         onKeyDown={(e) => {
-          if (e.key === 'Enter') submit();
+          if (e.key === 'Enter') void submit();
           if (e.key === 'Escape') reset();
         }}
       />

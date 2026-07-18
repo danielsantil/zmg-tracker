@@ -1,33 +1,21 @@
-import type { Phase, ReleaseTaskDto } from '@/types';
+import type { PhaseReorderInput, ReleaseTaskDto, ReleaseTaskUpdateInput, TaskAddInput } from '@/types';
 import { request } from './client';
 
 // Release tasks (checklist engine)
 export const tasksApi = {
-  add: (
-    releaseId: string,
-    input: { title: string; phase: Phase; minDaysBefore?: number | null; maxDaysBefore?: number | null },
-  ) =>
+  add: (releaseId: string, input: TaskAddInput) =>
     request<ReleaseTaskDto>(`/api/releases/${releaseId}/tasks`, {
       method: 'POST',
       body: JSON.stringify(input),
     }),
-  update: (
-    id: string,
-    input: {
-      title: string;
-      phase: Phase;
-      notes: string | null;
-      minDaysBefore: number | null;
-      maxDaysBefore: number | null;
-    },
-  ) =>
+  update: (id: string, input: ReleaseTaskUpdateInput) =>
     request<ReleaseTaskDto>(`/api/tasks/${id}`, {
       method: 'PUT',
       body: JSON.stringify(input),
     }),
   toggle: (id: string) =>
     request<ReleaseTaskDto>(`/api/tasks/${id}/toggle`, { method: 'PATCH' }),
-  reorder: (releaseId: string, input: { phase: Phase; orderedTaskIds: string[] }) =>
+  reorder: (releaseId: string, input: PhaseReorderInput) =>
     request<void>(`/api/releases/${releaseId}/tasks/order`, {
       method: 'PUT',
       body: JSON.stringify(input),

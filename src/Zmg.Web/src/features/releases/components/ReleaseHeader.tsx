@@ -11,7 +11,7 @@ export function ReleaseHeader({
   done: number;
   total: number;
 }) {
-  const countdown = formatCountdown(release.status, release.releaseDate);
+  const countdown = formatCountdown(release.releaseDate);
 
   return (
     <div className="mb-6 flex gap-4 rounded-xl border border-edge bg-panel p-4">

@@ -11,10 +11,11 @@ export function useBackNavigation() {
   const location = useLocation();
 
   return useCallback(() => {
+    // navigate returns a promise in RR7; navigation is fire-and-forget here.
     if (location.key === 'default') {
-      navigate('/');
+      void navigate('/');
     } else {
-      navigate(-1);
+      void navigate(-1);
     }
   }, [navigate, location.key]);
 }

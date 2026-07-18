@@ -2,19 +2,13 @@ import type {
   CreatedWithWarnings,
   ReleaseDetail,
   ReleaseInput,
+  ReleaseListFilters,
   ReleaseListItem,
-  ReleaseType,
 } from '@/types';
 import { request } from './client';
 
 export const releasesApi = {
-  list: (filters?: {
-    artistId?: string;
-    type?: ReleaseType;
-    status?: string;
-    scope?: 'home' | 'all' | 'archived';
-    q?: string;
-  }) => {
+  list: (filters?: ReleaseListFilters) => {
     const qs = new URLSearchParams();
     if (filters?.artistId) qs.set('artistId', filters.artistId);
     if (filters?.type !== undefined) qs.set('type', String(filters.type));

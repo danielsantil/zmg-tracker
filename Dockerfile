@@ -20,6 +20,7 @@ FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 COPY global.json ./
 COPY src/Zmg.Domain/ src/Zmg.Domain/
+COPY src/Zmg.Infra/ src/Zmg.Infra/
 COPY src/Zmg.Api/ src/Zmg.Api/
 RUN dotnet restore src/Zmg.Api/Zmg.Api.csproj
 RUN dotnet publish src/Zmg.Api/Zmg.Api.csproj -c Release -o /app --no-restore

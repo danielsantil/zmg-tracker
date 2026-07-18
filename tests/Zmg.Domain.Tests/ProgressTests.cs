@@ -6,7 +6,7 @@ namespace Zmg.Domain.Tests;
 public class ProgressTests
 {
     private static ReleaseTask Task(Phase phase, bool done) =>
-        new() { Id = Guid.NewGuid(), Phase = phase, IsDone = done };
+        Builders.Task(phase: phase, done: done);
 
     [Fact]
     public void Count_reports_done_over_total()

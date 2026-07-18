@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
+import clsx from 'clsx';
 import { api, ApiError } from '@/api';
-import { Button, Field, inputClass, inputErrorClass } from '@/components';
+import { queryKeys } from '@/api/queries';
+import { Button, ErrorBanner, Field, Loading, inputClass, inputErrorClass } from '@/components';
 import { useBackNavigation } from '@/hooks/useBackNavigation';
 
 /**
@@ -12,6 +15,7 @@ import { useBackNavigation } from '@/hooks/useBackNavigation';
 export default function ArtistFormPage() {
   const navigate = useNavigate();
   const goBack = useBackNavigation();
+  const queryClient = useQueryClient();
   const { id } = useParams();
   const editing = Boolean(id);
 
@@ -25,7 +29,7 @@ export default function ArtistFormPage() {
 
   useEffect(() => {
     if (!id) return;
-    (async () => {
+    void (async () => {
       try {
         const artist = await api.artists.get(id);
         setName(artist.name);
@@ -53,10 +57,12 @@ export default function ArtistFormPage() {
       const input = { name: name.trim(), notes: notes.trim() || null };
       if (id) {
         await api.artists.update(id, input);
+        void queryClient.invalidateQueries({ queryKey: queryKeys.artists });
         goBack();
       } else {
         await api.artists.create(input);
-        navigate('/artists');
+        void queryClient.invalidateQueries({ queryKey: queryKeys.artists });
+        void navigate('/artists');
       }
     } catch (err) {
       setErrors(err instanceof ApiError ? err.errors : ['Failed to save artist.']);
@@ -65,7 +71,7 @@ export default function ArtistFormPage() {
     }
   }
 
-  if (loading) return <p className="text-slate-400">Loading…</p>;
+  if (loading) return <Loading />;
 
   return (
     <div className="mx-auto max-w-xl">
@@ -74,7 +80,7 @@ export default function ArtistFormPage() {
       <form onSubmit={submit} className="space-y-4">
         <Field label="Name" error={fieldErrors.name}>
           <input
-            className={`${inputClass} ${fieldErrors.name ? inputErrorClass : ''}`}
+            className={clsx(inputClass, fieldErrors.name && inputErrorClass)}
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="e.g. Zaie"
@@ -86,13 +92,7 @@ export default function ArtistFormPage() {
           <textarea className={inputClass} rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
         </Field>
 
-        {errors.length > 0 && (
-          <ul className="mb-4 rounded-lg bg-red-500/10 px-4 py-2 text-sm text-red-300">
-            {errors.map((msg) => (
-              <li key={msg}>{msg}</li>
-            ))}
-          </ul>
-        )}
+        <ErrorBanner error={errors} />
 
         <div className="flex gap-2">
           <Button type="submit" disabled={saving}>

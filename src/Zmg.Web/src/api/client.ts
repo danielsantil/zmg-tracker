@@ -8,6 +8,15 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * The message to show for a caught error: the server's first validation message when it's an
+ * `ApiError`, else the caller's fallback. Centralizes the `e instanceof ApiError ? e.message : …`
+ * shape that otherwise repeats at every catch site.
+ */
+export function errorMessage(e: unknown, fallback: string): string {
+  return e instanceof ApiError ? e.message : fallback;
+}
+
 export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
     ...init,

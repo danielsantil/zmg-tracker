@@ -14,7 +14,8 @@ namespace Zmg.Api.Services;
 /// its tracks (each projected from its song), and create/edit which copy the type's template snapshot
 /// onto the release. Create also materialises the inline Tracks section (v2.0). Pure rules live in
 /// Domain (<see cref="Validation"/>, <see cref="TemplateCopy"/>, <see cref="ProgressCalculator"/>,
-/// <see cref="ReleaseStatus"/>, <see cref="PendingActions"/>); this loads/persists and maps to DTOs.
+/// <see cref="ReleaseStatus"/>, <see cref="ReleaseArchival"/>, <see cref="ReleaseMutability"/>,
+/// <see cref="PendingActions"/>); this loads/persists and maps to DTOs.
 /// </summary>
 public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
 {
@@ -25,13 +26,13 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
     // Removed (soft-deleted) releases are excluded everywhere by the global query filter.
     // q is a case-insensitive title search.
     public async Task<IReadOnlyList<ReleaseListItemDto>> ListAsync(
-        Guid? artistId, ReleaseType? type, string? status, string? scope, string? q)
+        Guid? artistId, ReleaseType? type, string? status, string? scope, string? q, CancellationToken ct = default)
     {
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
         var isHome = string.Equals(scope, "home", StringComparison.OrdinalIgnoreCase);
         var isArchived = string.Equals(scope, "archived", StringComparison.OrdinalIgnoreCase);
 
-        var query = db.Releases.AsQueryable();
+        var query = db.Releases.AsNoTracking();
         if (artistId is { } aid) query = query.Where(r => r.MainArtistId == aid);
         if (type is { } t) query = query.Where(r => r.Type == t);
         // Archived releases live only in the archived scope; every other scope shows active ones.
@@ -55,94 +56,115 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
                 TrackCount = r.Tracks.Count,
                 Distributed = r.Tasks.Any(x => x.IsDone && x.Title == SeedData.DistributeToDspsTitle),
             })
-            .ToListAsync();
+            .ToListAsync(ct);
 
         return rows
             .Select(r =>
             {
                 var progress = new ProgressCount(r.Done, r.Total);
+                var archived = r.ArchivedAt != null;
                 return new ReleaseListItemDto(
                     r.Id, r.Title, r.Type, r.ReleaseDate, r.MainArtistId, r.MainArtistName,
                     r.CoverUrl, r.Done, r.Total,
-                    ReleaseStatus.Derive(r.ReleaseDate, today, progress, r.ArchivedAt != null),
+                    ReleaseStatus.Derive(r.ReleaseDate, today, progress, archived),
                     r.Upc,
-                    ReleaseWarnings.Compute(r.Type, r.TrackCount, r.ArchivedAt != null, r.Distributed, r.Upc));
+                    ReleaseWarnings.Compute(r.Type, r.TrackCount, archived, r.Distributed, r.Upc),
+                    ReleaseArchival.CanArchive(r.ReleaseDate, today, archived));
             })
             .Where(r => status is null || string.Equals(r.Status, status, StringComparison.OrdinalIgnoreCase))
             .ToList();
     }
 
-    public async Task<OperationResult<ReleaseDetailDto>> GetAsync(Guid id)
+    public async Task<OperationResult<ReleaseDetailDto>> GetAsync(Guid id, CancellationToken ct = default)
     {
-        var release = await db.Releases.WithDetailIncludes().FirstOrDefaultAsync(r => r.Id == id);
+        var release = await db.Releases.AsNoTracking().WithDetailIncludes().FirstOrDefaultAsync(r => r.Id == id, ct);
         if (release is null) return OperationResult<ReleaseDetailDto>.NotFound();
 
         return OperationResult<ReleaseDetailDto>.Success(ToDetail(release));
     }
 
     // Create; copies the default template for the type onto the release and materialises the inline
-    // Tracks section (new songs and/or existing catalog songs).
-    public async Task<OperationResult<ReleaseDetailDto>> CreateAsync(ReleaseInput input)
+    // Tracks section (new songs and/or existing catalog songs). Split into steps (M25 task 6): validate,
+    // resolve the existing catalog songs, then build + persist the release with its tracks.
+    public async Task<OperationResult<ReleaseDetailDto>> CreateAsync(ReleaseInput input, CancellationToken ct = default)
     {
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var trackInputs = input.Tracks ?? new List<TrackInput>();
+
+        var validation = await ValidateCreateAsync(input, trackInputs, today, ct);
+        if (!validation.IsValid)
+            return OperationResult<ReleaseDetailDto>.Invalid(validation.Errors);
+
+        var resolved = await ResolveExistingSongsAsync(trackInputs, ct);
+        if (resolved is { } failure)
+            return failure;
+
+        var template = await LoadTemplate(input.Type, ct);
+        if (template is null)
+            return OperationResult<ReleaseDetailDto>.Problem($"No template seeded for release type {input.Type}.");
+
+        var release = BuildRelease(input, template, today);
+        MaterialiseTracks(release, trackInputs);
+
+        db.Releases.Add(release);
+        await db.SaveChangesAsync(ct);
+
+        var created = await db.Releases.AsNoTracking().WithDetailIncludes().FirstAsync(r => r.Id == release.Id, ct);
+        return OperationResult<ReleaseDetailDto>.Success(ToDetail(created), validation.Warnings);
+    }
+
+    // Structural + per-artist title rules for a create. The title-clash rule (incl. within-request
+    // dedupe) is pure Domain now (Validation.ValidateReleaseTracks), fed the artist's active song titles.
+    private async Task<ValidationResult> ValidateCreateAsync(
+        ReleaseInput input, IReadOnlyList<TrackInput> trackInputs, DateOnly today, CancellationToken ct)
+    {
         var mainArtistExists = input.MainArtistId != Guid.Empty
-            && await db.Artists.AnyAsync(a => a.Id == input.MainArtistId);
-        var otherTitles = await db.Releases
+            && await db.Artists.AsNoTracking().AnyAsync(a => a.Id == input.MainArtistId, ct);
+        var otherTitles = await db.Releases.AsNoTracking()
             .Where(r => r.MainArtistId == input.MainArtistId)
             .Select(r => r.Title)
-            .ToListAsync();
+            .ToListAsync(ct);
 
         var validation = Validation.ValidateRelease(
             input.Title, input.MainArtistId, mainArtistExists, input.ReleaseDate, today, otherTitles);
 
-        var trackInputs = input.Tracks ?? new List<TrackInput>();
+        var activeSongTitles = await db.Songs.AsNoTracking()
+            .Where(s => s.MainArtistId == input.MainArtistId && s.ArchivedAt == null)
+            .Select(s => s.Title)
+            .ToListAsync(ct);
         var specs = trackInputs.Select(t => new TrackSpec(t.SongId, t.Title)).ToList();
-        var trackValidation = Validation.ValidateReleaseTracks(input.Type, specs);
+        var trackValidation = Validation.ValidateReleaseTracks(input.Type, specs, activeSongTitles);
         foreach (var e in trackValidation.Errors) validation.Error(e);
 
-        if (!validation.IsValid)
-            return OperationResult<ReleaseDetailDto>.Invalid(validation.Errors);
+        return validation;
+    }
 
-        // Resolve existing catalog songs referenced by the specs (deleted ones are hidden by the filter).
-        var existingIds = specs
-            .Where(s => s.ExistingSongId is { } id && id != Guid.Empty)
-            .Select(s => s.ExistingSongId!.Value)
+    // Resolve the existing catalog songs referenced by the specs (deleted ones are hidden by the filter);
+    // returns a failure result if any are missing or archived, else null so the caller proceeds.
+    private async Task<OperationResult<ReleaseDetailDto>?> ResolveExistingSongsAsync(
+        IReadOnlyList<TrackInput> trackInputs, CancellationToken ct)
+    {
+        var existingIds = trackInputs
+            .Where(t => t.SongId is { } id && id != Guid.Empty)
+            .Select(t => t.SongId!.Value)
             .ToList();
-        var existingSongs = existingIds.Count == 0
-            ? new List<Song>()
-            : await db.Songs.Where(s => existingIds.Contains(s.Id)).ToListAsync();
+        if (existingIds.Count == 0) return null;
+
+        var existingSongs = await db.Songs.AsNoTracking()
+            .Where(s => existingIds.Contains(s.Id))
+            .Select(s => new { s.Id, s.IsArchived })
+            .ToListAsync(ct);
 
         if (existingIds.Any(id => existingSongs.All(s => s.Id != id)))
             return OperationResult<ReleaseDetailDto>.Invalid(new[] { "One or more selected songs do not exist." });
         if (existingSongs.Any(s => s.IsArchived))
             return OperationResult<ReleaseDetailDto>.Conflict(new[] { "Can't add an archived song to a release." });
 
-        // Song titles are unique per main artist. A new inline title that clashes with an active
-        // same-artist song (or with another new title in this same request) is blocked — the user
-        // must rename it or link the existing song instead of silently minting a duplicate.
-        var activeTitlesForArtist = await db.Songs
-            .Where(s => s.MainArtistId == input.MainArtistId && s.ArchivedAt == null)
-            .Select(s => s.Title)
-            .ToListAsync();
-        var seenNewTitles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var spec in specs.Where(s => !string.IsNullOrWhiteSpace(s.NewTitle)))
-        {
-            var newTitle = spec.NewTitle!.Trim();
-            var clashesActive = activeTitlesForArtist.Any(t =>
-                string.Equals(t?.Trim(), newTitle, StringComparison.OrdinalIgnoreCase));
-            if (clashesActive || !seenNewTitles.Add(newTitle))
-            {
-                validation.Error(Validation.DuplicateSongTitleMessage);
-                break; // one message covers the whole tracklist
-            }
-        }
-        if (!validation.IsValid)
-            return OperationResult<ReleaseDetailDto>.Invalid(validation.Errors);
+        return null;
+    }
 
-        var template = await LoadTemplate(input.Type);
-        if (template is null)
-            return OperationResult<ReleaseDetailDto>.Problem($"No template seeded for release type {input.Type}.");
-
+    private static Release BuildRelease(ReleaseInput input, ChecklistTemplate template, DateOnly today)
+    {
         var release = new Release
         {
             Id = Guid.NewGuid(),
@@ -170,7 +192,12 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
             }
         }
 
-        // Title uniqueness was enforced above; new inline songs can be materialised directly here.
+        return release;
+    }
+
+    // Title uniqueness was enforced in validation; new inline songs can be materialised directly here.
+    private void MaterialiseTracks(Release release, IReadOnlyList<TrackInput> trackInputs)
+    {
         var trackNumber = 1;
         foreach (var t in trackInputs)
         {
@@ -181,7 +208,7 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
             }
             else
             {
-                var song = SongMapping.NewSong(input.MainArtistId, t.Title!, t.Isrc, t.Artists);
+                var song = SongMapping.NewSong(release.MainArtistId, t.Title!, t.Isrc, t.Artists);
                 db.Songs.Add(song);
                 songId = song.Id;
             }
@@ -194,18 +221,18 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
                 IsFocusTrack = false,
             });
         }
-
-        db.Releases.Add(release);
-        await db.SaveChangesAsync();
-
-        var created = await db.Releases.WithDetailIncludes().FirstAsync(r => r.Id == release.Id);
-        return OperationResult<ReleaseDetailDto>.Success(ToDetail(created), validation.Warnings);
     }
 
-    public async Task<OperationResult<ReleaseDetailDto>> UpdateAsync(Guid id, ReleaseInput input)
+    public async Task<OperationResult<ReleaseDetailDto>> UpdateAsync(Guid id, ReleaseInput input, CancellationToken ct = default)
     {
-        var release = await db.Releases.FirstOrDefaultAsync(r => r.Id == id);
+        // Load the full detail graph once — mutating scalar fields on the tracked entity lets us map the
+        // result without a second round-trip after save (M25 task 3).
+        var release = await db.Releases.WithDetailIncludes().FirstOrDefaultAsync(r => r.Id == id, ct);
         if (release is null) return OperationResult<ReleaseDetailDto>.NotFound();
+
+        // Archived releases are terminal and read-only — the whole read side already assumes this (M25 defect 1).
+        if (!ReleaseMutability.CanEdit(release.IsArchived))
+            return OperationResult<ReleaseDetailDto>.Conflict(new[] { ReleaseMutability.ArchivedReadOnlyMessage });
 
         // Type is fixed at create (it determines the checklist template). Tracks mutate only via the
         // track endpoints, so input.Tracks is ignored on PUT.
@@ -214,11 +241,11 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
 
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
         var mainArtistExists = input.MainArtistId != Guid.Empty
-            && await db.Artists.AnyAsync(a => a.Id == input.MainArtistId);
-        var otherTitles = await db.Releases
+            && await db.Artists.AsNoTracking().AnyAsync(a => a.Id == input.MainArtistId, ct);
+        var otherTitles = await db.Releases.AsNoTracking()
             .Where(r => r.MainArtistId == input.MainArtistId && r.Id != id)
             .Select(r => r.Title)
-            .ToListAsync();
+            .ToListAsync(ct);
 
         var validation = Validation.ValidateRelease(
             input.Title, input.MainArtistId, mainArtistExists, input.ReleaseDate, today, otherTitles);
@@ -232,20 +259,26 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
         release.Notes = input.Notes;
         release.Upc = Clean(input.Upc);
 
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(ct);
 
-        var updated = await db.Releases.WithDetailIncludes().FirstAsync(r => r.Id == id);
-        return OperationResult<ReleaseDetailDto>.Success(ToDetail(updated), validation.Warnings);
+        // The edit may re-point MainArtistId; the loaded navigation still holds the old artist. Reload the
+        // reference to match the new FK so ToDetail reports the right name (no full detail re-query needed).
+        if (release.MainArtist?.Id != release.MainArtistId)
+            await db.Entry(release).Reference(r => r.MainArtist).LoadAsync(ct);
+
+        return OperationResult<ReleaseDetailDto>.Success(ToDetail(release), validation.Warnings);
     }
 
     // Preview the archive cascade (2.0 improvement): the titles of the songs that would archive alongside
     // this release, so the UI can warn before confirming. Same rule as ArchiveAsync — released songs and
     // songs shared with an active release are excluded. Read-only; nothing is persisted here.
-    public async Task<OperationResult<ArchivePreviewDto>> GetArchivePreviewAsync(Guid id)
+    public async Task<OperationResult<ArchivePreviewDto>> GetArchivePreviewAsync(Guid id, CancellationToken ct = default)
     {
-        var release = await db.Releases
+        // Identity-resolution no-tracking: the include path cycles back to Release (Track→Song→ReleaseLinks→
+        // Release), which plain AsNoTracking rejects. Read-only, so no change tracking is wanted.
+        var release = await db.Releases.AsNoTrackingWithIdentityResolution()
             .Include(r => r.Tracks).ThenInclude(t => t.Song).ThenInclude(s => s!.ReleaseLinks).ThenInclude(t => t.Release)
-            .FirstOrDefaultAsync(r => r.Id == id);
+            .FirstOrDefaultAsync(r => r.Id == id, ct);
         if (release is null) return OperationResult<ArchivePreviewDto>.NotFound();
 
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
@@ -263,11 +296,11 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
     // can be archived, and never twice. v2.0 M15: archiving cascades to the release's exclusively-linked
     // upcoming songs (see SongArchival.ShouldArchive) — released songs and songs shared with an active
     // release stay put.
-    public async Task<OperationResult> ArchiveAsync(Guid id)
+    public async Task<OperationResult> ArchiveAsync(Guid id, CancellationToken ct = default)
     {
         var release = await db.Releases
             .Include(r => r.Tracks).ThenInclude(t => t.Song).ThenInclude(s => s!.ReleaseLinks).ThenInclude(t => t.Release)
-            .FirstOrDefaultAsync(r => r.Id == id);
+            .FirstOrDefaultAsync(r => r.Id == id, ct);
         if (release is null) return OperationResult.NotFound();
 
         if (release.IsArchived)
@@ -287,22 +320,22 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
                 song.ArchivedAt = now;
         }
 
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(ct);
         return OperationResult.Success();
     }
 
     // Remove (v1.2): a soft-delete reachable only from an archived release. Releases are never hard-deleted —
     // the row is stamped DeletedAt and hidden everywhere by the global query filter.
-    public async Task<OperationResult> DeleteAsync(Guid id)
+    public async Task<OperationResult> DeleteAsync(Guid id, CancellationToken ct = default)
     {
-        var release = await db.Releases.FindAsync(id);
+        var release = await db.Releases.FindAsync([id], ct);
         if (release is null) return OperationResult.NotFound();
 
         if (!release.IsArchived)
             return OperationResult.Conflict(new[] { "Only archived releases can be removed." });
 
         release.DeletedAt = DateTime.UtcNow;
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(ct);
         return OperationResult.Success();
     }
 
@@ -310,10 +343,10 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
     private static string? Clean(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
-    private async Task<ChecklistTemplate?> LoadTemplate(ReleaseType type) =>
+    private async Task<ChecklistTemplate?> LoadTemplate(ReleaseType type, CancellationToken ct) =>
         await db.ChecklistTemplates
             .Include(t => t.Tasks)
-            .FirstOrDefaultAsync(t => t.Type == type);
+            .FirstOrDefaultAsync(t => t.Type == type, ct);
 
     private static ReleaseDetailDto ToDetail(Release release)
     {
@@ -348,6 +381,7 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
             progress.Overall.Done, progress.Overall.Total, phases, tracks,
             release.Upc,
             ReleaseWarnings.Compute(release.Type, release.Tracks.Count, release.IsArchived, release.IsDistributed, release.Upc),
-            release.IsArchived);
+            release.IsArchived,
+            ReleaseArchival.CanArchive(release.ReleaseDate, today, release.IsArchived));
     }
 }
