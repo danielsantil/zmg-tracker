@@ -3,7 +3,20 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: dark;
+  color-scheme: dark; /* the future dark/light plan flips this + overrides the channels below */
+
+  /* Semantic color tokens as space-separated RGB channels, consumed via
+     rgb(var(--token) / <alpha-value>) in tailwind.config.js so opacity modifiers
+     (bg-ink/80, border-edge/50) still work. Values are today's dark palette. */
+  --ink: 15 17 21; /* #0f1115 */
+  --panel: 23 26 33; /* #171a21 */
+  --edge: 37 42 52; /* #252a34 */
+  --accent: 83 136 199; /* #5388c7 */
+
+  --strong: 255 255 255; /* white / slate-100 */
+  --body: 226 232 240; /* slate-200/300 — default body text */
+  --muted: 148 163 184; /* slate-400 */
+  --subtle: 100 116 139; /* slate-500/600 */
 }
 
 html,
@@ -14,5 +27,5 @@ body,
 
 body {
   margin: 0;
-  @apply bg-ink text-slate-200 antialiased;
+  @apply bg-ink text-body antialiased;
 }

@@ -32,11 +32,11 @@ export default function ArchivedSongsPage() {
   return (
     <div>
       <div className="mb-6">
-        <Link to="/catalog" className="text-sm text-slate-400 hover:text-slate-200">
+        <Link to="/catalog" className="text-sm text-muted hover:text-body">
           ‹ Catalog
         </Link>
-        <h1 className="mt-2 text-2xl font-semibold text-white">Archived Songs</h1>
-        <p className="text-sm text-slate-400">Archived songs are read-only and can't be restored.</p>
+        <h1 className="mt-2 text-2xl font-semibold text-strong">Archived Songs</h1>
+        <p className="text-sm text-muted">Archived songs are read-only and can't be restored.</p>
       </div>
 
       <ErrorBanner error={error ? 'Failed to load archived songs.' : null} />
@@ -59,12 +59,12 @@ export default function ArchivedSongsPage() {
                 <Link
                   to={`/catalog/${s.id}`}
                   onClick={(e) => e.stopPropagation()}
-                  className="font-medium text-white hover:text-accent"
+                  className="font-medium text-strong hover:text-accent"
                 >
                   {s.title}
                 </Link>
               </td>
-              <td className="px-4 py-3 text-slate-300">{s.mainArtistName}</td>
+              <td className="px-4 py-3 text-body">{s.mainArtistName}</td>
               <td className="px-4 py-3 text-right">
                 <Button
                   variant="danger"

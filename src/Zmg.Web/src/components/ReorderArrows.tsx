@@ -18,7 +18,7 @@ export function ReorderArrows({
         aria-label="Move up"
         disabled={isFirst}
         onClick={() => onMove(-1)}
-        className="px-1.5 text-slate-500 hover:text-slate-300 disabled:opacity-30"
+        className="px-1.5 text-subtle hover:text-body disabled:opacity-30"
       >
         ↑
       </button>
@@ -27,7 +27,7 @@ export function ReorderArrows({
         aria-label="Move down"
         disabled={isLast}
         onClick={() => onMove(1)}
-        className="px-1.5 text-slate-500 hover:text-slate-300 disabled:opacity-30"
+        className="px-1.5 text-subtle hover:text-body disabled:opacity-30"
       >
         ↓
       </button>

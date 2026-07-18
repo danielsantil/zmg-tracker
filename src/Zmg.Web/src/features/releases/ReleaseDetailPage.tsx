@@ -86,11 +86,11 @@ function ReleaseDetailView({ release }: { release: ReleaseDetail }) {
   return (
     <div>
       <div className="mb-4 flex items-center justify-between">
-        <button onClick={goBack} className="text-sm text-slate-400 hover:text-slate-200">
+        <button onClick={goBack} className="text-sm text-muted hover:text-body">
           ‹ Releases
         </button>
         {readOnly ? (
-          <span className="text-sm text-slate-500">Archived — read only</span>
+          <span className="text-sm text-subtle">Archived — read only</span>
         ) : (
           <div className="flex items-center gap-2">
             <Button variant="ghost" onClick={() => navigate(`/releases/${release.id}/edit`)}>
@@ -110,7 +110,7 @@ function ReleaseDetailView({ release }: { release: ReleaseDetail }) {
       {pendingActions.length > 0 && <NeedsAttention actions={pendingActions} />}
 
       {release.notes && (
-        <p className="mb-6 whitespace-pre-wrap rounded-lg border border-edge bg-panel/50 px-4 py-3 text-sm text-slate-300">
+        <p className="mb-6 whitespace-pre-wrap rounded-lg border border-edge bg-panel/50 px-4 py-3 text-sm text-body">
           {release.notes}
         </p>
       )}
@@ -157,8 +157,8 @@ function ReleaseDetailView({ release }: { release: ReleaseDetail }) {
       <Modal open={!!dupPrompt} onClose={() => setDupPrompt(null)} title="Song already exists">
         {dupPrompt && (
           <div className="space-y-4">
-            <p className="text-sm text-slate-300">
-              A song titled <span className="font-medium text-slate-100">“{dupPrompt.title}”</span> already
+            <p className="text-sm text-body">
+              A song titled <span className="font-medium text-strong">“{dupPrompt.title}”</span> already
               exists for {release.mainArtistName}.{' '}
               {dupPrompt.onRelease
                 ? "It's already on this release — change the name to add a different song."

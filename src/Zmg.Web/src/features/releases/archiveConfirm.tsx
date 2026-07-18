@@ -27,7 +27,7 @@ export async function archiveReleaseConfirm(id: string, title: string): Promise<
       <>
         <p>Archived releases are read-only and can't be restored.</p>
         <p className="mt-3">These new songs will be archived too (they haven't been released elsewhere):</p>
-        <ul className="mt-1 list-disc pl-5 text-slate-400">
+        <ul className="mt-1 list-disc pl-5 text-muted">
           {songs.map((s) => (
             <li key={s}>{s}</li>
           ))}

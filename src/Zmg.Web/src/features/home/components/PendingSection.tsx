@@ -41,8 +41,8 @@ export function PendingSection({ pending }: { pending: PendingAction[] }) {
                 className="flex items-center justify-between gap-3 px-4 py-2.5 hover:bg-amber-500/[0.06]"
               >
                 <span className="min-w-0">
-                  <span className="text-sm text-slate-100">{p.label}</span>
-                  <span className="ml-2 text-xs text-slate-400">
+                  <span className="text-sm text-strong">{p.label}</span>
+                  <span className="ml-2 text-xs text-muted">
                     {p.subject} · {p.artistName}
                   </span>
                 </span>

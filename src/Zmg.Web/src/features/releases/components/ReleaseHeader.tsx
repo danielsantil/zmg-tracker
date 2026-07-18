@@ -19,22 +19,22 @@ export function ReleaseHeader({
         {release.coverUrl ? (
           <img src={release.coverUrl} alt="" className="h-full w-full object-cover" />
         ) : (
-          <div className="grid h-full place-items-center text-3xl font-semibold text-slate-600">
+          <div className="grid h-full place-items-center text-3xl font-semibold text-subtle">
             {release.title.slice(0, 1).toUpperCase()}
           </div>
         )}
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-2">
-          <h1 className="text-xl font-semibold text-white">
-            {release.title} <span className="text-slate-400">— {release.mainArtistName}</span>
+          <h1 className="text-xl font-semibold text-strong">
+            {release.title} <span className="text-muted">— {release.mainArtistName}</span>
           </h1>
           <div className="flex items-center gap-1.5">
             <SoftWarning warnings={release.warnings} />
             <StatusBadge status={release.status} />
           </div>
         </div>
-        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-400">
+        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
           <TypeBadge type={release.type} />
           <span className="whitespace-nowrap">{release.releaseDate}</span>
           <span className="whitespace-nowrap">· {done}/{total} done</span>

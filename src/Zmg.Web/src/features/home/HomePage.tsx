@@ -42,8 +42,8 @@ export default function HomePage() {
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold text-white">Home</h1>
-          <p className="text-sm text-slate-400">Upcoming releases and what needs your attention.</p>
+          <h1 className="text-2xl font-semibold text-strong">Home</h1>
+          <p className="text-sm text-muted">Upcoming releases and what needs your attention.</p>
         </div>
         <Button onClick={() => navigate('/releases/new')}>+ New release</Button>
       </div>
@@ -62,8 +62,8 @@ export default function HomePage() {
         <Loading />
       ) : releases.length === 0 ? (
         <EmptyState>
-          <p className="text-slate-300">No upcoming releases.</p>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="text-body">No upcoming releases.</p>
+          <p className="mt-1 text-sm text-subtle">
             {artists.length > 0 ? (
               <>
                 Create one from the{' '}

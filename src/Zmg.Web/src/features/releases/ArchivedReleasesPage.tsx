@@ -33,11 +33,11 @@ export default function ArchivedReleasesPage() {
   return (
     <div>
       <div className="mb-6">
-        <Link to="/releases" className="text-sm text-slate-400 hover:text-slate-200">
+        <Link to="/releases" className="text-sm text-muted hover:text-body">
           ‹ All Releases
         </Link>
-        <h1 className="mt-2 text-2xl font-semibold text-white">Archived Releases</h1>
-        <p className="text-sm text-slate-400">Archived releases are read-only and can't be restored.</p>
+        <h1 className="mt-2 text-2xl font-semibold text-strong">Archived Releases</h1>
+        <p className="text-sm text-muted">Archived releases are read-only and can't be restored.</p>
       </div>
 
       <ErrorBanner error={error ? 'Failed to load archived releases.' : null} />
@@ -62,13 +62,13 @@ export default function ArchivedReleasesPage() {
                   <Link
                     to={`/releases/${r.id}`}
                     onClick={(e) => e.stopPropagation()}
-                    className="font-medium text-white hover:text-accent"
+                    className="font-medium text-strong hover:text-accent"
                   >
                     {r.title}
                   </Link>
                   <StatusBadge status={r.status} />
                 </div>
-                <div className="text-xs text-slate-400">{r.mainArtistName}</div>
+                <div className="text-xs text-muted">{r.mainArtistName}</div>
                 {/* Below sm the Type column is hidden — fold its badge under the name. */}
                 <div className="mt-1 flex items-center gap-1.5 sm:hidden">
                   <TypeBadge type={r.type} />
@@ -77,7 +77,7 @@ export default function ArchivedReleasesPage() {
               <td className="hidden px-4 py-3 sm:table-cell">
                 <TypeBadge type={r.type} />
               </td>
-              <td className="whitespace-nowrap px-4 py-3 text-slate-300">{r.releaseDate}</td>
+              <td className="whitespace-nowrap px-4 py-3 text-body">{r.releaseDate}</td>
               <td className="px-4 py-3 text-right">
                 <Button
                   variant="danger"

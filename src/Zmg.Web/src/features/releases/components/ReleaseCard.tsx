@@ -31,7 +31,7 @@ export function ReleaseCard({
           {r.coverUrl ? (
             <img src={r.coverUrl} alt="" className="h-full w-full object-cover" />
           ) : (
-            <div className="grid h-full place-items-center text-3xl font-semibold text-slate-600">
+            <div className="grid h-full place-items-center text-3xl font-semibold text-subtle">
               {r.title.slice(0, 1).toUpperCase()}
             </div>
           )}
@@ -40,7 +40,7 @@ export function ReleaseCard({
       <div className="flex flex-1 flex-col gap-2 p-3">
         <div>
           <div className="flex items-start justify-between gap-2">
-            <button onClick={onOpen} className="text-left font-semibold text-white hover:text-accent">
+            <button onClick={onOpen} className="text-left font-semibold text-strong hover:text-accent">
               {r.title}
             </button>
             <div className="flex shrink-0 items-center gap-1.5">
@@ -74,9 +74,9 @@ export function ReleaseCard({
               </RowMenu>
             </div>
           </div>
-          <p className="text-sm text-slate-400">{r.mainArtistName}</p>
+          <p className="text-sm text-muted">{r.mainArtistName}</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
+        <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
           <TypeBadge type={r.type} />
           <span>{formatReleaseDate(r.releaseDate)}</span>
           {countdown && <span className="text-accent">· {countdown}</span>}

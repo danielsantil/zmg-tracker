@@ -15,10 +15,10 @@ export function NeedsAttention({ actions }: { actions: PendingAction[] }) {
       </div>
       <ul className="px-4 py-2">
         {actions.map((a, i) => (
-          <li key={`${a.taskId ?? a.songId ?? a.kind}-${i}`} className="flex items-baseline gap-2 py-1 text-sm text-slate-200">
+          <li key={`${a.taskId ?? a.songId ?? a.kind}-${i}`} className="flex items-baseline gap-2 py-1 text-sm text-body">
             <span className="text-amber-300">•</span>
             {a.kind === PendingKind.MissingIsrc && a.songId ? (
-              <Link to={`/catalog/${a.songId}`} className="text-slate-200 underline decoration-dotted hover:text-white">
+              <Link to={`/catalog/${a.songId}`} className="text-body underline decoration-dotted hover:text-strong">
                 {a.label} — {a.subject}
               </Link>
             ) : (

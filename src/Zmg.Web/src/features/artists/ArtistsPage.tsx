@@ -59,8 +59,8 @@ export default function ArtistsPage() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-white">Artists</h1>
-          <p className="text-sm text-slate-400">Everyone with releases in the roster.</p>
+          <h1 className="text-2xl font-semibold text-strong">Artists</h1>
+          <p className="text-sm text-muted">Everyone with releases in the roster.</p>
         </div>
         <Button onClick={() => navigate('/artists/new')}>+ New artist</Button>
       </div>
@@ -84,14 +84,14 @@ export default function ArtistsPage() {
                 <Link
                   to={`/artists/${a.id}`}
                   onClick={(e) => e.stopPropagation()}
-                  className="font-medium text-white hover:text-accent"
+                  className="font-medium text-strong hover:text-accent"
                 >
                   {a.name}
                 </Link>
-                {a.notes && <p className="text-xs text-slate-500">{a.notes}</p>}
+                {a.notes && <p className="text-xs text-subtle">{a.notes}</p>}
               </td>
-              <td className="px-4 py-3 text-slate-300">{a.releaseCount}</td>
-              <td className="px-4 py-3 text-slate-300">{a.songCount}</td>
+              <td className="px-4 py-3 text-body">{a.releaseCount}</td>
+              <td className="px-4 py-3 text-body">{a.songCount}</td>
               <td className="px-4 py-3 text-right">
                 <div onClick={(e) => e.stopPropagation()} className="flex justify-end">
                   <RowMenu label="Artist actions">

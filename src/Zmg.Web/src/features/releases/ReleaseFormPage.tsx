@@ -182,7 +182,7 @@ export default function ReleaseFormPage() {
   if (artists.length === 0) {
     return (
       <EmptyState>
-        <p className="text-slate-300">You need at least one artist before creating a release.</p>
+        <p className="text-body">You need at least one artist before creating a release.</p>
         <Button className="mt-4" onClick={() => navigate('/artists')}>
           Go to Artists
         </Button>
@@ -192,7 +192,7 @@ export default function ReleaseFormPage() {
 
   return (
     <div className="mx-auto max-w-xl">
-      <h1 className="mb-6 text-2xl font-semibold text-white">{isEdit ? 'Edit release' : 'New release'}</h1>
+      <h1 className="mb-6 text-2xl font-semibold text-strong">{isEdit ? 'Edit release' : 'New release'}</h1>
 
       <form onSubmit={submit} className="space-y-4">
         <Field label="Title" error={fieldErrors.title}>

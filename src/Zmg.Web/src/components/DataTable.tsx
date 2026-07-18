@@ -20,7 +20,7 @@ export function DataTable({ headers, children }: { headers: TableHeader[]; child
   return (
     <div className="overflow-x-auto rounded-xl border border-edge bg-panel">
       <table className="w-full text-left text-sm">
-        <thead className="border-b border-edge text-xs uppercase tracking-wide text-slate-500">
+        <thead className="border-b border-edge text-xs uppercase tracking-wide text-subtle">
           <tr>
             {headers.map((h, i) => (
               <th key={h.label || i} className={clsx('px-4 py-3 font-medium', h.className)}>

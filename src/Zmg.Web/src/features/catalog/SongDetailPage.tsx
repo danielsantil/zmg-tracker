@@ -74,14 +74,14 @@ export default function SongDetailPage() {
 
   return (
     <div className="mx-auto max-w-xl">
-      <button onClick={goBack} className="mb-4 text-sm text-slate-400 hover:text-slate-200">
+      <button onClick={goBack} className="mb-4 text-sm text-muted hover:text-body">
         ‹ Back
       </button>
 
-      <h1 className="mb-6 text-2xl font-semibold text-white">Song</h1>
+      <h1 className="mb-6 text-2xl font-semibold text-strong">Song</h1>
 
       {archived && (
-        <div className="mb-4 rounded-lg border border-edge bg-panel/50 px-4 py-2.5 text-sm text-slate-300">
+        <div className="mb-4 rounded-lg border border-edge bg-panel/50 px-4 py-2.5 text-sm text-body">
           Archived — read only. This song can't be edited or restored.
         </div>
       )}
@@ -92,16 +92,16 @@ export default function SongDetailPage() {
         </Field>
 
         <Field label="Main artist">
-          <p className={`${inputClass} bg-panel/50 text-slate-400`}>
+          <p className={`${inputClass} bg-panel/50 text-muted`}>
             {artists.find((a) => a.id === mainArtistId)?.name ?? song.mainArtistName}
           </p>
         </Field>
 
         {drifts.length > 0 && (
-          <div className="rounded-lg border border-edge bg-panel/50 px-3 py-2 text-xs text-slate-400">
+          <div className="rounded-lg border border-edge bg-panel/50 px-3 py-2 text-xs text-muted">
             {drifts.map((r) => (
               <p key={r.releaseId}>
-                Main artist differs from release <span className="text-slate-300">{r.title}</span> ({r.mainArtistName}).
+                Main artist differs from release <span className="text-body">{r.title}</span> ({r.mainArtistName}).
               </p>
             ))}
           </div>
@@ -140,12 +140,12 @@ export default function SongDetailPage() {
 
       {/* Read-only: every release this song is on. The song's UPCs derive from here. */}
       <section className="mt-8 overflow-hidden rounded-xl border border-edge bg-panel">
-        <div className="px-4 py-3 font-semibold text-white">
-          Releases <span className="text-sm font-normal text-slate-400">({song.releases.length})</span>
+        <div className="px-4 py-3 font-semibold text-strong">
+          Releases <span className="text-sm font-normal text-muted">({song.releases.length})</span>
         </div>
         <div className="border-t border-edge">
           {song.releases.length === 0 ? (
-            <p className="px-4 py-3 text-sm text-slate-500">Not on any release yet.</p>
+            <p className="px-4 py-3 text-sm text-subtle">Not on any release yet.</p>
           ) : (
             <ul>
               {song.releases.map((r) => (
@@ -155,11 +155,11 @@ export default function SongDetailPage() {
                     className="flex items-center justify-between gap-3 px-4 py-2.5 hover:bg-edge/40"
                   >
                     <span className="flex min-w-0 items-center gap-2">
-                      <span className="truncate text-sm text-slate-100">{r.title}</span>
+                      <span className="truncate text-sm text-strong">{r.title}</span>
                       <TypeBadge type={r.type} />
-                      {r.isArchived && <span className="text-xs text-slate-500">archived</span>}
+                      {r.isArchived && <span className="text-xs text-subtle">archived</span>}
                     </span>
-                    <span className="shrink-0 text-xs text-slate-400">
+                    <span className="shrink-0 text-xs text-muted">
                       {r.releaseDate}
                       {r.upc && <span className="ml-2"><b>UPC: {r.upc}</b></span>}
                     </span>

@@ -69,8 +69,8 @@ export default function AllReleasesPage() {
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold text-white">Releases</h1>
-          <p className="text-sm text-slate-400">Every release, newest first.</p>
+          <h1 className="text-2xl font-semibold text-strong">Releases</h1>
+          <p className="text-sm text-muted">Every release, newest first.</p>
         </div>
         <Button onClick={() => navigate('/releases/new')}>+ New release</Button>
       </div>
@@ -91,14 +91,14 @@ export default function AllReleasesPage() {
               onClick={() => setView(v)}
               aria-pressed={view === v}
               className={`rounded-md px-3 py-1 text-sm font-medium capitalize transition ${
-                view === v ? 'bg-edge text-white' : 'text-slate-400 hover:text-slate-200'
+                view === v ? 'bg-edge text-strong' : 'text-muted hover:text-body'
               }`}
             >
               {v}
             </button>
           ))}
         </div>
-        <Link to="/releases/archived" className="text-sm text-slate-400 hover:text-accent">
+        <Link to="/releases/archived" className="text-sm text-muted hover:text-accent">
           Archived Releases →
         </Link>
       </div>
@@ -129,13 +129,13 @@ export default function AllReleasesPage() {
                   <Link
                     to={`/releases/${r.id}`}
                     onClick={(e) => e.stopPropagation()}
-                    className="font-medium text-white hover:text-accent"
+                    className="font-medium text-strong hover:text-accent"
                   >
                     {r.title}
                   </Link>
                   <SoftWarning warnings={r.warnings} />
                 </div>
-                <div className="text-xs text-slate-400">{r.mainArtistName}</div>
+                <div className="text-xs text-muted">{r.mainArtistName}</div>
                 {/* Below sm the Type/Status columns are hidden — fold their badges under the name. */}
                 <div className="mt-1 flex items-center gap-1.5 sm:hidden">
                   <TypeBadge type={r.type} />
@@ -145,7 +145,7 @@ export default function AllReleasesPage() {
               <td className="hidden px-4 py-3 sm:table-cell">
                 <TypeBadge type={r.type} />
               </td>
-              <td className="whitespace-nowrap px-4 py-3 text-slate-300">{r.releaseDate}</td>
+              <td className="whitespace-nowrap px-4 py-3 text-body">{r.releaseDate}</td>
               <td className="hidden px-4 py-3 sm:table-cell">
                 <StatusBadge status={r.status} />
               </td>

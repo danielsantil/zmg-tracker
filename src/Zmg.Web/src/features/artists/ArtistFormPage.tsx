@@ -75,7 +75,7 @@ export default function ArtistFormPage() {
 
   return (
     <div className="mx-auto max-w-xl">
-      <h1 className="mb-6 text-2xl font-semibold text-white">{editing ? 'Edit artist' : 'New artist'}</h1>
+      <h1 className="mb-6 text-2xl font-semibold text-strong">{editing ? 'Edit artist' : 'New artist'}</h1>
 
       <form onSubmit={submit} className="space-y-4">
         <Field label="Name" error={fieldErrors.name}>

@@ -3,11 +3,18 @@ export default {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   theme: {
     extend: {
+      // Every color is backed by a CSS variable (see src/index.css) via the
+      // `<alpha-value>` pattern, so opacity modifiers (bg-ink/80, border-edge/50) keep working
+      // and a later dark/light plan becomes a values-only :root override — no JSX churn.
       colors: {
-        ink: '#0f1115',
-        panel: '#171a21',
-        edge: '#252a34',
-        accent: '#5388c7',
+        ink: 'rgb(var(--ink) / <alpha-value>)',
+        panel: 'rgb(var(--panel) / <alpha-value>)',
+        edge: 'rgb(var(--edge) / <alpha-value>)',
+        accent: 'rgb(var(--accent) / <alpha-value>)',
+        strong: 'rgb(var(--strong) / <alpha-value>)',
+        body: 'rgb(var(--body) / <alpha-value>)',
+        muted: 'rgb(var(--muted) / <alpha-value>)',
+        subtle: 'rgb(var(--subtle) / <alpha-value>)',
       },
       // The toast is centered with -translate-x-1/2, so both frames must keep that X offset —
       // an animation transform replaces the class's, it doesn't compose with it.
