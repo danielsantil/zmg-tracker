@@ -10,7 +10,7 @@ import type { NewTrackDraft, TracklistRow } from '../components/Tracklist';
  * The tracklist half of the release detail (M24.7): an optimistically-mutated track array seeded
  * from the release query, plus add/add-existing/toggle-focus/remove/move and the duplicate-title
  * prompt. Renumbering mirrors the server's contiguous track numbers; tracklist changes can flip
- * pending actions, so those queries are invalidated on success.
+ * pending actions and songs, so those queries are invalidated on success.
  */
 export function useReleaseTracks(
   release: ReleaseDetail,
@@ -26,10 +26,10 @@ export function useReleaseTracks(
 
   useEffect(() => setTracks(initial), [initial]);
 
-  // Tracklist edits can change pending actions and a release's warnings (e.g. "Album is empty").
-  const refreshPending = () => {
+  // Tracklist edits can change pending actions, songs and a release's warnings (e.g. "Album is empty").
+  const refreshData = () => {
     void queryClient.invalidateQueries({ queryKey: queryKeys.pending });
-    void queryClient.invalidateQueries({ queryKey: queryKeys.releases() });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.release(release.id) });
     void queryClient.invalidateQueries({ queryKey: queryKeys.songs() });
   };
 
@@ -66,7 +66,7 @@ export function useReleaseTracks(
         artists: draft.artists.length ? draft.artists : null,
       });
       setTracks((ts) => [...ts, created]);
-      refreshPending();
+      refreshData();
       return true;
     } catch (e) {
       // A duplicate title (unique per artist) opens a prompt: pick the existing song or rename.
@@ -100,7 +100,7 @@ export function useReleaseTracks(
     try {
       const created = await api.tracks.add(id, { songId, title: null, isrc: null, artists: null });
       setTracks((ts) => [...ts, created]);
-      refreshPending();
+      refreshData();
     } catch (e) {
       showToast(errorMessage(e, 'Could not add song.'));
     }
@@ -138,7 +138,7 @@ export function useReleaseTracks(
     );
     try {
       await api.tracks.delete(id, target.songId);
-      refreshPending();
+      refreshData();
     } catch (e) {
       setTracks(prev);
       showToast(errorMessage(e, 'Could not remove track.'));
