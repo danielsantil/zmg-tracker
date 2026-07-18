@@ -11,21 +11,15 @@ for where the project stands and the rules that span plans.
 - [build-plan-2.0.md](build-plan-2.0.md) — songs & catalog (M12–M15). Shipped.
 - [build-plan-2.1.md](build-plan-2.1.md) — UX refinements (M16–M18). Shipped.
 - [build-plan-2.2.md](build-plan-2.2.md) — UX improvements (M19–M23). Shipped.
-- [build-plan-2.3.md](build-plan-2.3.md) — refactor · code health (M24–M25). **M24 (web) + M25 (API +
-  defects + the test-hygiene sweep) shipped. Only a live `docker build` verify is left (see backlog).**
+- [build-plan-2.3.md](build-plan-2.3.md) — refactor · code health (M24–M25). Shipped. A live
+  `docker build` verify is the one non-gating item still open (see backlog).
 
 Newer plan versions go in new `build-plan-N.N.md` files; older ones stay frozen.
 
-**Current state:** feature-complete through v2.2. **v2.3 M24 (web) and M25 (API + defects) are shipped.**
-M25 closed the archived-release write gap, hoisted the title-clash rule, added `AsNoTracking`/query
-tidy, shipped `canArchive` on the release DTOs, threaded `CancellationToken`, split
-`ReleaseService.CreateAsync`, fixed the Dockerfile + a fail-fast connection-string guard, and defused the
-test date bomb. The **test-hygiene sweep** then landed (Domain ObjectMother + AAA; `SongArchiveApiTests`
-13→1 and `ReleaseArchiveApiTests` 8→1 host boots via `IClassFixture`; redundant integration tests
-deleted). Backend tests **domain 73 / API 136**, green (~6s). The **two M24 web items** are closed too —
-the SPA now reads `canArchive` from the DTO and matches the mirrored duplicate-title constant. The SPA
-has **28 Vitest** tests. **One thing left before Phase 2:** a live `docker build` verify (the Dockerfile
-fix is unverified — the daemon was down). Then **Phase 2 — DSP stats** (no build plan yet).
+**Current state:** feature-complete through **v2.3** — a refactor / code-health pass with no
+user-facing features. Backend tests **domain 73 / API 136**, green (~6s); SPA **28 Vitest**. One
+non-gating item remains: a live `docker build` verify (the Dockerfile fix landed but the daemon was
+down here). Next is **Phase 2 — DSP stats** (no build plan yet).
 
 > ⚠️ **v2.0's `InitialCreate` is a hard schema reset with no migration path.** Any local
 > `src/Zmg.Api/zmg.db` from v1.x must be deleted, not upgraded (`rm src/Zmg.Api/zmg.db*`) — startup
@@ -68,46 +62,19 @@ the releases **calendar** view (dependency-free month grid + a day preview modal
 artist delete guard, popovers inside modals, mobile table clipping, and page-level horizontal overflow —
 each now carried as a rule in Cross-cutting decisions rather than as a story here.
 
-**v2.3 M24 (web refactor) — no features, code health.** `strict` on across the SPA (with the
-reachable-null `!`s narrowed); **Vitest** added with 28 tests on the pure modules (`lib/calendar`,
-`lib/format`, `usePersistedState`'s extracted core). **TanStack Query** adopted over the unchanged
-`api/` modules (`api/queries.ts` — key factory + hooks); a 60s `staleTime` means the artist roster
-loads once across navigation instead of on every page. Extracted the list-page shell (`DataTable`,
-`EmptyState`, `ErrorBanner`, `Loading`, `FilterBar`, `useConfirmDelete`) and one `useDebouncedValue`
-(retiring the 4 copy-pasted debounces + their `exhaustive-deps` disables and the 39 `errorMessage`
-repeats). Collapsed the `Template*` fork into generic `TaskRow`/`PhaseSection`/`TimeframeEditor`/
-`MovePhaseItems`. Split `ReleaseDetailPage` into `useReleaseTasks`/`useReleaseTracks` (an outer loader
-+ inner view over a guaranteed release); `ReleaseFormPage` fields → one `useReducer`. Defects fixed:
-`todayIso()` now builds a local date (was UTC), and the stale `TEMPLATE_TASK_COUNT` is gone for a live
-`/api/templates` count. cva for the variant maps (which also fixed `Button` dropping a passed
-`className`); type-aware ESLint with `no-floating-promises`. **Two items parked on M25** (kept working
-in the meantime): the release `canArchive` is still re-derived client-side, and the add-track
-duplicate-title branch still string-matches the validator message.
-
-**v2.3 M25 (API + defects) — no features, code health.** Closed all four defects. **(1) Archived-release
-write gap:** new pure `ReleaseMutability` (a `CanEdit` 409 rule) now gates `ReleaseService.UpdateAsync`,
-all four `TrackService` writes, and all `ReleaseTaskService` writes — the read side already treated
-archived as terminal; no write path did. **(2) Dockerfile:** stage 2 now copies `Zmg.Infra` (the
-missing project reference that made `dotnet restore` fail), and `Program.cs` fail-fasts on a null `Zmg`
-connection string instead of passing it to `UseSqlite` (`ZmgApiFactory` supplies a test value). *The
-image build itself still needs a machine with the Docker daemon running — unverified here.* **(3) Stale
-template constants:** handled on the web side in M24; **(4) test date bomb:** the ~14
-`new DateOnly(2026, 8, 14)` literals → relative `TestDates.Upcoming`, and the four divergent Domain-test
-"today"s → one `TestDates.Today`. Also: the inline-song **title-clash rule** (three copies, two
-divergent) hoisted into `Validation.ValidateReleaseTracks` (now takes the artist's active titles and
-folds the within-request dedupe), so both services call Domain; **`canArchive`** derived server-side via
-new pure `ReleaseArchival` and shipped on `ReleaseListItemDto`/`ReleaseDetailDto`; **`AsNoTracking`** on
-the read paths (`AsNoTrackingWithIdentityResolution` where an include path cycles), a shared
-`SongQueryExtensions.WithDetailIncludes`, `ArtistService.UpdateAsync`'s three `CountAsync` collapsed to
-one projection; **`CancellationToken`** threaded through every service + interface + endpoint;
-`CreateAsync` decomposed into validate/resolve/build/materialise steps. **Tests:** new unit coverage —
-`ReleaseMutabilityTests`, `ReleaseArchivalTests`, `ReorderTests` (via `InternalsVisibleTo`),
-`OperationResultExtensionsTests` (status-code mapping), a 22-route **404 Theory**
-(`NotFoundRoutesApiTests`), the archived-write **409** suite (`ArchivedReleaseWriteApiTests`), and the
-first `?status=` filter + `CanArchive` DTO assertions. Some AAA/Theory tidy landed
-(`ReleaseStatusTests`, `ReleaseTests`, `SeedDataTests`, `ValidationTests`). **Deferred (behavior-neutral,
-suite green without it):** the shared-fixture/one-lifecycle consolidation to cut host boots, the
-exhaustive AAA/Theory pass, and the redundant-integration-test deletions.
+**v2.3 (M24–M25) — refactor · code health, no features.** Web (M24): `strict` on across the SPA,
+**Vitest** added (28 tests on the pure modules), **TanStack Query** adopted over the `api/` modules so
+the artist roster caches across navigation, a shared list-page shell extracted, the `Template*` fork
+collapsed into generic task components, and the `ReleaseDetail`/`ReleaseForm` god-components split;
+`todayIso()` fixed to local date, the stale template constant replaced by a live count, cva for the
+variant maps + typed ESLint. API (M25): closed four defects — archived releases now reject **writes**
+with a 409 (pure `ReleaseMutability`), the Dockerfile copies `Zmg.Infra` + fail-fasts on a null
+connection string, and a relative-date `TestDates` defused the test date bomb — plus the title-clash
+rule hoisted into Domain, `canArchive` derived server-side onto the release DTOs (`ReleaseArchival`),
+`AsNoTracking` read paths, and `CancellationToken` threaded throughout. A **test-hygiene sweep**
+followed (Domain ObjectMother, `IClassFixture` to cut host boots, redundant integration tests pruned),
+and the two parked web items closed — the SPA reads `canArchive` from the DTO and mirrors the
+duplicate-title constant. The Dockerfile fix's live `docker build` is still unverified (daemon was down).
 
 ---
 
@@ -134,6 +101,11 @@ exhaustive AAA/Theory pass, and the redundant-integration-test deletions.
 - **Mutations return the single changed DTO** (or 204); the detail screen holds a flat task array and
   recomputes phase groups + progress client-side, so no re-fetch. Moving a task across phases appends to
   the target (`SortOrder = max+1`).
+- **Derived/aggregate queries don't self-invalidate — a mutation must invalidate them by hand (M24).**
+  `pending` and `templates` are computed server-side from other entities, so a TanStack Query cache keyed
+  on them goes stale when you edit a release/song/template without touching their own key. Any mutation
+  that could shift the "needs attention" set invalidates `queryKeys.pending`; template reorders/edits
+  invalidate `queryKeys.templates`. Missing this leaves a correct server and a stale screen.
 - **Tracks key off `TrackNumber`** (1-based, contiguous) for order and display; reorder rewrites it,
   delete renumbers survivors. Tracklist is UI-gated to albums (endpoints aren't hard-scoped).
 - **Two warning channels — don't add a third.** Release advisories are one `warnings: string[]` built by
@@ -209,37 +181,18 @@ tests/Zmg.Api.Tests      integration tests (WebApplicationFactory + in-memory SQ
 
 ## Backlog / next steps
 
-- **Shipped — v2.3 M24 (web refactor):** strict + Vitest · TanStack Query · shared list-page shell ·
-  `Template*` fork collapsed · `ReleaseDetailPage`/`ReleaseFormPage` split · cva + typed-lint.
-- **Shipped — v2.3 M25 (API + defects):** all four defects closed (archived write gap → `ReleaseMutability`
-  409s; Dockerfile Infra copy + connection-string fail-fast; stale template constants done in M24; date
-  bomb → `TestDates`); title-clash rule hoisted; `canArchive` on the release DTOs (`ReleaseArchival`);
-  `AsNoTracking` read paths + `SongQueryExtensions`; `CancellationToken` everywhere; `CreateAsync` split.
-  Tests **domain 73 / API 143**, all green. New: `ReleaseMutability`/`ReleaseArchival`/`Reorder`/
-  `OperationResultExtensions` units, a 22-route 404 Theory, the archived-write 409 suite, `?status=` +
-  `CanArchive` DTO assertions.
-- **Shipped — v2.3 M25 test-hygiene sweep:** Domain `Builders.cs` ObjectMother (dedupes the 6 private
-  builders) + AAA on `SongArchivalTests`; `SongArchiveApiTests` (13→1 boots) and `ReleaseArchiveApiTests`
-  (8→1) moved to `IClassFixture`; redundant integration tests deleted (2 domain-covered cascade cases, 3
-  triple-covered pending cases, 2 of the 3 `Reorder_with_missing_ids` now that `Reorder` is unit-tested).
-  Tests **domain 73 / API 136**, green; suite wall-clock ~8s → ~6s. `ReleaseListScopeApiTests` (exact
-  global ordering) and `PendingApiTests`/`TemplateApiTests` (aggregate reads / template mutation) stay
-  per-test isolated by necessity, so boots landed ~29 not the plan's optimistic ~11.
-- **Still open (not gating):** **verify `docker build` on a live daemon** (the Dockerfile fix is unverified
-  — daemon was down here); and the remaining low-value polish (exhaustive AAA-comment pass on every file,
-  the last few Theory conversions). Pure hygiene; the suite is green without it.
-- **The two M24 web items M25 unblocked (small SPA follow-up):** the SPA still re-derives `canArchive`
-  (`ReleaseDetailPage`/`AllReleasesPage`/`ReleaseCard`) — consume the DTO's new `CanArchive` — and the
-  add-track branch still string-matches; mirror `Validation.DuplicateSongTitleMessage` in a TS constant.
-- **Then — Phase 2: DSP stats** (the reason this exists over Notion/Trello): hang streaming/revenue data
+- **Shipped — v2.3 (M24–M25):** web refactor (M24) · API + defects (M25) · test-hygiene sweep · the two
+  parked web items closed. See the journal entry and [build-plan-2.3.md](build-plan-2.3.md).
+- **Next — Phase 2: DSP stats** (the reason this exists over Notion/Trello): hang streaming/revenue data
   off the stable Artist / Release / **Song** / Track ids and the UPC/ISRC columns; the v2.0 Song ids are
   its foundation. No build plan yet — write `build-plan-3.0.md` when it starts.
+- **Still open (not gating):** **verify `docker build` on a live daemon** (the Dockerfile fix is unverified
+  — daemon was down here); plus low-value test polish (exhaustive AAA pass, the last few Theory
+  conversions). The suite is green without either.
 - **Per-track task fan-out** on albums: registrations that repeat per track are single "per track" tasks
   today. Decide after the first real album.
-- **Verify the Docker image** on a machine with the daemon running (`docker build -t zmg-tracker .`) —
-  folded into M25 (defect 2); still needs a machine with the daemon running.
 - Deferred: un-archive/restore and hard-delete/purge (archives are terminal by rule); auth for hosted
   deploys; absolute per-task due dates (v1.1 only added timeframe *ranges*). Also carried forward from
   the M24 audit: the **seed-data 3-way drift hazard** (`SeedData.cs` → `InitialCreate` → snapshot, with
   `DeterministicTaskId` renumbering every later GUID on a mid-list insert) — left as-is per CLAUDE.md's
-  hard-reset rule, noted here so M25/Phase 2 don't rediscover it.
+  hard-reset rule, noted here so Phase 2 doesn't rediscover it.
