@@ -270,7 +270,7 @@ export default function ReleaseFormPage() {
         <ErrorBanner error={errors} />
 
         {warnings.length > 0 && (
-          <div className="mb-4 rounded-lg bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+          <div className="mb-4 rounded-lg bg-warn/10 px-4 py-3 text-sm text-warnFg">
             <p className="font-medium">Saved with warnings:</p>
             <ul className="ml-4 list-disc">
               {warnings.map((msg) => (

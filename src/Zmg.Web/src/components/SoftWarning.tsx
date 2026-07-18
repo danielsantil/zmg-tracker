@@ -56,7 +56,7 @@ export function SoftWarning({ warnings }: { warnings: string[] }) {
           e.preventDefault();
           toggle();
         }}
-        className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-amber-400 hover:bg-edge"
+        className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-warnFg hover:bg-edge"
       >
         ⚠
       </button>
@@ -74,7 +74,7 @@ export function SoftWarning({ warnings }: { warnings: string[] }) {
             />
             <div
               style={pos}
-              className="z-50 whitespace-nowrap rounded-lg border border-edge bg-panel px-3 py-2 text-sm text-amber-300 shadow-lg"
+              className="z-50 whitespace-nowrap rounded-lg border border-edge bg-panel px-3 py-2 text-sm text-warnFg shadow-lg"
             >
               <ul className="space-y-0.5">
                 {warnings.map((w) => (

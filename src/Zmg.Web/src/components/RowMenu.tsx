@@ -89,8 +89,8 @@ const menuItem = cva('block w-full px-3 py-3 text-left hover:bg-edge', {
   variants: {
     tone: {
       default: 'text-body',
-      danger: 'text-red-300',
-      archive: 'text-amber-300',
+      danger: 'text-dangerFg',
+      archive: 'text-warnFg',
     },
   },
   defaultVariants: { tone: 'default' },

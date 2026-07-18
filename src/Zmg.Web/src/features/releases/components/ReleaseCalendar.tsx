@@ -18,11 +18,11 @@ import { ReleaseCard } from './ReleaseCard';
 /** Type-tinted so a day's releases are scannable at a glance without reading the titles. */
 const chipTone: Record<ReleaseType, string> = {
   [ReleaseType.Single]: 'bg-accent/20 text-accent ring-1 ring-accent/30',
-  [ReleaseType.Album]: 'bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-500/30',
+  [ReleaseType.Album]: 'bg-ok/20 text-okFg ring-1 ring-ok/30',
 };
 const dotTone: Record<ReleaseType, string> = {
   [ReleaseType.Single]: 'bg-accent',
-  [ReleaseType.Album]: 'bg-emerald-400',
+  [ReleaseType.Album]: 'bg-ok',
 };
 
 /**
@@ -128,7 +128,7 @@ export function ReleaseCalendar({
               <div
                 className={`mb-1 text-center text-xs sm:text-left ${
                   isToday
-                    ? 'mx-auto grid h-5 w-5 place-items-center rounded-full bg-accent font-semibold text-strong sm:mx-0'
+                    ? 'mx-auto grid h-5 w-5 place-items-center rounded-full bg-accent font-semibold text-white sm:mx-0'
                     : inMonth
                       ? 'text-muted'
                       : 'text-subtle'

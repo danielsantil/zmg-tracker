@@ -111,7 +111,7 @@ export default function TemplatesPage() {
         <p className="text-sm text-muted">The default checklist copied onto each new release.</p>
       </div>
 
-      <p className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-sm text-amber-200">
+      <p className="mb-4 rounded-lg border border-warn/30 bg-warn/10 px-4 py-2.5 text-sm text-warnFg">
         Changes apply to future releases only — existing releases keep their own copy.
       </p>
 
@@ -121,7 +121,7 @@ export default function TemplatesPage() {
             key={t.type}
             onClick={() => setTab(t.type)}
             className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition ${
-              tab === t.type ? 'bg-accent text-strong' : 'text-muted hover:text-body'
+              tab === t.type ? 'bg-accent text-white' : 'text-muted hover:text-body'
             }`}
           >
             {t.label}

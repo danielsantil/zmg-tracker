@@ -2,12 +2,20 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Theme tokens as space-separated RGB channels, consumed via rgb(var(--token) / <alpha-value>) in
+ * tailwind.config.js so opacity modifiers (bg-ink/80, border-edge/50, bg-warn/15) still work.
+ *
+ * `:root` holds the DARK palette — it serves both the pre-attribute instant and data-theme="dark"
+ * (which falls through to it), so no duplicate dark block is needed. Only `data-theme="light"`
+ * overrides, and only the channels that actually change: the neutrals, --accent, and the semantic
+ * *foregrounds* (--*-fg). The semantic base hues (--info/--warn/--ok/--danger) are shared by both
+ * themes — a low-opacity tint of them reads on either background — so light never redefines them.
+ * The theme attribute is set pre-paint by the inline script in index.html and synced by useTheme.
+ */
 :root {
-  color-scheme: dark; /* the future dark/light plan flips this + overrides the channels below */
+  color-scheme: dark;
 
-  /* Semantic color tokens as space-separated RGB channels, consumed via
-     rgb(var(--token) / <alpha-value>) in tailwind.config.js so opacity modifiers
-     (bg-ink/80, border-edge/50) still work. Values are today's dark palette. */
   --ink: 15 17 21; /* #0f1115 */
   --panel: 23 26 33; /* #171a21 */
   --edge: 37 42 52; /* #252a34 */
@@ -17,6 +25,32 @@
   --body: 226 232 240; /* slate-200/300 — default body text */
   --muted: 148 163 184; /* slate-400 */
   --subtle: 100 116 139; /* slate-500/600 */
+
+  /* Semantic roles: a shared base hue for the chip's bg/ring tint, and a foreground that flips per
+     theme (light shade on dark here; dark shade under [data-theme="light"] below). */
+  --info: 14 165 233; /* sky-500  */   --info-fg: 125 211 252; /* sky-300 */
+  --warn: 245 158 11; /* amber-500 */  --warn-fg: 252 211 77; /* amber-300 */
+  --ok: 16 185 129; /* emerald-500 */  --ok-fg: 110 231 183; /* emerald-300 */
+  --danger: 239 68 68; /* red-500 */   --danger-fg: 252 165 165; /* red-300 */
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  --ink: 248 250 252; /* slate-50 */
+  --panel: 255 255 255; /* white */
+  --edge: 226 232 240; /* slate-200 */
+  --accent: 37 99 165; /* #2563a5 — darkened for legible links + white-on-accent on white */
+
+  --strong: 15 23 42; /* slate-900 */
+  --body: 30 41 59; /* slate-800 */
+  --muted: 71 85 105; /* slate-600 */
+  --subtle: 100 116 139; /* slate-500 */
+
+  --info-fg: 3 105 161; /* sky-700 */
+  --warn-fg: 180 83 9; /* amber-700 */
+  --ok-fg: 4 120 87; /* emerald-700 */
+  --danger-fg: 185 28 28; /* red-700 */
 }
 
 html,

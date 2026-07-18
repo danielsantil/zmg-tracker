@@ -48,7 +48,7 @@ export function PhaseSection<T extends ChecklistTask>({
       <span className="text-sm font-normal text-muted">
         {tracksProgress ? `(${done}/${total})` : `(${total})`}
       </span>
-      {allDone && <span className="text-emerald-400">✓</span>}
+      {allDone && <span className="text-okFg">✓</span>}
     </span>
   );
 

@@ -9,14 +9,14 @@ import { PendingKind } from '@/types';
  */
 export function NeedsAttention({ actions }: { actions: PendingAction[] }) {
   return (
-    <div className="mb-6 overflow-hidden rounded-xl border border-amber-500/25 bg-amber-500/[0.06]">
-      <div className="border-b border-amber-500/20 px-4 py-2.5 text-sm font-semibold text-amber-200">
+    <div className="mb-6 overflow-hidden rounded-xl border border-warn/25 bg-warn/[0.06]">
+      <div className="border-b border-warn/20 px-4 py-2.5 text-sm font-semibold text-warnFg">
         Needs attention
       </div>
       <ul className="px-4 py-2">
         {actions.map((a, i) => (
           <li key={`${a.taskId ?? a.songId ?? a.kind}-${i}`} className="flex items-baseline gap-2 py-1 text-sm text-body">
-            <span className="text-amber-300">•</span>
+            <span className="text-warnFg">•</span>
             {a.kind === PendingKind.MissingIsrc && a.songId ? (
               <Link to={`/catalog/${a.songId}`} className="text-body underline decoration-dotted hover:text-strong">
                 {a.label} — {a.subject}

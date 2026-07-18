@@ -82,7 +82,7 @@ export function TaskRow<T extends ChecklistTask>({
             onClick={() => !readOnly && onToggle(task)}
             className={`grid h-6 w-6 shrink-0 place-items-center rounded-md border transition ${
               isDone
-                ? 'border-accent bg-accent text-strong'
+                ? 'border-accent bg-accent text-white'
                 : 'border-edge bg-panel hover:border-accent'
             } ${readOnly ? 'cursor-default opacity-70 hover:border-edge' : ''}`}
           >

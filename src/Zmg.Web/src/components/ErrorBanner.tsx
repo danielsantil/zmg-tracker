@@ -8,7 +8,7 @@ export function ErrorBanner({ error }: { error: string | string[] | null | undef
   if (messages.length === 0) return null;
 
   return (
-    <ul className="mb-4 rounded-lg bg-red-500/10 px-4 py-3 text-sm text-red-300">
+    <ul className="mb-4 rounded-lg bg-danger/10 px-4 py-3 text-sm text-dangerFg">
       {messages.map((msg) => (
         <li key={msg}>{msg}</li>
       ))}

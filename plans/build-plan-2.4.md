@@ -137,8 +137,9 @@ toggle reusing `usePersistedState` (like the calendar/table toggle). No JSX chan
 ## Not in scope (deliberate)
 
 - **The actual dark/light toggle** — M27 is groundwork only; flipping `color-scheme`, adding the light
-  override block, and the toggle UI are the follow-up plan.
+  override block, and the toggle UI are the follow-up. *(Done in M28 below.)*
 - **Tokenizing status colors** — amber/red/emerald/green stay raw until the theme work needs them.
+  *(Done in M28 below.)*
 - **Upgrading the non-kebab glyphs** (`ReorderArrows` ↑/↓, Tracklist `✕`, `Open release →`) — lucide
   is available; not done here.
 
@@ -171,3 +172,66 @@ SPA-only (no API/DTO/domain change) → no `dotnet test`.
    - **M27 is a visual no-op:** colors look identical to before the remap (spot-check a few pages).
 3. `read_console_messages` — no new errors.
 4. Update `plans/PROGRESS.md`: journal entry for v2.4 (M26–M27).
+
+---
+
+# M28 — Dark/light theme toggle
+
+Continues M26–M27. M27 tokenized the neutrals so light mode is a **values-only override**; M28 cashes
+that in — adds the light palette, the semantic-chip tokens M27 deferred, and the user-facing toggle.
+Still SPA-only → `npm run lint` + `build` + `test` + a browser drive; **no `dotnet test`**.
+
+**Decisions locked with the user:** cool-slate light palette (mockup approved); first-visit default
+**follows `prefers-color-scheme`**, then a manual choice wins; toggle is a single icon-only navbar
+button (right-aligned) showing the mode you'd switch **to** — lucide `Sun` in dark, `Moon` in light.
+
+### 1. Theme channels (`src/index.css`)
+`:root` keeps the dark channels (serving both the no-attribute instant and `data-theme="dark"`, which
+falls through — no duplicate dark block). `:root[data-theme="light"]` overrides only what changes:
+neutrals + `--accent` (darkened to `37 99 165` for legible links / white-on-accent on white) + the
+semantic **foregrounds**. New semantic roles — `--info`/`--warn`/`--ok`/`--danger` (shared base hue for
+the tint) each paired with `--*-fg` (flips: light shade on dark, dark shade `~700` under light).
+`color-scheme` flips too, so native controls follow.
+
+### 2. Tailwind (`tailwind.config.js`)
+`darkMode: ['selector', '[data-theme="dark"]']` (hygiene). Register the semantic colors like the
+neutrals via the `<alpha-value>` pattern; `-fg` tokens use camelCase keys (`warnFg` → `text-warnFg`)
+since the alpha pattern can't carry a hyphen cleanly.
+
+### 3. Semantic-chip remap (the deferred M27 work)
+Tinted-chip + colored-text usages → tokens: `bg-warn/15 text-warnFg ring-warn/30`. Touched the ~15
+files carrying `sky/amber/emerald/green/red` (StatusBadge, SoftWarning, RowMenu, Button, Field,
+ErrorBanner, PendingSection, NeedsAttention, ReleaseFormPage, TemplatesPage, ReleaseCalendar,
+PhaseSection, Tracklist, CatalogPage). A **sub-shade normalization** falls out: the incidental
+amber-200/400 and green-400 accents now resolve through the unified `warn`/`ok` foreground, so dark's
+few soft accents shift by one shade — the prominent badges/buttons (already `-300`/`-500`) stay exact.
+**`text-strong` → `text-white` on every accent/saturated solid** (the plan's "leave raw" note missed
+these): `Toast` text, primary `Button`, logo `Z`, the checked-checkbox `✓` (`TaskRow`), the calendar
+**today** chip (`ReleaseCalendar`), and the selected template type tab (`TemplatesPage`). `text-strong`
+flips to dark slate in light, so on a solid accent/colored fill it would vanish — forcing white keeps
+all of them legible in both themes. `Toast`'s saturated bg's stay raw.
+
+### 4. Control + no-flash init
+- **`src/hooks/useTheme.ts`** (new) — `Theme`, `isTheme`, pure `resolveInitialTheme()` (saved choice
+  via `readPersisted`, else `globalThis.matchMedia`), and `useTheme()` that reflects `data-theme` onto
+  `<html>` and **persists only on explicit toggle** (so a first visit follows the OS until a choice).
+- **`src/App.tsx`** — `ThemeToggle` (lucide `Sun`/`Moon`, dynamic `aria-label`) `ml-auto` at the nav's
+  right; survives the sub-440px nav wrap.
+- **`index.html`** — inline `<head>` script sets `data-theme` pre-paint (saved value else
+  `prefers-color-scheme`, try/catch → dark) so a light reload never flashes dark. Mirrors
+  `resolveInitialTheme`.
+
+### 5. Test (`src/hooks/useTheme.test.ts`)
+Pure `resolveInitialTheme`/`isTheme` (node env, `vi.stubGlobal('matchMedia')`): saved wins, invalid
+falls through, absent follows the OS, no-matchMedia → dark. **+5 Vitest → 32 web tests.**
+
+### Files at a glance
+**New:** `src/hooks/useTheme.ts` (+ `.test.ts`). **Modified:** `src/index.css`, `tailwind.config.js`,
+`index.html`, `src/App.tsx`, plus the ~15 semantic-color component files above.
+
+### Verification (done)
+`lint` + `build` + `test` (32) green. Browser drive at desktop + 375px: toggle flips the app and shows
+the target-mode icon; reload **persists** (verified `data-theme`/`zmg.theme` + computed `--ink`
+`rgb(248,250,252)`); **no FOUC**; every semantic token resolves to its per-theme value (e.g. light
+`--warn-fg` `180 83 9`, Released badge `rgb(180,83,9)` on `rgba(245,158,11,.15)`); badges/warnings/
+buttons legible in light; dark unchanged; dev server clean (stale HMR console entries only).

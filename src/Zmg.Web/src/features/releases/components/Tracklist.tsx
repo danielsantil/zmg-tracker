@@ -94,7 +94,7 @@ export function Tracklist({
                       disabled={!editable}
                       onClick={() => onToggleFocus(row)}
                       className={`shrink-0 text-lg leading-none transition ${
-                        row.isFocusTrack ? 'text-amber-400' : 'text-subtle hover:text-muted'
+                        row.isFocusTrack ? 'text-warnFg' : 'text-subtle hover:text-muted'
                       } ${editable ? '' : 'cursor-default'}`}
                     >
                       {row.isFocusTrack ? '★' : '☆'}
@@ -109,7 +109,7 @@ export function Tracklist({
                     ) : (
                       <span className="text-strong">{row.title}</span>
                     )}
-                    {row.isFocusTrack && <span className="ml-2 text-xs text-amber-400/80">focus</span>}
+                    {row.isFocusTrack && <span className="ml-2 text-xs text-warnFg/80">focus</span>}
                     {row.isSongArchived && <span className="ml-2 text-xs text-subtle">archived</span>}
                     {row.isrc && <span className="ml-2 text-xs text-subtle">{row.isrc}</span>}
                   </span>
@@ -125,7 +125,7 @@ export function Tracklist({
                         type="button"
                         aria-label="Remove track"
                         onClick={() => onRemove(row)}
-                        className="ml-3 px-1.5 text-red-400/70 hover:text-red-300"
+                        className="ml-3 px-1.5 text-dangerFg/70 hover:text-dangerFg"
                       >
                         ✕
                       </button>

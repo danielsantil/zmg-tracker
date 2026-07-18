@@ -111,7 +111,7 @@ export default function CatalogPage() {
               <td className="px-4 py-3 font-medium text-strong">{s.title}</td>
               <td className="px-4 py-3 text-body">{s.mainArtistName}</td>
               <td className="px-4 py-3">
-                {s.releaseCount > 0 ? <span className="text-green-400">Yes</span> : <span className="text-muted">No</span>}
+                {s.releaseCount > 0 ? <span className="text-okFg">Yes</span> : <span className="text-muted">No</span>}
               </td>
               <td className="px-4 py-3 text-right">
                 {(s.isOrphan || s.canArchive) && (

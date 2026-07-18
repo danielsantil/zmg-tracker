@@ -13,14 +13,14 @@ for where the project stands and the rules that span plans.
 - [build-plan-2.2.md](build-plan-2.2.md) — UX improvements (M19–M23). Shipped.
 - [build-plan-2.3.md](build-plan-2.3.md) — refactor · code health (M24–M25). Shipped. A live
   `docker build` verify is the one non-gating item still open (see backlog).
-- [build-plan-2.4.md](build-plan-2.4.md) — UI polish · dark/light groundwork (M26–M27). Shipped.
+- [build-plan-2.4.md](build-plan-2.4.md) — UI polish · dark/light (M26–M28). Shipped.
 
 Newer plan versions go in new `build-plan-N.N.md` files; older ones stay frozen.
 
-**Current state:** feature-complete through **v2.4** — a SPA-only UI-polish + color-tokens pass. Backend
-tests **domain 73 / API 136**, green (~6s); SPA **28 Vitest**. One non-gating item remains: the pending
-live `docker build` verify. Next is the **dark/light toggle** (values-only override on the v2.4 token
-groundwork), then **Phase 2 — DSP stats** (no build plan yet).
+**Current state:** feature-complete through **v2.4** — UI polish, semantic color tokens, and a working
+**dark/light theme toggle**. Backend tests **domain 73 / API 136**, green (~6s); SPA **32 Vitest**. One
+non-gating item remains: the pending live `docker build` verify. Next is **Phase 2 — DSP stats** (no
+build plan yet).
 
 > ⚠️ **v2.0's `InitialCreate` is a hard schema reset with no migration path.** Any local
 > `src/Zmg.Api/zmg.db` from v1.x must be deleted, not upgraded (`rm src/Zmg.Api/zmg.db*`) — startup
@@ -102,6 +102,24 @@ computed styles resolve to the exact original values (`--ink` rgb(15,17,21), `--
 `--muted` rgb(148,163,184)), colors identical across pages. Payoff for the toggle plan: add
 `darkMode: 'class'`/`[data-theme]`, a `:root[data-theme='light']` channel override, and a
 `usePersistedState` toggle — no JSX changes.
+
+**v2.4 M28 — dark/light theme toggle (SPA-only).** Cashed in M27's groundwork. `src/index.css` keeps the
+dark channels on `:root` (serving both the no-attribute instant and `data-theme="dark"`, which falls
+through — no duplicate block) and overrides only what changes under `:root[data-theme="light"]`: the
+cool-slate neutrals, `--accent` darkened to `37 99 165`, and the semantic **foregrounds**. New semantic
+roles `--info`/`--warn`/`--ok`/`--danger` pair a shared base hue (chip tint) with a per-theme `--*-fg`
+(camelCase Tailwind keys, `text-warnFg`) — this is the status-color tokenization M27 deferred, remapped
+across ~15 chip/text components. `text-strong`→`text-white` on every accent/saturated solid
+(Toast text, primary Button, logo Z, the checked-checkbox ✓, the calendar today chip, the selected
+template type tab) — `text-strong` flips to dark slate in light and would vanish on those fills. Control: a pure `resolveInitialTheme` (saved choice via
+`readPersisted`, else `matchMedia`) + `useTheme` that reflects `data-theme` onto `<html>` and persists
+**only on explicit toggle** (first visit follows the OS); a right-aligned lucide `Sun`/`Moon` navbar
+button showing the *target* mode; and an inline `index.html` script that sets `data-theme` pre-paint so
+a light reload never flashes dark. **+5 Vitest → 32 web tests.** Verified in-browser: toggle flips +
+persists, no FOUC, every token resolves per-theme (light `--warn-fg` `180 83 9`, `--ink`
+`rgb(248,250,252)`), badges/warnings/buttons legible in light, dark unchanged. One deliberate wrinkle —
+the incidental amber-200/400 and green-400 accents now resolve through the unified `warn`/`ok`
+foreground, so a few soft dark-mode accents shift by one shade; the prominent badges/buttons stay exact.
 
 ---
 
@@ -203,12 +221,7 @@ tests/Zmg.Api.Tests      integration tests (WebApplicationFactory + in-memory SQ
 
 ## Backlog / next steps
 
-- **Next — dark/light toggle:** the v2.4 M27 groundwork is in place (semantic CSS-variable tokens). Flip
-  it on with `darkMode: 'class'`/`[data-theme]` in the config, a `:root[data-theme='light']` channel
-  override, and a `usePersistedState` toggle — no JSX changes. Tokenize the status badges (amber/red/
-  emerald/green + the Archived slate tint) as part of this, designing both themes' badge treatments
-  together. No build plan yet.
-- **Deferred — Phase 2: DSP stats** (the reason this exists over Notion/Trello): hang streaming/revenue data
+- **Next — Phase 2: DSP stats** (the reason this exists over Notion/Trello): hang streaming/revenue data
   off the stable Artist / Release / **Song** / Track ids and the UPC/ISRC columns; the v2.0 Song ids are
   its foundation. No build plan yet — write `build-plan-3.0.md` when it starts.
 - **Still open (not gating):** **verify `docker build` on a live daemon** (the Dockerfile fix is unverified
