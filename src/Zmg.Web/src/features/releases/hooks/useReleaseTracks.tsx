@@ -30,6 +30,7 @@ export function useReleaseTracks(
   const refreshPending = () => {
     void queryClient.invalidateQueries({ queryKey: queryKeys.pending });
     void queryClient.invalidateQueries({ queryKey: queryKeys.releases() });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.songs() });
   };
 
   const orderedTracks = useMemo(

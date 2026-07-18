@@ -47,7 +47,14 @@ export default function ArchivedReleasesPage() {
       ) : releases.length === 0 ? (
         <EmptyState>No archived releases.</EmptyState>
       ) : (
-        <DataTable headers={['Name', 'Type', 'Released Date', 'Action']}>
+        <DataTable
+          headers={[
+            { label: 'Name' },
+            { label: 'Type', className: 'hidden sm:table-cell' },
+            { label: 'Released Date' },
+            { label: '', className: 'text-right' },
+          ]}
+        >
           {releases.map((r) => (
             <tr key={r.id} onClick={() => navigate(`/releases/${r.id}`)} className={dataRowClass}>
               <td className="px-4 py-3">
@@ -62,12 +69,16 @@ export default function ArchivedReleasesPage() {
                   <StatusBadge status={r.status} />
                 </div>
                 <div className="text-xs text-slate-400">{r.mainArtistName}</div>
+                {/* Below sm the Type column is hidden — fold its badge under the name. */}
+                <div className="mt-1 flex items-center gap-1.5 sm:hidden">
+                  <TypeBadge type={r.type} />
+                </div>
               </td>
-              <td className="px-4 py-3">
+              <td className="hidden px-4 py-3 sm:table-cell">
                 <TypeBadge type={r.type} />
               </td>
               <td className="whitespace-nowrap px-4 py-3 text-slate-300">{r.releaseDate}</td>
-              <td className="px-4 py-3">
+              <td className="px-4 py-3 text-right">
                 <Button
                   variant="danger"
                   onClick={(e) => {

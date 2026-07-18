@@ -46,7 +46,13 @@ export default function ArchivedSongsPage() {
       ) : songs.length === 0 ? (
         <EmptyState>No archived songs.</EmptyState>
       ) : (
-        <DataTable headers={['Name', 'Main Artist', 'Action']}>
+        <DataTable
+          headers={[
+            { label: 'Name' },
+            { label: 'Main Artist' },
+            { label: '', className: 'text-right' },
+          ]}
+        >
           {songs.map((s) => (
             <tr key={s.id} onClick={() => navigate(`/catalog/${s.id}`)} className={dataRowClass}>
               <td className="px-4 py-3">
@@ -59,7 +65,7 @@ export default function ArchivedSongsPage() {
                 </Link>
               </td>
               <td className="px-4 py-3 text-slate-300">{s.mainArtistName}</td>
-              <td className="px-4 py-3">
+              <td className="px-4 py-3 text-right">
                 <Button
                   variant="danger"
                   onClick={(e) => {

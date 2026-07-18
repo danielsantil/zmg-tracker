@@ -72,6 +72,7 @@ function ReleaseDetailView({ release }: { release: ReleaseDetail }) {
       void queryClient.invalidateQueries({ queryKey: queryKeys.release(release.id) });
       void queryClient.invalidateQueries({ queryKey: queryKeys.releases() });
       void queryClient.invalidateQueries({ queryKey: queryKeys.pending });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.songs() });
     } catch (e) {
       showToast(errorMessage(e, 'Could not archive.'));
     }

@@ -79,7 +79,7 @@ export default function HomePage() {
           </p>
         </EmptyState>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {releases.map((r) => (
             <ReleaseCard
               key={r.id}

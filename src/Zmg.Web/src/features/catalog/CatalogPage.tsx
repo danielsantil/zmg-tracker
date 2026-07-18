@@ -98,7 +98,14 @@ export default function CatalogPage() {
           {hasFilters ? 'No songs match these filters.' : 'No songs yet — add one or create a release.'}
         </EmptyState>
       ) : (
-        <DataTable headers={['Name', 'Main Artist', 'Released', 'Action']}>
+        <DataTable
+          headers={[
+            { label: 'Name' },
+            { label: 'Main Artist' },
+            { label: 'Released' },
+            { label: '', className: 'text-right' },
+          ]}
+        >
           {songs.map((s) => (
             <tr key={s.id} onClick={() => navigate(`/catalog/${s.id}`)} className={dataRowClass}>
               <td className="px-4 py-3 font-medium text-white">{s.title}</td>
@@ -106,9 +113,9 @@ export default function CatalogPage() {
               <td className="px-4 py-3">
                 {s.releaseCount > 0 ? <span className="text-green-400">Yes</span> : <span className="text-gray-400">No</span>}
               </td>
-              <td className="px-4 py-3">
+              <td className="px-4 py-3 text-right">
                 {(s.isOrphan || s.canArchive) && (
-                  <div onClick={(e) => e.stopPropagation()} className="w-fit">
+                  <div onClick={(e) => e.stopPropagation()} className="flex justify-end">
                     <RowMenu label="Song actions">
                       {(close) =>
                         s.isOrphan ? (

@@ -13,13 +13,15 @@ for where the project stands and the rules that span plans.
 - [build-plan-2.2.md](build-plan-2.2.md) — UX improvements (M19–M23). Shipped.
 - [build-plan-2.3.md](build-plan-2.3.md) — refactor · code health (M24–M25). Shipped. A live
   `docker build` verify is the one non-gating item still open (see backlog).
+- [build-plan-2.4.md](build-plan-2.4.md) — UI polish · dark/light groundwork (M26–M27). **M26 shipped;
+  M27 (semantic color tokens) next.**
 
 Newer plan versions go in new `build-plan-N.N.md` files; older ones stay frozen.
 
-**Current state:** feature-complete through **v2.3** — a refactor / code-health pass with no
-user-facing features. Backend tests **domain 73 / API 136**, green (~6s); SPA **28 Vitest**. One
-non-gating item remains: a live `docker build` verify (the Dockerfile fix landed but the daemon was
-down here). Next is **Phase 2 — DSP stats** (no build plan yet).
+**Current state:** through **v2.4 M26** — a SPA-only UI-polish pass. Backend tests **domain 73 / API
+136**, green (~6s); SPA **28 Vitest**. Two items open: **v2.4 M27** (semantic color tokens, the
+dark/light groundwork — next up) and the still-pending live `docker build` verify. Phase 2 — DSP stats
+follows (no build plan yet).
 
 > ⚠️ **v2.0's `InitialCreate` is a hard schema reset with no migration path.** Any local
 > `src/Zmg.Api/zmg.db` from v1.x must be deleted, not upgraded (`rm src/Zmg.Api/zmg.db*`) — startup
@@ -75,6 +77,16 @@ rule hoisted into Domain, `canArchive` derived server-side onto the release DTOs
 followed (Domain ObjectMother, `IClassFixture` to cut host boots, redundant integration tests pruned),
 and the two parked web items closed — the SPA reads `canArchive` from the DTO and mirrors the
 duplicate-title constant. The Dockerfile fix's live `docker build` is still unverified (daemon was down).
+
+**v2.4 M26 — UI polish (SPA-only).** Four user-visible fixes: **lucide-react** added and the `RowMenu`
+kebab glyph swapped from the literal `⋮` to `<EllipsisVertical />` (updates all five call sites at once);
+`DataTable`'s `headers` evolved from `string[]` to `{ label; className? }[]` so the action column can be
+**headerless + right-aligned** (retiring the "Action"/"Actions" label inconsistency) and columns can be
+responsive-hidden; the mobile **Releases** table now folds Type/Status badges under the name below `sm`
+(`hidden sm:table-cell` on those columns) so the kebab is reachable without sideways scroll — same
+Type-fold on Archived Releases; and the **Home** card grid got `items-start` so cards size to their own
+content instead of stretching to the tallest in the row (verified `align-items: flex-start`, mixed
+458/318px heights). No API/DTO/domain change → lint + build + browser drive only, no `dotnet test`.
 
 ---
 
@@ -176,7 +188,8 @@ tests/Zmg.Api.Tests      integration tests (WebApplicationFactory + in-memory SQ
 
 ## Backlog / next steps
 
-- **Next — v2.4 (M26–M27):** UI polish · dark/light groundwork. See the journal entry and [build-plan-2.4.md](build-plan-2.4.md).
+- **Next — v2.4 M27:** semantic color tokens (dark/light groundwork) — route the hardcoded dark neutrals
+  through theme-swappable CSS-variable tokens, a visual no-op. M26 shipped. See [build-plan-2.4.md](build-plan-2.4.md).
 - **Deferred — Phase 2: DSP stats** (the reason this exists over Notion/Trello): hang streaming/revenue data
   off the stable Artist / Release / **Song** / Track ids and the UPC/ISRC columns; the v2.0 Song ids are
   its foundation. No build plan yet — write `build-plan-3.0.md` when it starts.

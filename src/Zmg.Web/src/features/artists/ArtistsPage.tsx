@@ -70,7 +70,14 @@ export default function ArtistsPage() {
       ) : artists.length === 0 ? (
         <EmptyState>No artists yet. Add one to start creating releases.</EmptyState>
       ) : (
-        <DataTable headers={['Name', 'Releases', 'Songs', 'Actions']}>
+        <DataTable
+          headers={[
+            { label: 'Name' },
+            { label: 'Releases' },
+            { label: 'Songs' },
+            { label: '', className: 'text-right' },
+          ]}
+        >
           {artists.map((a) => (
             <tr key={a.id} onClick={() => navigate(`/artists/${a.id}`)} className={dataRowClass}>
               <td className="px-4 py-3">
@@ -85,8 +92,8 @@ export default function ArtistsPage() {
               </td>
               <td className="px-4 py-3 text-slate-300">{a.releaseCount}</td>
               <td className="px-4 py-3 text-slate-300">{a.songCount}</td>
-              <td className="px-4 py-3">
-                <div onClick={(e) => e.stopPropagation()} className="w-fit">
+              <td className="px-4 py-3 text-right">
+                <div onClick={(e) => e.stopPropagation()} className="flex justify-end">
                   <RowMenu label="Artist actions">
                     {(close) => (
                       <MenuItem

@@ -113,7 +113,15 @@ export default function AllReleasesPage() {
       ) : releases.length === 0 ? (
         <EmptyState>{hasFilters ? 'No releases match these filters.' : 'No releases yet.'}</EmptyState>
       ) : (
-        <DataTable headers={['Name', 'Type', 'Released Date', 'Status', 'Action']}>
+        <DataTable
+          headers={[
+            { label: 'Name' },
+            { label: 'Type', className: 'hidden sm:table-cell' },
+            { label: 'Released Date' },
+            { label: 'Status', className: 'hidden sm:table-cell' },
+            { label: '', className: 'text-right' },
+          ]}
+        >
           {releases.map((r) => (
             <tr key={r.id} onClick={() => navigate(`/releases/${r.id}`)} className={dataRowClass}>
               <td className="px-4 py-3">
@@ -128,16 +136,21 @@ export default function AllReleasesPage() {
                   <SoftWarning warnings={r.warnings} />
                 </div>
                 <div className="text-xs text-slate-400">{r.mainArtistName}</div>
+                {/* Below sm the Type/Status columns are hidden — fold their badges under the name. */}
+                <div className="mt-1 flex items-center gap-1.5 sm:hidden">
+                  <TypeBadge type={r.type} />
+                  <StatusBadge status={r.status} />
+                </div>
               </td>
-              <td className="px-4 py-3">
+              <td className="hidden px-4 py-3 sm:table-cell">
                 <TypeBadge type={r.type} />
               </td>
               <td className="whitespace-nowrap px-4 py-3 text-slate-300">{r.releaseDate}</td>
-              <td className="px-4 py-3">
+              <td className="hidden px-4 py-3 sm:table-cell">
                 <StatusBadge status={r.status} />
               </td>
-              <td className="px-4 py-3">
-                <div onClick={(e) => e.stopPropagation()} className="w-fit">
+              <td className="px-4 py-3 text-right">
+                <div onClick={(e) => e.stopPropagation()} className="flex justify-end">
                   <RowMenu label="Release actions">
                     {(close) => (
                       <>
