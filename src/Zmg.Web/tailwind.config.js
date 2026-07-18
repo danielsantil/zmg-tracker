@@ -7,7 +7,7 @@ export default {
         ink: '#0f1115',
         panel: '#171a21',
         edge: '#252a34',
-        accent: '#7c5cff',
+        accent: '#5388c7',
       },
       // The toast is centered with -translate-x-1/2, so both frames must keep that X offset —
       // an animation transform replaces the class's, it doesn't compose with it.
