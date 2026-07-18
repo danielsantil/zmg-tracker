@@ -13,7 +13,7 @@ albums. .NET 8 backend (minimal API + EF/SQLite) with a React + Vite + Tailwind 
 - **`plans/PROGRESS.md`** — the running journal: current state, what shipped per version, and
   what's next. This is the source of truth for project state (the root `README.md` lags behind it).
 - **`plans/build-plan-*.md`** — per-milestone scope, rationale, wireframes, and test lists. Newer
-  versions are new files; older ones stay frozen.
+  versions are new files; older ones stay frozen. Read latest plan only. No need to read old plans, unless a reference to an old milestone is made.
 
 ## Build workflow (follow every time)
 

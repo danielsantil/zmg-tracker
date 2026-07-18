@@ -176,9 +176,8 @@ tests/Zmg.Api.Tests      integration tests (WebApplicationFactory + in-memory SQ
 
 ## Backlog / next steps
 
-- **Shipped — v2.3 (M24–M25):** web refactor (M24) · API + defects (M25) · test-hygiene sweep · the two
-  parked web items closed. See the journal entry and [build-plan-2.3.md](build-plan-2.3.md).
-- **Next — Phase 2: DSP stats** (the reason this exists over Notion/Trello): hang streaming/revenue data
+- **Next — v2.4 (M26–M27):** UI polish · dark/light groundwork. See the journal entry and [build-plan-2.4.md](build-plan-2.4.md).
+- **Deferred — Phase 2: DSP stats** (the reason this exists over Notion/Trello): hang streaming/revenue data
   off the stable Artist / Release / **Song** / Track ids and the UPC/ISRC columns; the v2.0 Song ids are
   its foundation. No build plan yet — write `build-plan-3.0.md` when it starts.
 - **Still open (not gating):** **verify `docker build` on a live daemon** (the Dockerfile fix is unverified
