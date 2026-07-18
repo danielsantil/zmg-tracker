@@ -101,11 +101,6 @@ duplicate-title constant. The Dockerfile fix's live `docker build` is still unve
 - **Mutations return the single changed DTO** (or 204); the detail screen holds a flat task array and
   recomputes phase groups + progress client-side, so no re-fetch. Moving a task across phases appends to
   the target (`SortOrder = max+1`).
-- **Derived/aggregate queries don't self-invalidate — a mutation must invalidate them by hand (M24).**
-  `pending` and `templates` are computed server-side from other entities, so a TanStack Query cache keyed
-  on them goes stale when you edit a release/song/template without touching their own key. Any mutation
-  that could shift the "needs attention" set invalidates `queryKeys.pending`; template reorders/edits
-  invalidate `queryKeys.templates`. Missing this leaves a correct server and a stale screen.
 - **Tracks key off `TrackNumber`** (1-based, contiguous) for order and display; reorder rewrites it,
   delete renumbers survivors. Tracklist is UI-gated to albums (endpoints aren't hard-scoped).
 - **Two warning channels — don't add a third.** Release advisories are one `warnings: string[]` built by
