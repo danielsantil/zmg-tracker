@@ -51,20 +51,16 @@ describe('date-relative helpers', () => {
   });
 
   describe('formatCountdown', () => {
-    it('says "Releases today" on the day', () => {
-      expect(formatCountdown('Upcoming', '2026-07-17')).toBe('Releases today');
+    it('says "Releasing today" on the day', () => {
+      expect(formatCountdown('2026-07-17')).toBe('Releasing today');
     });
 
     it('counts the days up for a future upcoming release', () => {
-      expect(formatCountdown('Upcoming', '2026-07-20')).toBe('in 3 days');
-    });
-
-    it('returns null when the status is not Upcoming', () => {
-      expect(formatCountdown('Released', '2026-07-20')).toBeNull();
+      expect(formatCountdown('2026-07-20')).toBe('in 3 days');
     });
 
     it('returns null once the release date has passed', () => {
-      expect(formatCountdown('Upcoming', '2026-07-16')).toBeNull();
+      expect(formatCountdown('2026-07-16')).toBeNull();
     });
   });
 });

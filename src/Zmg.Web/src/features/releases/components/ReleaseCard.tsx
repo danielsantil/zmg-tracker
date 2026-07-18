@@ -22,7 +22,7 @@ export function ReleaseCard({
   showCover?: boolean;
   showOpenLink?: boolean;
 }) {
-  const countdown = formatCountdown(r.status, r.releaseDate);
+  const countdown = formatCountdown(r.releaseDate);
 
   return (
     <div className="flex flex-col overflow-hidden rounded-xl border border-edge bg-panel">
