@@ -1,6 +1,6 @@
 # ZMG Release Tracker
 
-Per-release checklist tracker for Zion Music Group. Turns the repeatable
+Release tracker for Zion Music Group. Turns the repeatable
 pre/release/post checklist into a per-release progress tracker across artists,
 for both singles and albums. See [plans/PROGRESS.md](plans/PROGRESS.md) for current
 state and the [plans/build-plan-*.md](plans/) files for per-milestone briefs.
