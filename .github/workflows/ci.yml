@@ -15,10 +15,10 @@ jobs:
     name: Backend .NET
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           global-json-file: global.json #version pinned in global.json
 
@@ -29,7 +29,7 @@ jobs:
         run: dotnet build --no-restore --configuration Release
 
       - name: Test
-        run: dotnet test --no-build --configuration Release --verbosity normal
+        run: dotnet test --no-build --configuration Release
 
   frontend:
     name: Frontend React SPA
@@ -38,13 +38,15 @@ jobs:
       run:
         working-directory: src/Zmg.Web
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
+        with:
+          package-json-file: src/Zmg.Web/package.json
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version-file: src/Zmg.Web/.nvmrc
           cache: pnpm
