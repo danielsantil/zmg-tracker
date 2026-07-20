@@ -2,8 +2,18 @@ name: CI
 
 on:
   pull_request:
+    paths-ignore:
+      - 'plans/**'
+      - '.claude/**'
+      - '**/*.md'
+      - 'Dockerfile'
   push:
     branches: [main]
+    paths-ignore:
+      - 'plans/**'
+      - '.claude/**'
+      - '**/*.md'
+      - 'Dockerfile'
 
 # Cancel any in-progress runs of this workflow if a new run is triggered for the same branch
 concurrency:
