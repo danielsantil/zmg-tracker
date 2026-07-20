@@ -43,7 +43,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
         with:
-          package-json-file: src/Zmg.Web/package.json
+          package_json_file: src/Zmg.Web/package.json
 
       - name: Setup Node
         uses: actions/setup-node@v5
