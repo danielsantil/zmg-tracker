@@ -23,7 +23,7 @@ When asked to build/implement something without a specific milestone named:
    milestone. Confirm the target with me before writing code if it's ambiguous.
 2. Do the work against the relevant `plans/build-plan-*.md` (scope, wireframes, per-milestone test list).
 3. Verify **only what the change can break** — do not run the full suite by reflex:
-   - **SPA-only** (`src/Zmg.Web`, no API/DTO change): `npm run lint` and `npm run build`. Do **not**
+   - **SPA-only** (`src/Zmg.Web`, no API/DTO change): `pnpm lint` and `pnpm build`. Do **not**
      run `dotnet test` or start the API.
    - **Domain-only** (`src/Zmg.Domain`): `dotnet test tests/Zmg.Domain.Tests`, or a `--filter` on the
      class you touched. Skip the API integration tests.
@@ -46,17 +46,17 @@ dotnet test --filter "FullyQualifiedName~TemplateCopy"      # one class/method b
 dotnet run --project src/Zmg.Api
 
 # Run SPA (http://localhost:5173 — dev proxy sends /api to :5274)
-cd src/Zmg.Web && npm install && npm run dev
+cd src/Zmg.Web && pnpm install && pnpm dev
 
 # Lint / typecheck / build the SPA
-cd src/Zmg.Web && npm run lint        # eslint (flat config: eslint.config.js)
-cd src/Zmg.Web && npm run build       # tsc -b && vite build → outputs to ../Zmg.Api/wwwroot
+cd src/Zmg.Web && pnpm lint           # eslint (flat config: eslint.config.js)
+cd src/Zmg.Web && pnpm build          # tsc -b && vite build → outputs to ../Zmg.Api/wwwroot
 
 # Production-style single process: build SPA into wwwroot, then run API on :5274
-cd src/Zmg.Web && npm run build && cd ../.. && dotnet run --project src/Zmg.Api
+cd src/Zmg.Web && pnpm build && cd ../.. && dotnet run --project src/Zmg.Api
 ```
 
-- .NET SDK is pinned to 8.0.x via `global.json`. Node 20.19+ / 22.12+.
+- .NET SDK is pinned to 8.0.x via `global.json`. Node 24.18.0
 - **DB reset:** the runtime SQLite file is git-ignored; seed data lives in the migration. To reset
   local data: `rm src/Zmg.Api/zmg.db*` and startup recreates a seeded db. The v2.0 `InitialCreate`
   is a hard schema reset with **no migration path** — an old v1.x `zmg.db` must be deleted, not upgraded.

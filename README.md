@@ -5,10 +5,8 @@ pre/release/post checklist into a per-release progress tracker across artists,
 for both singles and albums. See [plans/PROGRESS.md](plans/PROGRESS.md) for current
 state and the [plans/build-plan-*.md](plans/) files for per-milestone briefs.
 
-**Status:** v2.0 complete (M12–M15) — first-class songs, the catalog, the Release/Song
-`Track` join, pending-actions rework, and the archive cascade, plus a round of post-v2.0
-UX improvements. Next up is build-plan-2.1 (M16–M18, UX refinements). See
-[plans/PROGRESS.md](plans/PROGRESS.md) for the running journal.
+**Status:** v2.4 complete (M26–M28).
+See [plans/PROGRESS.md](plans/PROGRESS.md) for the running journal.
 
 ## Stack
 
@@ -30,7 +28,7 @@ tests/Zmg.Api.Tests      Integration tests (WebApplicationFactory + SQLite in-me
 ## Prerequisites
 
 - .NET SDK 8.0 (pinned via `global.json`)
-- Node.js 20.19+ / 22.12+
+- Node.js 24.18.0
 
 ## Run (development)
 
@@ -41,7 +39,7 @@ Two terminals. The API applies migrations and seeds templates on startup.
 dotnet run --project src/Zmg.Api
 
 # 2) SPA on http://localhost:5173 (proxies /api to the API on :5274)
-cd src/Zmg.Web && npm install && npm run dev
+cd src/Zmg.Web && pnpm install && pnpm dev
 ```
 
 Open http://localhost:5173. The SPA's dev proxy targets `:5274`, so run the API on
@@ -53,7 +51,7 @@ target in `src/Zmg.Web/vite.config.ts` to match.
 Build the SPA into the API's `wwwroot`, then run the API — it serves the app and API together.
 
 ```bash
-cd src/Zmg.Web && npm install && npm run build   # outputs to ../Zmg.Api/wwwroot
+cd src/Zmg.Web && pnpm install && pnpm build   # outputs to ../Zmg.Api/wwwroot
 cd ../.. && dotnet run --project src/Zmg.Api
 ```
 
@@ -69,12 +67,21 @@ docker build -t zmg-tracker .
 docker run -p 8080:8080 -v zmg-data:/data zmg-tracker
 ```
 
+Detached:
+```bash
+docker run -d -p 8080:8080 -v zmg-data:/data --name zmg-tracker zmg-tracker
+docker logs -f zmg-tracker     # follow logs
+docker stop zmg-tracker        # stop it
+docker rm zmg-tracker          # remove (needed before reusing the name)
+```
+
 Open http://localhost:8080.
 
 ## Test
 
 ```bash
 dotnet test          # backend: domain unit + API integration
+pnpm test            # UI: UI tests
 ```
 
 ## Notes

@@ -7,13 +7,14 @@
 #         → app on http://localhost:8080  (SQLite persisted in the zmg-data volume)
 
 # --- Stage 1: build the SPA ---------------------------------------------------
-FROM node:22-alpine AS web
+FROM node:24-alpine AS web
 WORKDIR /web
-COPY src/Zmg.Web/package*.json ./
-RUN npm ci
+RUN corepack enable
+COPY src/Zmg.Web/package.json src/Zmg.Web/pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
 COPY src/Zmg.Web/ ./
 # Override the config's outDir (../Zmg.Api/wwwroot, absent in this stage) to a local dist.
-RUN npm run build -- --outDir dist --emptyOutDir
+RUN pnpm exec tsc -b && pnpm exec vite build --outDir dist --emptyOutDir
 
 # --- Stage 2: publish the API -------------------------------------------------
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
