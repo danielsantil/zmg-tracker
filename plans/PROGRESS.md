@@ -14,13 +14,15 @@ for where the project stands and the rules that span plans.
 - [build-plan-2.3.md](build-plan-2.3.md) — refactor · code health (M24–M25). Shipped. A live
   `docker build` verify is the one non-gating item still open (see backlog).
 - [build-plan-2.4.md](build-plan-2.4.md) — UI polish · dark/light (M26–M28). Shipped.
+- [build-plan-2.5.md](build-plan-2.5.md) — deployment · ACA/Neon/R2/Terraform (M29–M32). Planned.
 
 Newer plan versions go in new `build-plan-N.N.md` files; older ones stay frozen.
 
 **Current state:** feature-complete through **v2.4** — UI polish, semantic color tokens, and a working
 **dark/light theme toggle**. Backend tests **domain 73 / API 136**, green (~6s); SPA **32 Vitest**. One
-non-gating item remains: the pending live `docker build` verify. Next is **Phase 2 — DSP stats** (no
-build plan yet).
+non-gating item remains: the pending live `docker build` verify. Next is **v2.5 — deployment**
+([build-plan-2.5.md](build-plan-2.5.md), M29–M32: ACA · Neon Postgres · Cloudflare R2 · Terraform),
+executed milestone-by-milestone. Phase 2 (DSP stats, SPA/Pages split, cold-start tuning) follows.
 
 > ⚠️ **v2.0's `InitialCreate` is a hard schema reset with no migration path.** Any local
 > `src/Zmg.Api/zmg.db` from v1.x must be deleted, not upgraded (`rm src/Zmg.Api/zmg.db*`) — startup
