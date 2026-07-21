@@ -24,6 +24,9 @@ jobs:
   backend:
     name: Backend .NET
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      TESTCONTAINERS_RYUK_DISABLE: true
     steps:
       - uses: actions/checkout@v5
 
