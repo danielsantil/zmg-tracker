@@ -30,7 +30,7 @@ public sealed class SongService(ZmgDbContext db) : ISongService
         if (!string.IsNullOrWhiteSpace(q))
         {
             var term = q.Trim();
-            query = query.Where(s => EF.Functions.Like(s.Title, $"%{term}%"));
+            query = query.Where(s => EF.Functions.Like(s.Title.ToLower(), $"%{term.ToLower()}%"));
         }
 
         query = isArchived ? query.OrderByDescending(s => s.ArchivedAt) : query.OrderBy(s => s.Title);

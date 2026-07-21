@@ -17,9 +17,9 @@ namespace Zmg.Infra.Migrations
                 name: "Artists",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
-                    Name = table.Column<string>(type: "TEXT", nullable: false),
-                    Notes = table.Column<string>(type: "TEXT", nullable: true)
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Name = table.Column<string>(type: "text", nullable: false),
+                    Notes = table.Column<string>(type: "text", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -30,8 +30,8 @@ namespace Zmg.Infra.Migrations
                 name: "ChecklistTemplates",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
-                    Type = table.Column<int>(type: "INTEGER", nullable: false)
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Type = table.Column<int>(type: "integer", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -42,16 +42,16 @@ namespace Zmg.Infra.Migrations
                 name: "Releases",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
-                    Title = table.Column<string>(type: "TEXT", nullable: false),
-                    Type = table.Column<int>(type: "INTEGER", nullable: false),
-                    ReleaseDate = table.Column<DateOnly>(type: "TEXT", nullable: false),
-                    MainArtistId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    CoverUrl = table.Column<string>(type: "TEXT", nullable: true),
-                    Notes = table.Column<string>(type: "TEXT", nullable: true),
-                    Upc = table.Column<string>(type: "TEXT", nullable: true),
-                    ArchivedAt = table.Column<DateTime>(type: "TEXT", nullable: true),
-                    DeletedAt = table.Column<DateTime>(type: "TEXT", nullable: true)
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Title = table.Column<string>(type: "text", nullable: false),
+                    Type = table.Column<int>(type: "integer", nullable: false),
+                    ReleaseDate = table.Column<DateOnly>(type: "date", nullable: false),
+                    MainArtistId = table.Column<Guid>(type: "uuid", nullable: false),
+                    CoverUrl = table.Column<string>(type: "text", nullable: true),
+                    Notes = table.Column<string>(type: "text", nullable: true),
+                    Upc = table.Column<string>(type: "text", nullable: true),
+                    ArchivedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -68,12 +68,12 @@ namespace Zmg.Infra.Migrations
                 name: "Songs",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
-                    Title = table.Column<string>(type: "TEXT", nullable: false),
-                    MainArtistId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    Isrc = table.Column<string>(type: "TEXT", nullable: true),
-                    ArchivedAt = table.Column<DateTime>(type: "TEXT", nullable: true),
-                    DeletedAt = table.Column<DateTime>(type: "TEXT", nullable: true)
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Title = table.Column<string>(type: "text", nullable: false),
+                    MainArtistId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Isrc = table.Column<string>(type: "text", nullable: true),
+                    ArchivedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -90,13 +90,13 @@ namespace Zmg.Infra.Migrations
                 name: "TemplateTasks",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
-                    ChecklistTemplateId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    Title = table.Column<string>(type: "TEXT", nullable: false),
-                    Phase = table.Column<int>(type: "INTEGER", nullable: false),
-                    SortOrder = table.Column<int>(type: "INTEGER", nullable: false),
-                    MinDaysBefore = table.Column<int>(type: "INTEGER", nullable: true),
-                    MaxDaysBefore = table.Column<int>(type: "INTEGER", nullable: true)
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    ChecklistTemplateId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Title = table.Column<string>(type: "text", nullable: false),
+                    Phase = table.Column<int>(type: "integer", nullable: false),
+                    SortOrder = table.Column<int>(type: "integer", nullable: false),
+                    MinDaysBefore = table.Column<int>(type: "integer", nullable: true),
+                    MaxDaysBefore = table.Column<int>(type: "integer", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -113,17 +113,17 @@ namespace Zmg.Infra.Migrations
                 name: "ReleaseTasks",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
-                    ReleaseId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    Title = table.Column<string>(type: "TEXT", nullable: false),
-                    Phase = table.Column<int>(type: "INTEGER", nullable: false),
-                    SortOrder = table.Column<int>(type: "INTEGER", nullable: false),
-                    IsDone = table.Column<bool>(type: "INTEGER", nullable: false),
-                    CompletedAt = table.Column<DateTime>(type: "TEXT", nullable: true),
-                    Notes = table.Column<string>(type: "TEXT", nullable: true),
-                    MinDaysBefore = table.Column<int>(type: "INTEGER", nullable: true),
-                    MaxDaysBefore = table.Column<int>(type: "INTEGER", nullable: true),
-                    SourceTemplateTaskId = table.Column<Guid>(type: "TEXT", nullable: true)
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    ReleaseId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Title = table.Column<string>(type: "text", nullable: false),
+                    Phase = table.Column<int>(type: "integer", nullable: false),
+                    SortOrder = table.Column<int>(type: "integer", nullable: false),
+                    IsDone = table.Column<bool>(type: "boolean", nullable: false),
+                    CompletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    Notes = table.Column<string>(type: "text", nullable: true),
+                    MinDaysBefore = table.Column<int>(type: "integer", nullable: true),
+                    MaxDaysBefore = table.Column<int>(type: "integer", nullable: true),
+                    SourceTemplateTaskId = table.Column<Guid>(type: "uuid", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -140,9 +140,9 @@ namespace Zmg.Infra.Migrations
                 name: "SongArtists",
                 columns: table => new
                 {
-                    SongId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    ArtistId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    Role = table.Column<int>(type: "INTEGER", nullable: false)
+                    SongId = table.Column<Guid>(type: "uuid", nullable: false),
+                    ArtistId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Role = table.Column<int>(type: "integer", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -165,10 +165,10 @@ namespace Zmg.Infra.Migrations
                 name: "Tracks",
                 columns: table => new
                 {
-                    ReleaseId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    SongId = table.Column<Guid>(type: "TEXT", nullable: false),
-                    TrackNumber = table.Column<int>(type: "INTEGER", nullable: false),
-                    IsFocusTrack = table.Column<bool>(type: "INTEGER", nullable: false)
+                    ReleaseId = table.Column<Guid>(type: "uuid", nullable: false),
+                    SongId = table.Column<Guid>(type: "uuid", nullable: false),
+                    TrackNumber = table.Column<int>(type: "integer", nullable: false),
+                    IsFocusTrack = table.Column<bool>(type: "boolean", nullable: false)
                 },
                 constraints: table =>
                 {

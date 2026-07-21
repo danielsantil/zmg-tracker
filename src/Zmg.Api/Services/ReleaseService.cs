@@ -41,7 +41,7 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
         if (!string.IsNullOrWhiteSpace(q))
         {
             var term = q.Trim();
-            query = query.Where(r => EF.Functions.Like(r.Title, $"%{term}%"));
+            query = query.Where(r => EF.Functions.Like(r.Title.ToLower(), $"%{term.ToLower()}%"));
         }
 
         query = isHome ? query.OrderBy(r => r.ReleaseDate) : query.OrderByDescending(r => r.ReleaseDate);
