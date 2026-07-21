@@ -10,8 +10,8 @@ var builder = WebApplication.CreateBuilder(args);
 // appsettings.Development.json. Fail fast with a clear message rather than letting UseSqlite receive null.
 var connectionString = builder.Configuration.GetConnectionString("Zmg")
     ?? throw new InvalidOperationException(
-        "Connection string 'Zmg' is not configured. Set ConnectionStrings__Zmg (e.g. \"Data Source=/data/zmg.db\").");
-builder.Services.AddDbContext<ZmgDbContext>(options => options.UseSqlite(connectionString));
+        "Connection string 'Zmg' is not configured. Set ConnectionStrings__Zmg.");
+builder.Services.AddDbContext<ZmgDbContext>(options => options.UseNpgsql(connectionString));
 
 builder.Services.AddScoped<IArtistService, ArtistService>();
 builder.Services.AddScoped<IReleaseService, ReleaseService>();

@@ -11,18 +11,18 @@ for where the project stands and the rules that span plans.
 - [build-plan-2.0.md](build-plan-2.0.md) — songs & catalog (M12–M15). Shipped.
 - [build-plan-2.1.md](build-plan-2.1.md) — UX refinements (M16–M18). Shipped.
 - [build-plan-2.2.md](build-plan-2.2.md) — UX improvements (M19–M23). Shipped.
-- [build-plan-2.3.md](build-plan-2.3.md) — refactor · code health (M24–M25). Shipped. A live
-  `docker build` verify is the one non-gating item still open (see backlog).
+- [build-plan-2.3.md](build-plan-2.3.md) — refactor · code health (M24–M25). Shipped.
 - [build-plan-2.4.md](build-plan-2.4.md) — UI polish · dark/light (M26–M28). Shipped.
 - [build-plan-2.5.md](build-plan-2.5.md) — deployment · ACA/Neon/R2/Terraform (M29–M32). Planned.
 
 Newer plan versions go in new `build-plan-N.N.md` files; older ones stay frozen.
 
 **Current state:** feature-complete through **v2.4** — UI polish, semantic color tokens, and a working
-**dark/light theme toggle**. Backend tests **domain 73 / API 136**, green (~6s); SPA **32 Vitest**. One
-non-gating item remains: the pending live `docker build` verify. Next is **v2.5 — deployment**
-([build-plan-2.5.md](build-plan-2.5.md), M29–M32: ACA · Neon Postgres · Cloudflare R2 · Terraform),
-executed milestone-by-milestone. Phase 2 (DSP stats, SPA/Pages split, cold-start tuning) follows.
+**dark/light theme toggle**. Backend tests **domain 73 / API 136**, green (~6s); SPA **32 Vitest**.
+**v2.5 — deployment** is in flight ([build-plan-2.5.md](build-plan-2.5.md), M29–M32: ACA · Neon Postgres ·
+Cloudflare R2 · Terraform): **M29 shipped** — the app is live on **Azure Container Apps** (still SQLite,
+ephemeral). Next is **M30 — Neon Postgres swap**. Phase 2 (DSP stats, SPA/Pages split, cold-start
+tuning) follows.
 
 > ⚠️ **v2.0's `InitialCreate` is a hard schema reset with no migration path.** Any local
 > `src/Zmg.Api/zmg.db` from v1.x must be deleted, not upgraded (`rm src/Zmg.Api/zmg.db*`) — startup
@@ -77,7 +77,7 @@ rule hoisted into Domain, `canArchive` derived server-side onto the release DTOs
 `AsNoTracking` read paths, and `CancellationToken` threaded throughout. A **test-hygiene sweep**
 followed (Domain ObjectMother, `IClassFixture` to cut host boots, redundant integration tests pruned),
 and the two parked web items closed — the SPA reads `canArchive` from the DTO and mirrors the
-duplicate-title constant. The Dockerfile fix's live `docker build` is still unverified (daemon was down).
+duplicate-title constant.
 
 **v2.4 M26 — UI polish (SPA-only).** Four user-visible fixes: **lucide-react** added and the `RowMenu`
 kebab glyph swapped from the literal `⋮` to `<EllipsisVertical />` (updates all five call sites at once);
@@ -122,6 +122,16 @@ persists, no FOUC, every token resolves per-theme (light `--warn-fg` `180 83 9`,
 `rgb(248,250,252)`), badges/warnings/buttons legible in light, dark unchanged. One deliberate wrinkle —
 the incidental amber-200/400 and green-400 accents now resolve through the unified `warn`/`ok`
 foreground, so a few soft dark-mode accents shift by one shade; the prominent badges/buttons stay exact.
+
+**v2.5 M29 — deploy to ACA (as-is).** First hosting. The existing single-container image (SPA in
+`wwwroot` + SQLite) pushed to **GHCR** (`ghcr.io/danielsantil/zmg-tracker`) and run on **Azure Container
+Apps** (Consumption, `min 0`/`max 1`, external ingress on 8080). Infra stood up by hand with `az`:
+resource group `zmg-rg`, ACA env `zmg-env` (auto-created Log Analytics), app `zmg-app`. **No repo/code
+change.** SQLite is **ephemeral** on ACA — data resets on restart/scale-to-zero; persistence lands in
+M30 (Neon). Registry: GHCR over ACR (Basic is ~$5/mo); scale-to-zero + free grant keep it ~$0; no
+warm-keeping (cold start accepted, tuned later in Phase 2). Future deploys = rebuild+push a new tag then
+`az containerapp update --image` — the RG/env/app are one-time. The old "live docker build verify"
+backlog item is closed by this (the image built and ran end-to-end).
 
 ---
 
@@ -223,12 +233,11 @@ tests/Zmg.Api.Tests      integration tests (WebApplicationFactory + in-memory SQ
 
 ## Backlog / next steps
 
-- **Next — Phase 2: DSP stats** (the reason this exists over Notion/Trello): hang streaming/revenue data
+- **After v2.5 — Phase 2: DSP stats** (the reason this exists over Notion/Trello): hang streaming/revenue data
   off the stable Artist / Release / **Song** / Track ids and the UPC/ISRC columns; the v2.0 Song ids are
   its foundation. No build plan yet — write `build-plan-3.0.md` when it starts.
-- **Still open (not gating):** **verify `docker build` on a live daemon** (the Dockerfile fix is unverified
-  — daemon was down here); plus low-value test polish (exhaustive AAA pass, the last few Theory
-  conversions). The suite is green without either.
+- **Still open (not gating):** Low-value test polish (exhaustive AAA pass, the last few Theory
+  conversions). The suite is green without it.
 - **Per-track task fan-out** on albums: registrations that repeat per track are single "per track" tasks
   today. Decide after the first real album.
 - Deferred: un-archive/restore and hard-delete/purge (archives are terminal by rule); auth for hosted

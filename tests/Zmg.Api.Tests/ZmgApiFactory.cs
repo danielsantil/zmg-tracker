@@ -1,53 +1,42 @@
-using System.Data.Common;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.Data.Sqlite;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
-using Zmg.Infra.Data;
+using Npgsql;
+using Testcontainers.PostgreSql;
 
 namespace Zmg.Api.Tests;
 
 /// <summary>
-/// Boots the real app against a private SQLite in-memory database. The connection is kept open for the
-/// factory's lifetime so the schema survives between requests; the app's own startup creates it via
-/// <c>db.Database.Migrate()</c> (Program.cs), which this factory does not call itself. Each factory
-/// instance is an isolated database.
+/// Boots the real app against a private Postgres database. One container is shared across the whole test
+/// run (Testcontainers' Ryuk reaps it at process exit); each factory instance gets its own freshly
+/// created database, so isolation matches the old per-factory model. The app's own startup
+/// <c>Migrate()</c> (Program.cs) builds the schema + seed in that database.
 /// </summary>
 public class ZmgApiFactory : WebApplicationFactory<Program>
 {
-    private DbConnection? _connection;
+    private static readonly PostgreSqlContainer Postgres = StartShared();
+    private readonly string _dbName = $"zmg_{Guid.NewGuid():N}";
+
+    private static PostgreSqlContainer StartShared()
+    {
+        var container = new PostgreSqlBuilder("postgres:16-alpine").Build();
+        container.StartAsync().GetAwaiter().GetResult();
+        return container;
+    }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        builder.UseEnvironment("Testing");
-        // Satisfy Program.cs's fail-fast connection-string guard; the registration below overrides it
-        // with the shared open in-memory connection.
-        builder.UseSetting("ConnectionStrings:Zmg", "DataSource=:memory:");
-
-        builder.ConfigureServices(services =>
+        // Carve out an isolated database for this factory instance in the shared container.
+        var csb = new NpgsqlConnectionStringBuilder(Postgres.GetConnectionString());
+        using (var conn = new NpgsqlConnection(csb.ConnectionString))
         {
-            // Drop the app's SQLite-file DbContext registration.
-            services.RemoveAll<DbContextOptions<ZmgDbContext>>();
-            services.RemoveAll<ZmgDbContext>();
-
-            // Dispose any connection from a prior host build before replacing it (no leak on rebuild).
-            _connection?.Dispose();
-            _connection = new SqliteConnection("DataSource=:memory:");
-            _connection.Open();
-
-            services.AddDbContext<ZmgDbContext>(options => options.UseSqlite(_connection));
-        });
-    }
-
-    protected override void Dispose(bool disposing)
-    {
-        base.Dispose(disposing);
-        if (disposing)
-        {
-            _connection?.Dispose();
-            _connection = null;
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = $"CREATE DATABASE \"{_dbName}\"";
+            cmd.ExecuteNonQuery();
         }
+        csb.Database = _dbName;
+
+        builder.UseEnvironment("Testing");
+        builder.UseSetting("ConnectionStrings:Zmg", csb.ConnectionString);
     }
 }
