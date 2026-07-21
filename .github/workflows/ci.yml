@@ -25,9 +25,6 @@ jobs:
     name: Backend .NET
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    env:
-      TESTCONTAINERS_HOST_OVERRIDE: host.docker.internal
-      TESTCONTAINERS_RYUK_DISABLED: true
     steps:
       - uses: actions/checkout@v5
 
@@ -43,7 +40,7 @@ jobs:
         run: dotnet build --no-restore --configuration Release
 
       - name: Test
-        run: dotnet test --no-build --configuration Release
+        run: dotnet test --no-build --configuration Release --logger "console;verbosity=detailed"
 
   frontend:
     name: Frontend React SPA
