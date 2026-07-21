@@ -16,7 +16,10 @@ first-class image storage). After research, the target stack is:
 
 Decisions locked with the user:
 - ACA runs **scale-to-zero as-is** — no warm-keeping / `min-replicas`. Cold-start tuning is Phase 2.
-- Integration tests move to **Testcontainers Postgres** (real-DB fidelity; unblocks Npgsql `ILike`).
+- Integration tests **stay on SQLite in-memory** (migrations are now
+  Postgres-only), search kept provider-agnostic with `LOWER()` so SQLite runs stay valid. Real-Postgres
+  tests (Testcontainers + a CI Postgres service) are **deferred to Phase 2** (a CI Testcontainers hang
+  made it not worth blocking M30).
 - R2 supports **both** direct upload **and** URL paste. No custom domain — use the bucket's public
   `r2.dev` URL for now.
 - **Terraform is the last milestone** — it codifies infra that M29–M31 stand up manually first
@@ -56,7 +59,7 @@ works; confirm data resets after a manual restart (expected). No repo/code/test 
 ## M30 — Swap SQLite → Neon Postgres (Npgsql)
 
 **Scope:** replace the EF provider, regenerate migrations for Postgres, preserve search behavior, and
-move integration tests to Testcontainers Postgres.
+keep integration tests on SQLite in-memory.
 
 **Semantics (mostly clean — audited):**
 - Timestamps already use `DateTime.UtcNow` everywhere (e.g. `ReleaseService.cs:313`,
@@ -65,32 +68,31 @@ move integration tests to Testcontainers Postgres.
 - Case-insensitive **equality** is in-memory (`StringComparer.OrdinalIgnoreCase`, `Validation.cs`) →
   portable.
 - **The one behavioral change:** title search uses `EF.Functions.Like` (`ReleaseService.cs:44`,
-  `SongService.cs:33`). SQLite `LIKE` is case-insensitive; Postgres `LIKE` is case-sensitive → switch
-  these to **`EF.Functions.ILike`** (Npgsql) to preserve behavior.
+  `SongService.cs:33`). SQLite `LIKE` is case-insensitive; Postgres `LIKE` is case-sensitive → keep it
+  **provider-agnostic** by lowercasing both sides:
+  `EF.Functions.Like(x.Title.ToLower(), $"%{term.ToLower()}%")` — case-insensitive on both, no
+  Npgsql-specific `ILike`.
 
 **Backend changes:**
 - `src/Zmg.Api/Zmg.Api.csproj`: drop `Microsoft.EntityFrameworkCore.Sqlite`, add
   `Npgsql.EntityFrameworkCore.PostgreSQL` (keep the Design package).
 - `Program.cs:14`: `UseSqlite` → `UseNpgsql`.
-- `ReleaseService.cs:44` + `SongService.cs:33`: `Like` → `ILike`.
+- `ReleaseService.cs:44` + `SongService.cs:33`: lowercase both sides of the `Like` (portable, no `ILike`).
 - Migrations: delete the SQLite `InitialCreate` under `src/Zmg.Infra/Migrations/`, regenerate with
   `dotnet ef migrations add InitialCreate` (Npgsql). The `HasData` seed (`ZmgDbContext.cs:110-127`)
   travels automatically.
 - Connection string: Neon **pooled** string with `sslmode=require`. Dev → `appsettings.Development.json`
   (a Neon dev branch or local Postgres); prod → `ConnectionStrings__Zmg` as an ACA secret.
 
-**Tests (Testcontainers Postgres):**
-- Add `Testcontainers.PostgreSql` to `tests/Zmg.Api.Tests`.
-- Rework `ZmgApiFactory.cs`: start a Postgres container (shared via `IAsyncLifetime` / a collection
-  fixture), point the DbContext at it (replacing the SQLite in-memory connection at lines 27, 37–40),
-  and apply the **real Npgsql migration** via `db.Database.Migrate()` once per container.
-- Isolation: use **Respawn** (or truncate) between tests on the shared container for speed, rather than
-  a new container per test.
+**Tests (SQLite in-memory):**
+- Keep `ZmgApiFactory` on the shared open SQLite in-memory connection (one isolated DB per factory).
+- Parity gap accepted: SQLite won't exercise Postgres type-mapping; that's covered by the real
+  migration applying cleanly to Neon + the live deploy. Real-Postgres tests are Phase 2.
 
 **Neon setup (manual now, Terraform in M32):** create the project + main branch (prod) and optionally a
 dev branch; copy the pooled connection string.
 
-**Verification:** full `dotnet test` green against Testcontainers; run the API against the Neon dev
+**Verification:** full `dotnet test` green (SQLite in-memory); run the API against the Neon dev
 branch and confirm **case-insensitive search** returns mixed-case matches; redeploy the ACA app with
 `ConnectionStrings__Zmg` → data now **persists** across restarts. Update PROGRESS/CLAUDE notes (the
 `rm zmg.db` reset instruction is now Postgres-based).
@@ -184,3 +186,11 @@ cleanly.
 - **Background aggregation (DSP stats).** A nightly **ACA cron Job** pulling third-party API data into
   Neon; parallelize external calls to keep billed wall-clock time short. Add an Azure Storage Queue
   only if bursty on-demand fan-out appears. Draws from the same ACA free grant.
+- **Real-Postgres integration tests.** Run the API suite against actual Postgres — Testcontainers
+  locally + a GitHub Actions Postgres **service container** in CI — closing the SQLite/Postgres parity
+  gap. (A Testcontainers-in-CI hang during M30 made this not worth blocking on; the factory already has
+  the env-var branch pattern sketched for it.)
+- **CI/CD image pipeline.** Automate the manual `docker build`/`push`/`az containerapp update` on push
+  to main via `docker/login-action` + `docker/metadata-action` + `docker/build-push-action` — SHA tags
+  per commit, semver tags on git-tag/release, `GITHUB_TOKEN` auth (no PAT). Optionally a CD step running
+  `az containerapp update` with the fresh tag.

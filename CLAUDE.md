@@ -6,7 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ZMG Release Tracker — a per-release checklist tracker for Zion Music Group. It turns a repeatable
 pre/release/post checklist into per-release progress tracking across artists, for both singles and
-albums. .NET 8 backend (minimal API + EF/SQLite) with a React + Vite + Tailwind SPA.
+albums. .NET 8 backend (minimal API + EF Core/Postgres via Npgsql; SQLite in-memory for tests) with a
+React + Vite + Tailwind SPA.
 
 ## Read first
 
@@ -57,9 +58,11 @@ cd src/Zmg.Web && pnpm build && cd ../.. && dotnet run --project src/Zmg.Api
 ```
 
 - .NET SDK is pinned to 8.0.x via `global.json`. Node 24.18.0
-- **DB reset:** the runtime SQLite file is git-ignored; seed data lives in the migration. To reset
-  local data: `rm src/Zmg.Api/zmg.db*` and startup recreates a seeded db. The v2.0 `InitialCreate`
-  is a hard schema reset with **no migration path** — an old v1.x `zmg.db` must be deleted, not upgraded.
+- **Database (v2.5): Postgres (Neon).** Dev + prod use `ConnectionStrings__Zmg` — **dev** via
+  `dotnet user-secrets` in `src/Zmg.Api` (never commit it), **prod** as an ACA secret. Startup applies
+  migrations + seeds templates. To reset local data: reset the Neon
+  branch, or `dotnet ef database drop` + `dotnet ef database update`. **Tests run SQLite in-memory**. EF migrations are Postgres-specific; keep EF tooling on
+  **EF 8** to match the runtime.
 
 ## Architecture
 

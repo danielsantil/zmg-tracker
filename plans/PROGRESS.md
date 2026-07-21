@@ -20,13 +20,15 @@ Newer plan versions go in new `build-plan-N.N.md` files; older ones stay frozen.
 **Current state:** feature-complete through **v2.4** — UI polish, semantic color tokens, and a working
 **dark/light theme toggle**. Backend tests **domain 73 / API 136**, green (~6s); SPA **32 Vitest**.
 **v2.5 — deployment** is in flight ([build-plan-2.5.md](build-plan-2.5.md), M29–M32: ACA · Neon Postgres ·
-Cloudflare R2 · Terraform): **M29 shipped** — the app is live on **Azure Container Apps** (still SQLite,
-ephemeral). Next is **M30 — Neon Postgres swap**. Phase 2 (DSP stats, SPA/Pages split, cold-start
-tuning) follows.
+Cloudflare R2 · Terraform): **M29–M30 shipped** — live on **Azure Container Apps**, now on durable
+**Neon Postgres** (SQLite retired from prod; tests still use SQLite in-memory). Next is **M31 —
+Cloudflare R2 for cover images**. Phase 2 (DSP stats, SPA/Pages split, cold-start tuning, real-Postgres
+tests, CI image pipeline) follows.
 
-> ⚠️ **v2.0's `InitialCreate` is a hard schema reset with no migration path.** Any local
-> `src/Zmg.Api/zmg.db` from v1.x must be deleted, not upgraded (`rm src/Zmg.Api/zmg.db*`) — startup
-> recreates a seeded db.
+> ⚠️ **DB is Postgres (Neon) as of v2.5/M30.** Dev + prod both use `ConnectionStrings__Zmg` — **dev** via
+> `dotnet user-secrets` in `src/Zmg.Api` (never commit it), **prod** as an ACA secret. Startup applies
+> migrations + seeds. Reset local data by resetting the Neon branch or
+> `dotnet ef database drop` + `database update`. Tests run **SQLite in-memory**. Keep EF tooling on **EF 8** to match the runtime.
 
 ---
 
@@ -133,6 +135,17 @@ warm-keeping (cold start accepted, tuned later in Phase 2). Future deploys = reb
 `az containerapp update --image` — the RG/env/app are one-time. The old "live docker build verify"
 backlog item is closed by this (the image built and ran end-to-end).
 
+**v2.5 M30 — Neon Postgres swap.** Prod moved off SQLite to **Neon Postgres** (EF Core Npgsql): provider
+swapped in `Zmg.Infra.csproj` + `UseNpgsql` (`Program.cs`), the SQLite `InitialCreate` dropped and
+regenerated for Postgres (the `HasData` seed travels), and the ACA app redeployed at a new SHA-tagged
+image with the Neon **pooled** connection string as an ACA **secret** (`secretref:neon-conn`) — data now
+**persists** across restarts. The one semantics diff (Postgres `LIKE` is case-sensitive, SQLite's isn't)
+was fixed **provider-agnostically** by lowercasing both sides of the two title searches
+(`ReleaseService`/`SongService`) — no Npgsql `ILike`, so queries stay portable. Timestamps were already
+`DateTime.UtcNow` everywhere, so `timestamptz` mapped with no code change. **Tests stay SQLite in-memory**. A Testcontainers attempt was **reverted after it hung in CI** (16-min stall at
+container start); real-Postgres tests + a CI image pipeline are parked in Phase 2. Green: domain 73 /
+API 136.
+
 ---
 
 ## Cross-cutting decisions (not in any single plan)
@@ -214,6 +227,10 @@ backlog item is closed by this (the image built and ran end-to-end).
 - **EF tooling must match the runtime (EF 8).** Nothing is pinned in-repo, but a 10.x-generated migration
   builds fine and then **silently fails at runtime** (`no such table: __EFMigrationsHistory`). Install
   matching tooling before regenerating one.
+- **Prod runs Postgres (Neon); integration tests run SQLite in-memory (v2.5/M30).** Migrations are
+  Postgres-specific. Keep query code **provider-agnostic** — e.g.
+  title search lowercases both sides of `Like` rather than using Npgsql `ILike` — so SQLite tests stay
+  representative. Real-Postgres tests (Testcontainers + CI service container) are deferred to Phase 2.
 
 ---
 
@@ -223,7 +240,7 @@ backlog item is closed by this (the image built and ran end-to-end).
 src/Zmg.Domain   entities/enums, template-copy, progress, status, validation, seed,
                  release-warnings, song-archival, pending-actions  (pure, no I/O)
 src/Zmg.Api      minimal API: endpoints, service layer (+ interfaces), DTO contracts, extensions
-src/Zmg.Infra    EF Core + SQLite: ZmgDbContext (seeding) + migrations
+src/Zmg.Infra    EF Core + Npgsql/Postgres: ZmgDbContext (seeding) + migrations
 src/Zmg.Web      React + Vite + Tailwind SPA, organized by feature folder
 tests/Zmg.Domain.Tests   xUnit unit tests
 tests/Zmg.Api.Tests      integration tests (WebApplicationFactory + in-memory SQLite)
