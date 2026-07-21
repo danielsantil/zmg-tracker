@@ -13,17 +13,21 @@ for where the project stands and the rules that span plans.
 - [build-plan-2.2.md](build-plan-2.2.md) — UX improvements (M19–M23). Shipped.
 - [build-plan-2.3.md](build-plan-2.3.md) — refactor · code health (M24–M25). Shipped.
 - [build-plan-2.4.md](build-plan-2.4.md) — UI polish · dark/light (M26–M28). Shipped.
-- [build-plan-2.5.md](build-plan-2.5.md) — deployment · ACA/Neon/R2/Terraform (M29–M32). Planned.
+- [build-plan-2.5.md](build-plan-2.5.md) — deployment · ACA/Neon/R2/Terraform (M29–M32). M29–M31 shipped.
 
 Newer plan versions go in new `build-plan-N.N.md` files; older ones stay frozen.
 
 **Current state:** feature-complete through **v2.4** — UI polish, semantic color tokens, and a working
-**dark/light theme toggle**. Backend tests **domain 73 / API 136**, green (~6s); SPA **32 Vitest**.
+**dark/light theme toggle**. Backend tests **domain 119 / API 153**, green (~8s); SPA **32 Vitest**.
 **v2.5 — deployment** is in flight ([build-plan-2.5.md](build-plan-2.5.md), M29–M32: ACA · Neon Postgres ·
-Cloudflare R2 · Terraform): **M29–M30 shipped** — live on **Azure Container Apps**, now on durable
-**Neon Postgres** (SQLite retired from prod; tests still use SQLite in-memory). Next is **M31 —
-Cloudflare R2 for cover images**. Phase 2 (DSP stats, SPA/Pages split, cold-start tuning, real-Postgres
-tests, CI image pipeline) follows.
+Cloudflare R2 · Terraform): **M29–M31 shipped** — live on **Azure Container Apps**, on durable
+**Neon Postgres** (SQLite retired from prod; tests still use SQLite in-memory), and covers now stored in
+**Cloudflare R2**. **Next is M32 — Terraform** (codify M29–M31 across `azurerm` + `neon` + `cloudflare`).
+⚠️ **M31 has one open prod step:** the five `R2:*` settings are in local user-secrets but are **not yet
+ACA secrets** — uploads will fail in prod (a clean "Cover storage is not configured." 500, nothing else
+breaks) until `R2__AccountId`/`AccessKeyId`/`SecretAccessKey`/`Bucket`/`PublicBaseUrl` are set on the
+container app and it's redeployed at a new image tag. Phase 2 (DSP stats, SPA/Pages split, cold-start
+tuning, real-Postgres tests, CI image pipeline) follows.
 
 > ⚠️ **DB is Postgres (Neon) as of v2.5/M30.** Dev + prod both use `ConnectionStrings__Zmg` — **dev** via
 > `dotnet user-secrets` in `src/Zmg.Api` (never commit it), **prod** as an ACA secret. Startup applies
@@ -146,6 +150,29 @@ was fixed **provider-agnostically** by lowercasing both sides of the two title s
 container start); real-Postgres tests + a CI image pipeline are parked in Phase 2. Green: domain 73 /
 API 136.
 
+**v2.5 M31 — Cloudflare R2 covers (upload + paste-URL).** The Cover URL text box became a **tile**
+control: click to upload, or "paste an image URL" for an inline URL — **both** end as an object in R2,
+because the URL path is **fetched server-side and re-stored** rather than hotlinked (a release cover
+must not die when someone else's host does). `CoverUrl` stays a `string` holding the public `r2.dev`
+URL, so **no migration**. Full slice: pure `CoverImage` (Domain) owns every acceptance rule → 
+`IStorageService`/`R2StorageService` (AWSSDK.S3 pointed at `<account>.r2.cloudflarestorage.com`,
+path-style, region `auto`, client built **lazily** so a box without the secrets still boots) →
+`ICoverUploadService`/`CoverUploadService` → `UploadEndpoints` (`POST /api/uploads/cover` multipart +
+`/cover-from-url`) → `api/uploads.ts` → `CoverField.tsx`. **The declared content-type is never trusted** —
+bytes are accepted on their **magic number** (PNG/JPEG/WebP), which is what rejects an `<svg onload=…>`
+sent as `image/png`. Size is capped at 5 MB by a **capped read**, not by `Content-Length` (a remote
+server can lie). **SSRF guards** on the URL path: http(s) only, host resolved and every address checked
+against loopback/RFC1918/link-local (incl. `169.254.169.254`)/CGNAT/ULA/multicast, **redirects followed
+by hand** (auto-redirect off) so each hop is re-checked, ≤3 hops, 10s timeout, and remote failures are
+reported as one flat message rather than echoed back as a probe oracle. **+46 domain, +17 API tests**
+(fake storage + a stub `HttpMessageHandler`; remote hosts written as public **IP literals** so the suite
+never touches DNS or the network). One SPA-wide fix: `client.ts` no longer forces
+`Content-Type: application/json` when the body is `FormData` — that header would strip the multipart
+boundary. Verified in-browser end to end: upload → tile thumbnail rendering from `r2.dev`; a pasted
+URL stored under a **new** key (proving re-upload, not hotlink); `169.254.169.254` refused with "That
+URL can't be fetched."; Remove clears; light/mobile clean. Deferred as planned: deleting orphaned R2
+objects on replace/remove.
+
 ---
 
 ## Cross-cutting decisions (not in any single plan)
@@ -227,6 +254,11 @@ API 136.
 - **EF tooling must match the runtime (EF 8).** Nothing is pinned in-repo, but a 10.x-generated migration
   builds fine and then **silently fails at runtime** (`no such table: __EFMigrationsHistory`). Install
   matching tooling before regenerating one.
+- **User-supplied images are accepted on their bytes, and remote fetches are guarded (M31).** Cover
+  ingest trusts the **magic number**, never the declared content-type, and caps size by a capped read
+  rather than `Content-Length`. Any future server-side fetch of a user-supplied URL must reuse
+  `CoverImage`'s SSRF guards — scheme allow-list, resolve-then-check every address, and follow redirects
+  **manually** so each hop is re-checked (auto-redirect hands the attacker the second request for free).
 - **Prod runs Postgres (Neon); integration tests run SQLite in-memory (v2.5/M30).** Migrations are
   Postgres-specific. Keep query code **provider-agnostic** — e.g.
   title search lowercases both sides of `Like` rather than using Npgsql `ILike` — so SQLite tests stay
@@ -253,6 +285,8 @@ tests/Zmg.Api.Tests      integration tests (WebApplicationFactory + in-memory SQ
 - **After v2.5 — Phase 2: DSP stats** (the reason this exists over Notion/Trello): hang streaming/revenue data
   off the stable Artist / Release / **Song** / Track ids and the UPC/ISRC columns; the v2.0 Song ids are
   its foundation. No build plan yet — write `build-plan-3.0.md` when it starts.
+- **M31 prod wiring (do before the next deploy):** set the five `R2__*` values as ACA secrets/env on
+  `zmg-app` and redeploy — until then, prod uploads fail with "Cover storage is not configured."
 - **Still open (not gating):** Low-value test polish (exhaustive AAA pass, the last few Theory
   conversions). The suite is green without it.
 - **Per-track task fan-out** on albums: registrations that repeat per track are single "per track" tasks

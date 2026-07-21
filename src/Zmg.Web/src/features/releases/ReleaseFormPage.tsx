@@ -8,6 +8,7 @@ import type { TrackInput } from '@/types';
 import { ReleaseType } from '@/types';
 import { Button, EmptyState, ErrorBanner, Field, Loading, inputClass, inputErrorClass } from '@/components';
 import { useBackNavigation } from '@/hooks/useBackNavigation';
+import { CoverField } from './components/CoverField';
 import { TracksEditor } from './components/TracksEditor';
 import { emptyTrack } from './components/trackInput';
 
@@ -244,9 +245,12 @@ export default function ReleaseFormPage() {
           </p>
         )}
 
-        <Field label="Cover URL" hint="Optional — shown on release cards">
-          <input className={inputClass} value={form.coverUrl} onChange={set('coverUrl')} placeholder="https://…" />
-        </Field>
+        {/* Upload or paste a URL — either way the image is stored in R2 and coverUrl holds its
+            public URL (M31). */}
+        <CoverField
+          value={form.coverUrl}
+          onChange={(value) => dispatch({ kind: 'set', field: 'coverUrl', value })}
+        />
 
         <Field label="UPC" hint="Optional — blank until DSP distribution">
           <input className={`${inputClass} max-w-[16rem]`} value={form.upc} onChange={set('upc')} placeholder="e.g. 0123456789012" />

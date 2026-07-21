@@ -18,9 +18,12 @@ export function errorMessage(e: unknown, fallback: string): string {
 }
 
 export async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  // FormData sets its own multipart Content-Type *with the boundary* — forcing JSON here would make
+  // the server unable to parse the parts (cover upload, M31).
+  const isFormData = init?.body instanceof FormData;
   const res = await fetch(path, {
     ...init,
-    headers: { 'Content-Type': 'application/json', ...init?.headers },
+    headers: isFormData ? init?.headers : { 'Content-Type': 'application/json', ...init?.headers },
   });
 
   if (!res.ok) {

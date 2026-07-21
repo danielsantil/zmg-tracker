@@ -104,36 +104,46 @@ branch and confirm **case-insensitive search** returns mixed-case matches; redep
 
 ## M31 — Cloudflare R2 for cover images (upload + URL)
 
-**Scope:** the release create/edit flow can either **upload an image** (stored in R2) or **paste an
-external URL** (current behavior). `CoverUrl` stays a `string` — **no schema change**; an upload just
-produces an R2 public URL stored in the same column.
+**Scope:** the release create/edit flow sets the cover by **uploading an image** or **pasting an image
+URL** — **both stored in R2** (the URL path is server-side fetched, then uploaded, so no external
+hotlinks). `CoverUrl` stays a `string` (an R2 public URL) — **no schema change**. UI is the compact
+**tile** control (agreed via mockups): empty tile + a "paste a URL" link that reveals an inline input;
+once set, the tile becomes the thumbnail with **Replace** / **Remove**; identical in create and edit.
 
 **Backend (full slice per CLAUDE.md conventions):**
 - Add `AWSSDK.S3`. Configure an S3 client for R2: `ServiceURL =
   https://<account>.r2.cloudflarestorage.com`, `ForcePathStyle = true`, region `auto`.
 - `Services/IStorageService.cs` + `R2StorageService.cs` (registered in `Program.cs`).
-- `Endpoints/UploadEndpoints.cs` → `POST /api/uploads/cover` (multipart): validate content-type
-  (png/jpg/webp) and size (~5 MB), key `covers/{guid}{ext}`, `PutObject`, return `{ url }` =
-  `PublicBaseUrl + key`. Map in `Program.cs`.
+- `Endpoints/UploadEndpoints.cs` (mapped in `Program.cs`) — two ingest paths that both `PutObject` to
+  `covers/{guid}{ext}` and return `{ url }` = `PublicBaseUrl + key`:
+  - `POST /api/uploads/cover` (multipart file) — validate content-type (png/jpg/webp) + size (~5 MB).
+  - `POST /api/uploads/cover-from-url` (`{ url }`) — server **fetches** the remote image, then stores
+    it. **SSRF guards:** http/https only, block private/loopback/link-local/metadata IPs, cap
+    redirects, timeout, cap download size; re-check content-type + magic bytes.
 - Config/secrets: `R2:AccountId`, `R2:AccessKeyId`, `R2:SecretAccessKey`, `R2:Bucket`,
   `R2:PublicBaseUrl` — ACA secrets in prod; the **write key stays server-side only**.
 
 **Frontend:**
-- `src/api/uploads.ts`: `uploadCover(file)` → multipart POST, returns the URL.
-- `features/releases/ReleaseFormPage.tsx`: add a file-upload control beside the existing URL field;
-  upload sets `CoverUrl` to the returned R2 URL; URL paste still works. `ReleaseHeader`/`ReleaseCard`
-  already render `CoverUrl`.
+- `src/api/uploads.ts`: `uploadCover(file)` and `uploadCoverFromUrl(url)` → both return the R2 URL.
+- New `features/releases/components/CoverField.tsx` (the tile control): empty tile (click = file
+  picker) + a "paste an image URL" link that reveals an inline input; **uploading** = spinner on the
+  tile; **filled** = thumbnail + Replace/Remove; **error** = red hint, form stays usable. Client guard:
+  reject non-image / >5 MB before POST. Sets the form's `coverUrl` to the returned R2 URL (or null on
+  Remove). Replaces the current Cover URL `<Field>` in `ReleaseFormPage.tsx`.
+- `ReleaseHeader`/`ReleaseCard` already render `CoverUrl` — no change.
 
 **R2 setup (manual now, Terraform in M32):** create the bucket, enable public access (`r2.dev` URL),
 create a bucket-scoped API token (access key/secret).
 
-**Verification:** `dotnet test` incl. the new endpoint (content-type/size guards; service can be tested
-against a MinIO/Testcontainers S3 or a mocked client); SPA — create a release via **upload** (image
-persists and renders from R2) and via **URL** (still works); `pnpm lint` + `pnpm build`.
+**Verification:** `dotnet test` — both endpoints (content-type/size guards; **SSRF guards** on the URL
+fetch: rejects private/loopback hosts + non-image); storage service mocked or against a MinIO/S3 test
+double. SPA — create a release via **upload** and via **URL** (both persist + render from R2), plus
+Replace/Remove and edit-mode load; `pnpm lint` + `pnpm build`.
 
 **Files:** `Zmg.Api.csproj`, `Services/IStorageService.cs`+`R2StorageService.cs`,
 `Endpoints/UploadEndpoints.cs`, `Program.cs`, `Contracts/Dtos.cs` (upload response), SPA
-`api/uploads.ts`, `features/releases/ReleaseFormPage.tsx`.
+`api/uploads.ts`, `features/releases/components/CoverField.tsx` (new),
+`features/releases/ReleaseFormPage.tsx`. Deferred: deleting orphaned R2 objects on replace/remove.
 
 ---
 
