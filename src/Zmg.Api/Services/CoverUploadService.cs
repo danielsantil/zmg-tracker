@@ -152,13 +152,21 @@ public sealed class CoverUploadService(IStorageService storage, HttpClient http,
         return buffer.ToArray();
     }
 
-    /// <summary>Stores bytes whose real type passed the magic-number sniff.</summary>
+    /// <summary>
+    /// Sniffs, normalizes, stores. The sniff comes first deliberately — it's a cheap reject that keeps
+    /// arbitrary attacker bytes away from the image decoder, which is the larger attack surface.
+    /// </summary>
     private async Task<OperationResult<UploadedCoverDto>> StoreAsync(byte[] bytes, CancellationToken ct)
     {
         var sniffed = CoverImage.SniffContentType(bytes);
         if (sniffed is null) return OperationResult<UploadedCoverDto>.Invalid([CoverImage.InvalidTypeMessage]);
 
-        var url = await storage.UploadCoverAsync(bytes, sniffed, ct);
+        // Re-encoded to a bounded WebP (M33): the header can be valid while the rest is corrupt, so a
+        // failed decode is a 400 rather than a 500.
+        var normalized = CoverProcessor.Normalize(bytes);
+        if (normalized is null) return OperationResult<UploadedCoverDto>.Invalid([CoverImage.InvalidTypeMessage]);
+
+        var url = await storage.UploadCoverAsync(normalized, CoverImage.StoredContentType, ct);
         return OperationResult<UploadedCoverDto>.Success(new UploadedCoverDto(url));
     }
 

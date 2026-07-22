@@ -1,12 +1,20 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Numerics;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats;
+using SixLabors.ImageSharp.Formats.Jpeg;
+using SixLabors.ImageSharp.Formats.Png;
+using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Processing;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Zmg.Api.Contracts;
 using Zmg.Api.Services;
 using Zmg.Api.Services.Interfaces;
+using Zmg.Domain;
 
 namespace Zmg.Api.Tests;
 
@@ -40,7 +48,48 @@ public class UploadApiTests : IClassFixture<UploadApiFactory>
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadFromJsonAsync<UploadedCoverDto>();
         Assert.StartsWith(FakeStorageService.PublicBase, body!.Url);
-        Assert.Equal("image/png", _factory.Storage.LastContentType);
+        // Stored as WebP whatever came in (M33).
+        Assert.Equal("image/webp", _factory.Storage.LastContentType);
+    }
+
+    [Fact]
+    public async Task Upload_downscales_an_oversized_image_to_the_stored_bound()
+    {
+        var client = _factory.CreateClient();
+
+        var response = await client.PostAsync("/api/uploads/cover", FileContent(TestImages.LargePng, "image/png", "big.png"));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var stored = Image.Load(_factory.Storage.LastContent!);
+        Assert.Equal(CoverImage.MaxStoredEdge, stored.Width);          // 1200x800 fits to 1000x667
+        Assert.True(stored.Height < CoverImage.MaxStoredEdge);         // aspect ratio preserved
+        Assert.True(_factory.Storage.LastContent!.Length < TestImages.LargePng.Length);
+    }
+
+    [Fact]
+    public async Task Upload_does_not_upscale_an_image_smaller_than_the_bound()
+    {
+        var client = _factory.CreateClient();
+
+        var response = await client.PostAsync("/api/uploads/cover", FileContent(TestImages.SmallPng, "image/png", "small.png"));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var stored = Image.Load(_factory.Storage.LastContent!);
+        Assert.Equal(64, stored.Width);
+        Assert.Equal(48, stored.Height);
+    }
+
+    [Fact]
+    public async Task Upload_rejects_a_file_with_a_valid_header_but_a_corrupt_body()
+    {
+        var client = _factory.CreateClient();
+        // Passes the magic-number sniff, then fails to decode — a 400, never an unhandled 500.
+        var truncated = TestImages.Png[..64];
+
+        var response = await client.PostAsync("/api/uploads/cover", FileContent(truncated, "image/png", "truncated.png"));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Null(_factory.Storage.LastContentType);
     }
 
     [Fact]
@@ -94,7 +143,7 @@ public class UploadApiTests : IClassFixture<UploadApiFactory>
         var body = await response.Content.ReadFromJsonAsync<UploadedCoverDto>();
         // Stored in R2, not hotlinked — the returned URL is ours.
         Assert.StartsWith(FakeStorageService.PublicBase, body!.Url);
-        Assert.Equal("image/jpeg", _factory.Storage.LastContentType);
+        Assert.Equal("image/webp", _factory.Storage.LastContentType);
     }
 
     [Theory]
@@ -282,8 +331,35 @@ public sealed class StubRemoteHost : HttpMessageHandler
     }
 }
 
+/// <summary>
+/// Real, decodable images — M33 re-encodes every accepted upload, so byte headers alone no longer
+/// reach the storage seam. ImageSharp comes in transitively via Zmg.Api; no test package needed.
+/// </summary>
 internal static class TestImages
 {
-    public static readonly byte[] Png = { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D };
-    public static readonly byte[] Jpeg = { 0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46 };
+    public static readonly byte[] Png = Encode(320, 320, new PngEncoder());
+    public static readonly byte[] Jpeg = Encode(320, 320, new JpegEncoder());
+
+    /// <summary>Bigger than MaxStoredEdge on both axes, so the resize has to do something.</summary>
+    public static readonly byte[] LargePng = Encode(1200, 800, new PngEncoder());
+
+    /// <summary>Smaller than MaxStoredEdge — must come back out at its original size, not upscaled.</summary>
+    public static readonly byte[] SmallPng = Encode(64, 48, new PngEncoder());
+
+    private static byte[] Encode(int width, int height, IImageEncoder encoder)
+    {
+        using var image = new Image<Rgba32>(width, height);
+        // A flat fill compresses to almost nothing; a gradient keeps the bytes realistic.
+        image.Mutate(x => x.ProcessPixelRowsAsVector4((row, point) =>
+        {
+            for (var i = 0; i < row.Length; i++)
+            {
+                row[i] = new Vector4(i / (float)row.Length, point.Y / (float)height, 0.6f, 1f);
+            }
+        }));
+
+        using var buffer = new MemoryStream();
+        image.Save(buffer, encoder);
+        return buffer.ToArray();
+    }
 }

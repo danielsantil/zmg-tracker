@@ -20,6 +20,18 @@ public static class CoverImage
     public const string JpegContentType = "image/jpeg";
     public const string WebpContentType = "image/webp";
 
+    /// <summary>
+    /// Longest edge of a stored cover (M33). These are reference thumbnails, not artwork masters —
+    /// nothing renders them above a few hundred pixels. Smaller sources are never upscaled.
+    /// </summary>
+    public const int MaxStoredEdge = 1000;
+
+    /// <summary>WebP quality for the re-encode: invisible on a cover, ~30–80 KB in practice.</summary>
+    public const int StoredQuality = 80;
+
+    /// <summary>Everything in the bucket is WebP, whatever came in (M33).</summary>
+    public const string StoredContentType = WebpContentType;
+
     public static readonly IReadOnlyList<string> AllowedContentTypes =
         new[] { PngContentType, JpegContentType, WebpContentType };
 

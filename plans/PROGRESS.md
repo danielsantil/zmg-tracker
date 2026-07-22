@@ -13,16 +13,16 @@ for where the project stands and the rules that span plans.
 - [build-plan-2.2.md](build-plan-2.2.md) — UX improvements (M19–M23). Shipped.
 - [build-plan-2.3.md](build-plan-2.3.md) — refactor · code health (M24–M25). Shipped.
 - [build-plan-2.4.md](build-plan-2.4.md) — UI polish · dark/light (M26–M28). Shipped.
-- [build-plan-2.5.md](build-plan-2.5.md) — deployment · ACA/Neon/R2/Terraform (M29–M32). M29–M31 shipped.
+- [build-plan-2.5.md](build-plan-2.5.md) — deployment · ACA/Neon/R2/Terraform (M29–M33). M29–M31 + M33 shipped; M32 open.
 
 Newer plan versions go in new `build-plan-N.N.md` files; older ones stay frozen.
 
 **Current state:** feature-complete through **v2.4** — UI polish, semantic color tokens, and a working
-**dark/light theme toggle**. Backend tests **domain 119 / API 153**, green (~8s); SPA **32 Vitest**.
-**v2.5 — deployment** is in flight ([build-plan-2.5.md](build-plan-2.5.md), M29–M32: ACA · Neon Postgres ·
-Cloudflare R2 · Terraform): **M29–M31 shipped** — live on **Azure Container Apps**, on durable
+**dark/light theme toggle**. Backend tests **domain 119 / API 156**, green (~8s); SPA **32 Vitest**.
+**v2.5 — deployment** is in flight ([build-plan-2.5.md](build-plan-2.5.md), M29–M33: ACA · Neon Postgres ·
+Cloudflare R2 · Terraform): **M29–M31 + M33 shipped** — live on **Azure Container Apps**, on durable
 **Neon Postgres** (SQLite retired from prod; tests still use SQLite in-memory), and covers now stored in
-**Cloudflare R2**. **Next is M32 — Terraform** (codify M29–M31 across `azurerm` + `neon` + `cloudflare`).
+**Cloudflare R2** (M33 bounds them to a 1000px WebP on ingest). **Next is M32 — Terraform** (codify M29–M31 across `azurerm` + `neon` + `cloudflare`).
 ⚠️ **M31 has one open prod step:** the five `R2:*` settings are in local user-secrets but are **not yet
 ACA secrets** — uploads will fail in prod (a clean "Cover storage is not configured." 500, nothing else
 breaks) until `R2__AccountId`/`AccessKeyId`/`SecretAccessKey`/`Bucket`/`PublicBaseUrl` are set on the
@@ -172,6 +172,27 @@ boundary. Verified in-browser end to end: upload → tile thumbnail rendering fr
 URL stored under a **new** key (proving re-upload, not hotlink); `169.254.169.254` refused with "That
 URL can't be fetched."; Remove clears; light/mobile clean. Deferred as planned: deleting orphaned R2
 objects on replace/remove.
+
+**v2.5 M33 — normalize covers on ingest (resize + re-encode).** M31 stored whatever it was handed; a
+4 MB phone photo sat in R2 at 4 MB to be rendered on a 96px tile. Now every accepted image — from
+**both** ingest paths, since both funnel through `StoreAsync` — is decoded, `AutoOrient()`ed,
+downscaled to a longest edge of **1000px** (never upscaled) and re-encoded as **WebP q80**. Measured
+live: a 4.74 MB 1400×1400 source → **17 KB** at 1000×1000; a pathological pure-noise 4.32 MB source →
+584 KB. **Library: SixLabors.ImageSharp pinned to 3.1.x** — the only mature **fully managed** option
+(SkiaSharp/Magick.NET/NetVips all ship native binaries, which fights the Phase-2 chiseled-image goal),
+and pinned below **4.0.0, which added a build-time licence check** requiring a `sixlabors.lic` file to
+compile (it would break the Dockerfile and CI even though this project qualifies free). The
+ImageSharp call sits in `Zmg.Api/Services/CoverProcessor.cs`; only the *numbers* live in pure
+`CoverImage` — **Domain keeps no third-party dependencies**. Three wins beyond size: EXIF (incl. GPS)
+is **stripped**, a decode/re-encode round trip **neutralizes crafted image payloads** far better than
+the magic-byte sniff alone, and everything in the bucket is now one type. The 5 MB cap survives as an
+**ingress** limit — it bounds what we'll decode, not what we store. API tests moved from byte
+*headers* to real generated images (ImageSharp arrives transitively, no new test package) **+3 → 156**.
+
+> ⚠️ **`WebpEncoder.FileFormat` must be `Lossy`, explicitly.** At its default ImageSharp emitted
+> **lossless** WebP (`VP8L`), where `Quality` means nothing — the same source came out 2.9 MB instead
+> of 584 KB. Caught only because verification used a realistic multi-MB image; the unit tests were
+> perfectly green while the milestone's whole purpose was silently defeated.
 
 ---
 
