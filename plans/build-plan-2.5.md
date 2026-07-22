@@ -1,6 +1,6 @@
 # ZMG Release Tracker — Build Plan v2.5 (deployment)
 
-Delta on [build-plan-2.4.md](build-plan-2.4.md). Continues milestone numbering from M28 → **M29–M32**.
+Delta on [build-plan-2.4.md](build-plan-2.4.md). Continues milestone numbering from M28 → **M29–M33**.
 
 ## Context
 
@@ -104,36 +104,46 @@ branch and confirm **case-insensitive search** returns mixed-case matches; redep
 
 ## M31 — Cloudflare R2 for cover images (upload + URL)
 
-**Scope:** the release create/edit flow can either **upload an image** (stored in R2) or **paste an
-external URL** (current behavior). `CoverUrl` stays a `string` — **no schema change**; an upload just
-produces an R2 public URL stored in the same column.
+**Scope:** the release create/edit flow sets the cover by **uploading an image** or **pasting an image
+URL** — **both stored in R2** (the URL path is server-side fetched, then uploaded, so no external
+hotlinks). `CoverUrl` stays a `string` (an R2 public URL) — **no schema change**. UI is the compact
+**tile** control (agreed via mockups): empty tile + a "paste a URL" link that reveals an inline input;
+once set, the tile becomes the thumbnail with **Replace** / **Remove**; identical in create and edit.
 
 **Backend (full slice per CLAUDE.md conventions):**
 - Add `AWSSDK.S3`. Configure an S3 client for R2: `ServiceURL =
   https://<account>.r2.cloudflarestorage.com`, `ForcePathStyle = true`, region `auto`.
 - `Services/IStorageService.cs` + `R2StorageService.cs` (registered in `Program.cs`).
-- `Endpoints/UploadEndpoints.cs` → `POST /api/uploads/cover` (multipart): validate content-type
-  (png/jpg/webp) and size (~5 MB), key `covers/{guid}{ext}`, `PutObject`, return `{ url }` =
-  `PublicBaseUrl + key`. Map in `Program.cs`.
+- `Endpoints/UploadEndpoints.cs` (mapped in `Program.cs`) — two ingest paths that both `PutObject` to
+  `covers/{guid}{ext}` and return `{ url }` = `PublicBaseUrl + key`:
+  - `POST /api/uploads/cover` (multipart file) — validate content-type (png/jpg/webp) + size (~5 MB).
+  - `POST /api/uploads/cover-from-url` (`{ url }`) — server **fetches** the remote image, then stores
+    it. **SSRF guards:** http/https only, block private/loopback/link-local/metadata IPs, cap
+    redirects, timeout, cap download size; re-check content-type + magic bytes.
 - Config/secrets: `R2:AccountId`, `R2:AccessKeyId`, `R2:SecretAccessKey`, `R2:Bucket`,
   `R2:PublicBaseUrl` — ACA secrets in prod; the **write key stays server-side only**.
 
 **Frontend:**
-- `src/api/uploads.ts`: `uploadCover(file)` → multipart POST, returns the URL.
-- `features/releases/ReleaseFormPage.tsx`: add a file-upload control beside the existing URL field;
-  upload sets `CoverUrl` to the returned R2 URL; URL paste still works. `ReleaseHeader`/`ReleaseCard`
-  already render `CoverUrl`.
+- `src/api/uploads.ts`: `uploadCover(file)` and `uploadCoverFromUrl(url)` → both return the R2 URL.
+- New `features/releases/components/CoverField.tsx` (the tile control): empty tile (click = file
+  picker) + a "paste an image URL" link that reveals an inline input; **uploading** = spinner on the
+  tile; **filled** = thumbnail + Replace/Remove; **error** = red hint, form stays usable. Client guard:
+  reject non-image / >5 MB before POST. Sets the form's `coverUrl` to the returned R2 URL (or null on
+  Remove). Replaces the current Cover URL `<Field>` in `ReleaseFormPage.tsx`.
+- `ReleaseHeader`/`ReleaseCard` already render `CoverUrl` — no change.
 
 **R2 setup (manual now, Terraform in M32):** create the bucket, enable public access (`r2.dev` URL),
 create a bucket-scoped API token (access key/secret).
 
-**Verification:** `dotnet test` incl. the new endpoint (content-type/size guards; service can be tested
-against a MinIO/Testcontainers S3 or a mocked client); SPA — create a release via **upload** (image
-persists and renders from R2) and via **URL** (still works); `pnpm lint` + `pnpm build`.
+**Verification:** `dotnet test` — both endpoints (content-type/size guards; **SSRF guards** on the URL
+fetch: rejects private/loopback hosts + non-image); storage service mocked or against a MinIO/S3 test
+double. SPA — create a release via **upload** and via **URL** (both persist + render from R2), plus
+Replace/Remove and edit-mode load; `pnpm lint` + `pnpm build`.
 
 **Files:** `Zmg.Api.csproj`, `Services/IStorageService.cs`+`R2StorageService.cs`,
 `Endpoints/UploadEndpoints.cs`, `Program.cs`, `Contracts/Dtos.cs` (upload response), SPA
-`api/uploads.ts`, `features/releases/ReleaseFormPage.tsx`.
+`api/uploads.ts`, `features/releases/components/CoverField.tsx` (new),
+`features/releases/ReleaseFormPage.tsx`. Deferred: deleting orphaned R2 objects on replace/remove.
 
 ---
 
@@ -172,6 +182,58 @@ cleanly.
 
 ---
 
+## M33 — Normalize covers on ingest (resize + re-encode)
+
+**Why:** M31 stores whatever it's given. A 4 MB phone photo lands in R2 at 4 MB and gets rendered at
+96px on a tile. These covers are **reference images, not artwork masters** — nothing downstream needs
+the original resolution. Shrinking them also shrinks the blast radius of the orphan problem below: at
+~50 KB an abandoned upload stops being worth engineering around.
+
+**Scope:** every accepted image is decoded, downscaled and re-encoded to **WebP** before it reaches
+R2. Applies to **both** ingest paths (upload and URL fetch), since both funnel through
+`CoverUploadService.StoreAsync`.
+
+**Decisions:**
+- **Library: `SixLabors.ImageSharp`, pinned to `3.1.x`.** It is the only mature **fully managed**
+  option — SkiaSharp/Magick.NET/NetVips all ship native binaries, which fights the chiseled-base-image
+  goal in Phase 2. Pinned to 3.x deliberately: **v4.0.0 added build-time licence enforcement**
+  (a `sixlabors.lic` file must be present to compile), which would break the Dockerfile and CI even
+  though this project qualifies for a free licence under the Split License (open-source / <$1M
+  revenue). Do **not** let it float to 4.x. Fallback if the licence ever binds: 2.1.x is plain Apache-2.0.
+- **Bounds:** longest edge **1000px** (never upscale), WebP quality **80** → typically 30–80 KB.
+- **`FileFormat` must be set to `Lossy` explicitly.** Left at the default, ImageSharp's `WebpEncoder`
+  can emit **lossless** WebP (`VP8L`), where `Quality` is meaningless — measured live, a 4.3 MB source
+  came back at 2.9 MB (vs 584 KB lossy). Silent, and it defeats the entire milestone.
+- **Always re-encode**, even for an already-small input. The consistency is the point (see below), and
+  the quality cost on a cover thumbnail is invisible.
+- The 5 MB cap stays as an **ingress** limit; it now bounds what we're willing to *decode*, not what
+  we store.
+
+**Three benefits beyond size** (the reason this isn't just a nice-to-have):
+- **Strips EXIF** — phone photos carry GPS coordinates. Metadata profiles are cleared explicitly,
+  *after* `AutoOrient()` applies the orientation tag (clear first and portrait photos store sideways).
+- **Neutralizes malformed-image payloads.** A file crafted against an image-parser bug doesn't survive
+  a decode/re-encode round trip, so it never reaches R2 to be served to a browser. This is a stronger
+  control than the magic-byte sniff, which only checks the first few bytes.
+- **One stored type.** Everything in the bucket is `.webp`, so the key/extension logic collapses.
+
+**Layering:** the numbers (`MaxEdgeAllocated`, quality, stored content type) go in pure `CoverImage`
+alongside the other rules; the ImageSharp call lives in `Zmg.Api` (`Services/CoverProcessor.cs`) —
+**Domain stays free of third-party dependencies** per CLAUDE.md. Order inside `StoreAsync` matters:
+sniff **first** (cheap reject before handing attacker bytes to a decoder), then normalize, then upload.
+
+**Tests:** the existing API upload tests currently post byte *headers* rather than real images — they
+must become genuinely valid images (ImageSharp arrives transitively via `Zmg.Api`, so no new test
+package). New coverage: a 1200×800 PNG is stored as WebP with its longest edge ≤1000; a small image
+is not upscaled; a decodable-but-corrupt file is rejected as a 400 rather than throwing. The
+cap/sniff tests keep working unchanged, since both reject before the decode step.
+
+**Files:** `Zmg.Api.csproj`, `src/Zmg.Domain/CoverImage.cs`, `src/Zmg.Api/Services/CoverProcessor.cs`
+(new), `CoverUploadService.cs`, `tests/Zmg.Api.Tests/UploadApiTests.cs`. Blast radius: API →
+full `dotnet test`. No SPA change (the tile already renders whatever URL comes back).
+
+---
+
 ## Phase 2 — deferred (not scheduled)
 
 - **SPA → Cloudflare Pages split.** Move the React app off the API container to Pages (global CDN,
@@ -186,6 +248,20 @@ cleanly.
 - **Background aggregation (DSP stats).** A nightly **ACA cron Job** pulling third-party API data into
   Neon; parallelize external calls to keep billed wall-clock time short. Add an Azure Storage Queue
   only if bursty on-demand fan-out appears. Draws from the same ACA free grant.
+- **Orphaned-cover sweeper (second ACA cron Job).** M31 stores a cover the moment it's picked, so R2
+  accumulates objects the app no longer references: abandoned create forms, and every Replace/Remove
+  (both only mutate form state — the release keeps pointing at the old URL until save). One
+  reconciliation job handles every source: list `covers/`, delete any key not referenced by a
+  `CoverUrl` in the database, **skipping objects younger than ~24h** so an in-flight form can't be
+  swept out from under itself. Soft-deleted releases still carry their `CoverUrl`, so the
+  "still referenced" query protects them for free.
+  **Explicitly rejected: deleting eagerly when Replace/Remove is clicked.** Those buttons only change
+  local form state — deleting there, followed by the user hitting Cancel or closing the tab, breaks
+  the cover of a release that was never edited. Any deletion must key off what was *persisted*.
+  The alternative considered and parked: upload to a `staging/` prefix, `CopyObject` to `covers/` on
+  save, and let an **R2 lifecycle rule** expire the staging prefix (deletion as configuration, no code)
+   — rejected for now because it couples the promote step into `ReleaseService`, and M33 makes each
+  orphan ~50 KB. Cheap to add here since the DSP job above already brings the Job runner.
 - **Real-Postgres integration tests.** Run the API suite against actual Postgres — Testcontainers
   locally + a GitHub Actions Postgres **service container** in CI — closing the SQLite/Postgres parity
   gap. (A Testcontainers-in-CI hang during M30 made this not worth blocking on; the factory already has

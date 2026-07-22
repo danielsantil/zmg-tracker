@@ -9,8 +9,8 @@
     },
     {
       "name": "web",
-      "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["run", "dev", "--prefix", "src/Zmg.Web"],
+      "runtimeExecutable": "sh",
+      "runtimeArgs": ["-c", "cd src/Zmg.Web && pnpm dev"],
       "port": 5173
     }
   ]

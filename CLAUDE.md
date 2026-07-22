@@ -58,6 +58,9 @@ cd src/Zmg.Web && pnpm build && cd ../.. && dotnet run --project src/Zmg.Api
 ```
 
 - .NET SDK is pinned to 8.0.x via `global.json`. Node 24.18.0
+- **Cover images (v2.5/M31): Cloudflare R2.** Uploads go through `/api/uploads/cover*`; the five `R2:*`
+  settings live in **dev** `dotnet user-secrets` and (pending) as **prod** ACA secrets. Without them the
+  app still boots — only uploading fails. Tests never touch R2 or the network (fake storage + stub handler).
 - **Database (v2.5): Postgres (Neon).** Dev + prod use `ConnectionStrings__Zmg` — **dev** via
   `dotnet user-secrets` in `src/Zmg.Api` (never commit it), **prod** as an ACA secret. Startup applies
   migrations + seeds templates. To reset local data: reset the Neon

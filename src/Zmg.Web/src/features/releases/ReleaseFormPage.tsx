@@ -8,6 +8,7 @@ import type { TrackInput } from '@/types';
 import { ReleaseType } from '@/types';
 import { Button, EmptyState, ErrorBanner, Field, Loading, inputClass, inputErrorClass } from '@/components';
 import { useBackNavigation } from '@/hooks/useBackNavigation';
+import { CoverField } from './components/CoverField';
 import { TracksEditor } from './components/TracksEditor';
 import { emptyTrack } from './components/trackInput';
 
@@ -90,6 +91,7 @@ export default function ReleaseFormPage() {
   const [errors, setErrors] = useState<string[]>([]);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  const [coverUploading, setCoverUploading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<{ title?: string; releaseDate?: string }>({});
 
   // Hydrate the form from the release being edited, once it arrives.
@@ -124,6 +126,9 @@ export default function ReleaseFormPage() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    // The submit button is disabled while a cover uploads, but Enter in any text input still fires
+    // the form — saving here would persist the pre-upload coverUrl and orphan the stored image.
+    if (coverUploading) return;
     setErrors([]);
     setWarnings([]);
 
@@ -244,9 +249,13 @@ export default function ReleaseFormPage() {
           </p>
         )}
 
-        <Field label="Cover URL" hint="Optional — shown on release cards">
-          <input className={inputClass} value={form.coverUrl} onChange={set('coverUrl')} placeholder="https://…" />
-        </Field>
+        {/* Upload or paste a URL — either way the image is stored in R2 and coverUrl holds its
+            public URL (M31). */}
+        <CoverField
+          value={form.coverUrl}
+          onChange={(value) => dispatch({ kind: 'set', field: 'coverUrl', value })}
+          onUploadingChange={setCoverUploading}
+        />
 
         <Field label="UPC" hint="Optional — blank until DSP distribution">
           <input className={`${inputClass} max-w-[16rem]`} value={form.upc} onChange={set('upc')} placeholder="e.g. 0123456789012" />
@@ -291,7 +300,7 @@ export default function ReleaseFormPage() {
         )}
 
         <div className="flex gap-2">
-          <Button type="submit" disabled={saving}>
+          <Button type="submit" disabled={saving || coverUploading}>
             {saving ? 'Saving…' : isEdit ? 'Save changes' : 'Create release'}
           </Button>
           <Button type="button" variant="ghost" onClick={goBack}>

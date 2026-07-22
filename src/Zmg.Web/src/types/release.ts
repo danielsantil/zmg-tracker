@@ -14,6 +14,11 @@ export interface ReleaseListFilters {
   q?: string;
 }
 
+/** What either cover-upload endpoint returns: the stored image's public R2 URL (M31). */
+export interface UploadedCover {
+  url: string;
+}
+
 export interface ReleaseInput {
   title: string;
   type: ReleaseType;

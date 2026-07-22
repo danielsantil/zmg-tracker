@@ -134,6 +134,11 @@ public record AddTemplateTaskInput(string Title, Phase Phase, int? MinDaysBefore
 public record UpdateTemplateTaskInput(string Title, Phase Phase, int? MinDaysBefore = null, int? MaxDaysBefore = null);
 public record ReorderTemplateTasksInput(Phase Phase, List<Guid> OrderedTaskIds);
 
+// ---- Cover uploads (M31) ----
+// Both ingest paths answer with the stored R2 URL; the SPA drops it into the release's CoverUrl.
+public record CoverUrlInput(string? Url);
+public record UploadedCoverDto(string Url);
+
 // ---- Validation envelope ----
 public record ValidationErrorResponse(string[] Errors);
 public record CreatedWithWarnings<T>(T Data, string[] Warnings);

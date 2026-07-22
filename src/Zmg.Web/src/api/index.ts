@@ -5,6 +5,7 @@ import { songsApi } from './songs';
 import { tasksApi } from './tasks';
 import { templatesApi } from './templates';
 import { tracksApi } from './tracks';
+import { uploadsApi } from './uploads';
 
 /**
  * Namespaced entry point: one property per entity, e.g. `api.artists.list()`,
@@ -19,6 +20,7 @@ export const api = {
   templates: templatesApi,
   tracks: tracksApi,
   pending: pendingApi,
+  uploads: uploadsApi,
 };
 
 export { ApiError, errorMessage } from './client';
