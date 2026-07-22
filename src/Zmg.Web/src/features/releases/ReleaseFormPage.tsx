@@ -301,7 +301,7 @@ export default function ReleaseFormPage() {
 
         <div className="flex gap-2">
           <Button type="submit" disabled={saving || coverUploading}>
-            {saving ? 'Saving…' : coverUploading ? 'Uploading cover…' : isEdit ? 'Save changes' : 'Create release'}
+            {saving ? 'Saving…' : isEdit ? 'Save changes' : 'Create release'}
           </Button>
           <Button type="button" variant="ghost" onClick={goBack}>
             Cancel
