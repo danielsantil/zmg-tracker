@@ -87,7 +87,8 @@ every accepted image normalized to a 1000px WebP on ingest (M33), and the whole 
 **Terraform** across `azurerm` + `neon` + `cloudflare` — **imported**, not recreated, so prod never
 moved (M32). That last apply also closed M31's dangling prod wiring (the `R2__*` settings had never
 been set on the container app) and forced the first deploy since M30 — prod had been running two
-milestones behind main, which is exactly why **M34** exists.
+milestones behind main, which is exactly why **M34** exists. **Cover upload is verified end-to-end in
+prod**, so the whole v2.5 stack is confirmed live.
 
 ---
 
@@ -221,9 +222,6 @@ infra                    Terraform: azurerm + neon + cloudflare in one root modu
 - **Shipped — v2.5 (M29–M33):** ACA deploy · Neon Postgres · R2 covers · cover normalization · Terraform.
 - **Next: M34 — CI/CD image pipeline** ([build-plan-2.5.md](build-plan-2.5.md)). Its decisions are already
   locked by M32 (Terraform ignores the image tag; OIDC for Azure; `GITHUB_TOKEN` for GHCR; SHA tags).
-- **Quick check outstanding:** a cover upload was never re-verified **end to end in prod** after the M32
-  wiring and the `31c16e4` rollout — the tile UI is live, but confirm an image actually round-trips to
-  R2. The suite covers the code path; this is about the prod credentials being right.
 - **After v2.5 — Phase 2: DSP stats** (the reason this exists over Notion/Trello): hang streaming/revenue data
   off the stable Artist / Release / **Song** / Track ids and the UPC/ISRC columns; the v2.0 Song ids are
   its foundation. No build plan yet — write `build-plan-3.0.md` when it starts.
