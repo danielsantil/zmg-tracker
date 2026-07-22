@@ -91,6 +91,7 @@ export default function ReleaseFormPage() {
   const [errors, setErrors] = useState<string[]>([]);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  const [coverUploading, setCoverUploading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<{ title?: string; releaseDate?: string }>({});
 
   // Hydrate the form from the release being edited, once it arrives.
@@ -125,6 +126,9 @@ export default function ReleaseFormPage() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    // The submit button is disabled while a cover uploads, but Enter in any text input still fires
+    // the form — saving here would persist the pre-upload coverUrl and orphan the stored image.
+    if (coverUploading) return;
     setErrors([]);
     setWarnings([]);
 
@@ -250,6 +254,7 @@ export default function ReleaseFormPage() {
         <CoverField
           value={form.coverUrl}
           onChange={(value) => dispatch({ kind: 'set', field: 'coverUrl', value })}
+          onUploadingChange={setCoverUploading}
         />
 
         <Field label="UPC" hint="Optional — blank until DSP distribution">
@@ -295,8 +300,8 @@ export default function ReleaseFormPage() {
         )}
 
         <div className="flex gap-2">
-          <Button type="submit" disabled={saving}>
-            {saving ? 'Saving…' : isEdit ? 'Save changes' : 'Create release'}
+          <Button type="submit" disabled={saving || coverUploading}>
+            {saving ? 'Saving…' : coverUploading ? 'Uploading cover…' : isEdit ? 'Save changes' : 'Create release'}
           </Button>
           <Button type="button" variant="ghost" onClick={goBack}>
             Cancel

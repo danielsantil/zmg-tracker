@@ -16,9 +16,13 @@ const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 export function CoverField({
   value,
   onChange,
+  onUploadingChange,
 }: {
   value: string;
   onChange: (url: string) => void;
+  /** Lets the form block its submit while an upload is in flight — saving now would persist the
+      previous coverUrl (or none) and silently orphan the image being stored. */
+  onUploadingChange?: (uploading: boolean) => void;
 }) {
   const fileInput = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -26,8 +30,13 @@ export function CoverField({
   const [urlOpen, setUrlOpen] = useState(false);
   const [url, setUrl] = useState('');
 
+  function setBusy(busy: boolean) {
+    setUploading(busy);
+    onUploadingChange?.(busy);
+  }
+
   async function upload(send: () => Promise<{ url: string }>) {
-    setUploading(true);
+    setBusy(true);
     setError(null);
     try {
       const stored = await send();
@@ -38,7 +47,7 @@ export function CoverField({
       // The form stays usable — a failed cover never blocks saving the release.
       setError(errorMessage(e, 'Could not upload that image.'));
     } finally {
-      setUploading(false);
+      setBusy(false);
     }
   }
 
