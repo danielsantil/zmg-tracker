@@ -1,5 +1,4 @@
 using System.Net;
-using Zmg.Domain;
 
 namespace Zmg.Domain.Tests;
 
@@ -39,17 +38,22 @@ public class CoverImageTests
     [Fact]
     public void SniffContentType_reads_the_magic_number_of_each_format()
     {
-        Assert.Equal("image/png", CoverImage.SniffContentType(Bytes.Png));
-        Assert.Equal("image/jpeg", CoverImage.SniffContentType(Bytes.Jpeg));
-        Assert.Equal("image/webp", CoverImage.SniffContentType(Bytes.Webp));
+        byte[] png = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00];
+        Assert.Equal("image/png", CoverImage.SniffContentType(png));
+
+        byte[] jpeg = [0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10];
+        Assert.Equal("image/jpeg", CoverImage.SniffContentType(jpeg));
+        
+        var webp = "RIFF\0\0\0\0WEBPVP8 "u8.ToArray();
+        Assert.Equal("image/webp", CoverImage.SniffContentType(webp));
     }
 
     [Fact]
     public void SniffContentType_returns_null_for_non_image_bytes()
     {
-        Assert.Null(CoverImage.SniffContentType(new byte[] { 0x3C, 0x73, 0x76, 0x67 })); // "<svg"
-        Assert.Null(CoverImage.SniffContentType(Array.Empty<byte>()));
-        Assert.Null(CoverImage.SniffContentType(new byte[] { 0x89, 0x50 }));             // truncated PNG header
+        Assert.Null(CoverImage.SniffContentType([0x3C, 0x73, 0x76, 0x67])); // "<svg"
+        Assert.Null(CoverImage.SniffContentType([]));
+        Assert.Null(CoverImage.SniffContentType([0x89, 0x50]));             // truncated PNG header
     }
 
     [Fact]
@@ -133,13 +137,5 @@ public class CoverImageTests
     {
         var id = Guid.Parse("11111111-2222-3333-4444-555555555555");
         Assert.Equal("covers/11111111222233334444555555555555.jpg", CoverImage.KeyFor(id, "image/jpeg"));
-    }
-
-    /// <summary>Minimal byte headers standing in for real image files.</summary>
-    internal static class Bytes
-    {
-        public static readonly byte[] Png = { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00 };
-        public static readonly byte[] Jpeg = { 0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10 };
-        public static readonly byte[] Webp = "RIFF\0\0\0\0WEBPVP8 "u8.ToArray();
     }
 }

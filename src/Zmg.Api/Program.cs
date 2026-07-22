@@ -25,6 +25,8 @@ builder.Services.AddScoped<IReleaseTaskService, ReleaseTaskService>();
 // Cover images (M31). The S3 client is built lazily inside the service, so a box without the R2:*
 // settings still boots — only an upload attempt fails, with a clear message.
 builder.Services.Configure<R2Options>(builder.Configuration.GetSection(R2Options.SectionName));
+// Singleton, not scoped like the DbContext-backed services: the S3 client owns a connection pool, and
+// R2StorageService disposes it — scoped would build and tear down a pool on every upload.
 builder.Services.AddSingleton<IStorageService, R2StorageService>();
 builder.Services
     .AddHttpClient<ICoverUploadService, CoverUploadService>(http =>
