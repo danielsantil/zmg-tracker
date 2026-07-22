@@ -13,21 +13,17 @@ for where the project stands and the rules that span plans.
 - [build-plan-2.2.md](build-plan-2.2.md) — UX improvements (M19–M23). Shipped.
 - [build-plan-2.3.md](build-plan-2.3.md) — refactor · code health (M24–M25). Shipped.
 - [build-plan-2.4.md](build-plan-2.4.md) — UI polish · dark/light (M26–M28). Shipped.
-- [build-plan-2.5.md](build-plan-2.5.md) — deployment · ACA/Neon/R2/Terraform (M29–M33). M29–M31 + M33 shipped; M32 open.
+- [build-plan-2.5.md](build-plan-2.5.md) — deployment · ACA/Neon/R2/Terraform/CI-CD (M29–M34). M29–M33 shipped; M34 open.
 
 Newer plan versions go in new `build-plan-N.N.md` files; older ones stay frozen.
 
-**Current state:** feature-complete through **v2.4** — UI polish, semantic color tokens, and a working
-**dark/light theme toggle**. Backend tests **domain 119 / API 156**, green (~8s); SPA **32 Vitest**.
-**v2.5 — deployment** is in flight ([build-plan-2.5.md](build-plan-2.5.md), M29–M33: ACA · Neon Postgres ·
-Cloudflare R2 · Terraform): **M29–M31 + M33 shipped** — live on **Azure Container Apps**, on durable
-**Neon Postgres** (SQLite retired from prod; tests still use SQLite in-memory), and covers now stored in
-**Cloudflare R2** (M33 bounds them to a 1000px WebP on ingest). **Next is M32 — Terraform** (codify M29–M31 across `azurerm` + `neon` + `cloudflare`).
-⚠️ **M31 has one open prod step:** the five `R2:*` settings are in local user-secrets but are **not yet
-ACA secrets** — uploads will fail in prod (a clean "Cover storage is not configured." 500, nothing else
-breaks) until `R2__AccountId`/`AccessKeyId`/`SecretAccessKey`/`Bucket`/`PublicBaseUrl` are set on the
-container app and it's redeployed at a new image tag. Phase 2 (DSP stats, SPA/Pages split, cold-start
-tuning, real-Postgres tests, CI image pipeline) follows.
+**Current state:** feature-complete through **v2.4** and **hosted** through v2.5 M29–M33 — live on
+**Azure Container Apps** over **Neon Postgres**, covers in **Cloudflare R2** (normalized to a 1000px
+WebP on ingest), and the whole stack codified in Terraform under [`infra/`](../infra/README.md). Prod
+runs `31c16e4`. Backend **domain 119 / API 156**, SPA **32 Vitest** — unchanged since M33, as M32
+touched no app code. **Next is M34 — the CI/CD image pipeline**, promoted out of Phase 2 after prod
+spent two milestones behind main. Phase 2 (DSP stats, SPA/Pages split, cold-start tuning,
+real-Postgres tests) follows.
 
 > ⚠️ **DB is Postgres (Neon) as of v2.5/M30.** Dev + prod both use `ConnectionStrings__Zmg` — **dev** via
 > `dotnet user-secrets` in `src/Zmg.Api` (never commit it), **prod** as an ACA secret. Startup applies
@@ -71,128 +67,27 @@ the releases **calendar** view (dependency-free month grid + a day preview modal
 artist delete guard, popovers inside modals, mobile table clipping, and page-level horizontal overflow —
 each now carried as a rule in Cross-cutting decisions rather than as a story here.
 
-**v2.3 (M24–M25) — refactor · code health, no features.** Web (M24): `strict` on across the SPA,
-**Vitest** added (28 tests on the pure modules), **TanStack Query** adopted over the `api/` modules so
-the artist roster caches across navigation, a shared list-page shell extracted, the `Template*` fork
-collapsed into generic task components, and the `ReleaseDetail`/`ReleaseForm` god-components split;
-`todayIso()` fixed to local date, the stale template constant replaced by a live count, cva for the
-variant maps + typed ESLint. API (M25): closed four defects — archived releases now reject **writes**
-with a 409 (pure `ReleaseMutability`), the Dockerfile copies `Zmg.Infra` + fail-fasts on a null
-connection string, and a relative-date `TestDates` defused the test date bomb — plus the title-clash
-rule hoisted into Domain, `canArchive` derived server-side onto the release DTOs (`ReleaseArchival`),
-`AsNoTracking` read paths, and `CancellationToken` threaded throughout. A **test-hygiene sweep**
-followed (Domain ObjectMother, `IClassFixture` to cut host boots, redundant integration tests pruned),
-and the two parked web items closed — the SPA reads `canArchive` from the DTO and mirrors the
-duplicate-title constant.
+**v2.3 (M24–M25) — refactor · code health, no features.** Web: `strict` across the SPA, **Vitest**
+added, **TanStack Query** adopted over the `api/` modules, a shared list-page shell extracted, and the
+`ReleaseDetail`/`ReleaseForm` god-components split. API: archived releases now reject **writes** with a
+409, the Dockerfile fail-fasts on a null connection string, a relative-date `TestDates` defused the test
+date bomb, and `canArchive` moved server-side onto the release DTOs. A test-hygiene sweep followed.
 
-**v2.4 M26 — UI polish (SPA-only).** Four user-visible fixes: **lucide-react** added and the `RowMenu`
-kebab glyph swapped from the literal `⋮` to `<EllipsisVertical />` (updates all five call sites at once);
-`DataTable`'s `headers` evolved from `string[]` to `{ label; className? }[]` so the action column can be
-**headerless + right-aligned** (retiring the "Action"/"Actions" label inconsistency) and columns can be
-responsive-hidden; the mobile **Releases** table now folds Type/Status badges under the name below `sm`
-(`hidden sm:table-cell` on those columns) so the kebab is reachable without sideways scroll — same
-Type-fold on Archived Releases; and the **Home** card grid got `items-start` so cards size to their own
-content instead of stretching to the tallest in the row (verified `align-items: flex-start`, mixed
-458/318px heights). No API/DTO/domain change → lint + build + browser drive only, no `dotnet test`.
+**v2.4 (M26–M28) — UI polish · dark/light (SPA-only).** lucide icons, a headerless right-aligned action
+column, badge-folding on the mobile release tables, and self-sizing Home cards (M26); then the
+hardcoded neutrals were routed through CSS-variable tokens as a deliberate visual no-op (M27), which
+the **dark/light toggle** cashed in immediately after (M28) — OS-following until explicitly toggled,
+persisted, and applied pre-paint. **+5 Vitest → 32** web tests.
 
-**v2.4 M27 — semantic color tokens (SPA-only, visual no-op).** Routed the hardcoded dark neutrals
-through theme-swappable CSS-variable tokens so a later dark/light plan is a values-only override, not a
-43-file rewrite. Tokens live in `src/index.css` `:root` as space-separated RGB channels
-(`--ink`/`--panel`/`--edge`/`--accent` + four text tokens `--strong`/`--body`/`--muted`/`--subtle`);
-`tailwind.config.js` backs each color with `rgb(var(--token) / <alpha-value>)` so the existing opacity
-modifiers (`bg-ink/80`, `border-edge/50`) keep working (verified `border-edge/50` → `rgba(37,42,52,0.5)`).
-The 165 neutral text utilities across 42 files were mechanically remapped (`text-white`/`slate-100`→
-`text-strong`, `slate-200/300`→`text-body`, `slate-400`/`gray-400`→`text-muted`, `slate-500/600`→
-`text-subtle`), prefixes carried along. Stragglers left raw on purpose: the Archived **status badge**'s
-slate tint (badges stay raw until the dark/light plan designs both themes together), Toast `slate-700`
-and Modal `black/50` (no exact token → changing them would break the no-op). Verified a true no-op:
-computed styles resolve to the exact original values (`--ink` rgb(15,17,21), `--strong` rgb(255,255,255),
-`--muted` rgb(148,163,184)), colors identical across pages. Payoff for the toggle plan: add
-`darkMode: 'class'`/`[data-theme]`, a `:root[data-theme='light']` channel override, and a
-`usePersistedState` toggle — no JSX changes.
-
-**v2.4 M28 — dark/light theme toggle (SPA-only).** Cashed in M27's groundwork. `src/index.css` keeps the
-dark channels on `:root` (serving both the no-attribute instant and `data-theme="dark"`, which falls
-through — no duplicate block) and overrides only what changes under `:root[data-theme="light"]`: the
-cool-slate neutrals, `--accent` darkened to `37 99 165`, and the semantic **foregrounds**. New semantic
-roles `--info`/`--warn`/`--ok`/`--danger` pair a shared base hue (chip tint) with a per-theme `--*-fg`
-(camelCase Tailwind keys, `text-warnFg`) — this is the status-color tokenization M27 deferred, remapped
-across ~15 chip/text components. `text-strong`→`text-white` on every accent/saturated solid
-(Toast text, primary Button, logo Z, the checked-checkbox ✓, the calendar today chip, the selected
-template type tab) — `text-strong` flips to dark slate in light and would vanish on those fills. Control: a pure `resolveInitialTheme` (saved choice via
-`readPersisted`, else `matchMedia`) + `useTheme` that reflects `data-theme` onto `<html>` and persists
-**only on explicit toggle** (first visit follows the OS); a right-aligned lucide `Sun`/`Moon` navbar
-button showing the *target* mode; and an inline `index.html` script that sets `data-theme` pre-paint so
-a light reload never flashes dark. **+5 Vitest → 32 web tests.** Verified in-browser: toggle flips +
-persists, no FOUC, every token resolves per-theme (light `--warn-fg` `180 83 9`, `--ink`
-`rgb(248,250,252)`), badges/warnings/buttons legible in light, dark unchanged. One deliberate wrinkle —
-the incidental amber-200/400 and green-400 accents now resolve through the unified `warn`/`ok`
-foreground, so a few soft dark-mode accents shift by one shade; the prominent badges/buttons stay exact.
-
-**v2.5 M29 — deploy to ACA (as-is).** First hosting. The existing single-container image (SPA in
-`wwwroot` + SQLite) pushed to **GHCR** (`ghcr.io/danielsantil/zmg-tracker`) and run on **Azure Container
-Apps** (Consumption, `min 0`/`max 1`, external ingress on 8080). Infra stood up by hand with `az`:
-resource group `zmg-rg`, ACA env `zmg-env` (auto-created Log Analytics), app `zmg-app`. **No repo/code
-change.** SQLite is **ephemeral** on ACA — data resets on restart/scale-to-zero; persistence lands in
-M30 (Neon). Registry: GHCR over ACR (Basic is ~$5/mo); scale-to-zero + free grant keep it ~$0; no
-warm-keeping (cold start accepted, tuned later in Phase 2). Future deploys = rebuild+push a new tag then
-`az containerapp update --image` — the RG/env/app are one-time. The old "live docker build verify"
-backlog item is closed by this (the image built and ran end-to-end).
-
-**v2.5 M30 — Neon Postgres swap.** Prod moved off SQLite to **Neon Postgres** (EF Core Npgsql): provider
-swapped in `Zmg.Infra.csproj` + `UseNpgsql` (`Program.cs`), the SQLite `InitialCreate` dropped and
-regenerated for Postgres (the `HasData` seed travels), and the ACA app redeployed at a new SHA-tagged
-image with the Neon **pooled** connection string as an ACA **secret** (`secretref:neon-conn`) — data now
-**persists** across restarts. The one semantics diff (Postgres `LIKE` is case-sensitive, SQLite's isn't)
-was fixed **provider-agnostically** by lowercasing both sides of the two title searches
-(`ReleaseService`/`SongService`) — no Npgsql `ILike`, so queries stay portable. Timestamps were already
-`DateTime.UtcNow` everywhere, so `timestamptz` mapped with no code change. **Tests stay SQLite in-memory**. A Testcontainers attempt was **reverted after it hung in CI** (16-min stall at
-container start); real-Postgres tests + a CI image pipeline are parked in Phase 2. Green: domain 73 /
-API 136.
-
-**v2.5 M31 — Cloudflare R2 covers (upload + paste-URL).** The Cover URL text box became a **tile**
-control: click to upload, or "paste an image URL" for an inline URL — **both** end as an object in R2,
-because the URL path is **fetched server-side and re-stored** rather than hotlinked (a release cover
-must not die when someone else's host does). `CoverUrl` stays a `string` holding the public `r2.dev`
-URL, so **no migration**. Full slice: pure `CoverImage` (Domain) owns every acceptance rule → 
-`IStorageService`/`R2StorageService` (AWSSDK.S3 pointed at `<account>.r2.cloudflarestorage.com`,
-path-style, region `auto`, client built **lazily** so a box without the secrets still boots) →
-`ICoverUploadService`/`CoverUploadService` → `UploadEndpoints` (`POST /api/uploads/cover` multipart +
-`/cover-from-url`) → `api/uploads.ts` → `CoverField.tsx`. **The declared content-type is never trusted** —
-bytes are accepted on their **magic number** (PNG/JPEG/WebP), which is what rejects an `<svg onload=…>`
-sent as `image/png`. Size is capped at 5 MB by a **capped read**, not by `Content-Length` (a remote
-server can lie). **SSRF guards** on the URL path: http(s) only, host resolved and every address checked
-against loopback/RFC1918/link-local (incl. `169.254.169.254`)/CGNAT/ULA/multicast, **redirects followed
-by hand** (auto-redirect off) so each hop is re-checked, ≤3 hops, 10s timeout, and remote failures are
-reported as one flat message rather than echoed back as a probe oracle. **+46 domain, +17 API tests**
-(fake storage + a stub `HttpMessageHandler`; remote hosts written as public **IP literals** so the suite
-never touches DNS or the network). One SPA-wide fix: `client.ts` no longer forces
-`Content-Type: application/json` when the body is `FormData` — that header would strip the multipart
-boundary. Verified in-browser end to end: upload → tile thumbnail rendering from `r2.dev`; a pasted
-URL stored under a **new** key (proving re-upload, not hotlink); `169.254.169.254` refused with "That
-URL can't be fetched."; Remove clears; light/mobile clean. Deferred as planned: deleting orphaned R2
-objects on replace/remove.
-
-**v2.5 M33 — normalize covers on ingest (resize + re-encode).** M31 stored whatever it was handed; a
-4 MB phone photo sat in R2 at 4 MB to be rendered on a 96px tile. Now every accepted image — from
-**both** ingest paths, since both funnel through `StoreAsync` — is decoded, `AutoOrient()`ed,
-downscaled to a longest edge of **1000px** (never upscaled) and re-encoded as **WebP q80**. Measured
-live: a 4.74 MB 1400×1400 source → **17 KB** at 1000×1000; a pathological pure-noise 4.32 MB source →
-584 KB. **Library: SixLabors.ImageSharp pinned to 3.1.x** — the only mature **fully managed** option
-(SkiaSharp/Magick.NET/NetVips all ship native binaries, which fights the Phase-2 chiseled-image goal),
-and pinned below **4.0.0, which added a build-time licence check** requiring a `sixlabors.lic` file to
-compile (it would break the Dockerfile and CI even though this project qualifies free). The
-ImageSharp call sits in `Zmg.Api/Services/CoverProcessor.cs`; only the *numbers* live in pure
-`CoverImage` — **Domain keeps no third-party dependencies**. Three wins beyond size: EXIF (incl. GPS)
-is **stripped**, a decode/re-encode round trip **neutralizes crafted image payloads** far better than
-the magic-byte sniff alone, and everything in the bucket is now one type. The 5 MB cap survives as an
-**ingress** limit — it bounds what we'll decode, not what we store. API tests moved from byte
-*headers* to real generated images (ImageSharp arrives transitively, no new test package) **+3 → 156**.
-
-> ⚠️ **`WebpEncoder.FileFormat` must be `Lossy`, explicitly.** At its default ImageSharp emitted
-> **lossless** WebP (`VP8L`), where `Quality` means nothing — the same source came out 2.9 MB instead
-> of 584 KB. Caught only because verification used a realistic multi-MB image; the unit tests were
-> perfectly green while the milestone's whole purpose was silently defeated.
+**v2.5 (M29–M33) — deployment.** Hosted for the first time: the existing container image on **Azure
+Container Apps** (Consumption, scale-to-zero, GHCR registry) (M29), prod storage off ephemeral SQLite
+onto **Neon Postgres** via EF Npgsql with regenerated migrations (M30), covers into **Cloudflare R2**
+behind an upload/paste-URL tile that re-stores remote URLs server-side rather than hotlinking (M31),
+every accepted image normalized to a 1000px WebP on ingest (M33), and the whole stack codified in
+**Terraform** across `azurerm` + `neon` + `cloudflare` — **imported**, not recreated, so prod never
+moved (M32). That last apply also closed M31's dangling prod wiring (the `R2__*` settings had never
+been set on the container app) and forced the first deploy since M30 — prod had been running two
+milestones behind main, which is exactly why **M34** exists.
 
 ---
 
@@ -251,6 +146,12 @@ the magic-byte sniff alone, and everything in the bucket is now one type. The 5 
   container (every table wrapper); the nav wraps instead of scrolling, because a scrollable nav hides
   destinations behind an affordance nobody discovers. A stray page-level horizontal scroll also closes
   every `RowMenu`, which dismisses on *any* scroll event.
+- **Colours go through semantic tokens, never raw Tailwind neutrals (v2.4).** `src/index.css` carries the
+  dark RGB channels on `:root` and overrides only what changes under `:root[data-theme="light"]`;
+  `tailwind.config.js` wraps each token in `rgb(var(--token) / <alpha-value>)` so opacity modifiers keep
+  working. Two traps: `text-strong` flips to dark slate in light, so any **saturated/accent solid** fill
+  needs an explicit `text-white`; and the theme must be stamped onto `<html>` by the inline `index.html`
+  script **pre-paint**, or a light reload flashes dark.
 - **Dates are `yyyy-MM-dd` strings — never `new Date('yyyy-MM-dd')`**, which parses as UTC and drifts a
   day back in negative offsets. Compare and group by the raw string; parse at local midnight
   (`+ 'T00:00:00'`) only to format. The calendar builds its cells by hand for this reason, and emits only
@@ -280,6 +181,18 @@ the magic-byte sniff alone, and everything in the bucket is now one type. The 5 
   rather than `Content-Length`. Any future server-side fetch of a user-supplied URL must reuse
   `CoverImage`'s SSRF guards — scheme allow-list, resolve-then-check every address, and follow redirects
   **manually** so each hop is re-checked (auto-redirect hands the attacker the second request for free).
+- **Cover encoding: `WebpEncoder.FileFormat` must be set to `Lossy` explicitly, and ImageSharp stays on
+  3.1.x (M33).** At its default the encoder emits **lossless** WebP (`VP8L`) where `Quality` is ignored —
+  a 4.3 MB source came back at 2.9 MB instead of 584 KB, with the unit tests perfectly green. Do not let
+  the package float to **4.0.0**, which added a build-time licence check (a `sixlabors.lic` file must be
+  present to compile) that would break the Dockerfile and CI.
+- **Terraform owns infrastructure; the delivery pipeline owns the image tag (M32).**
+  `azurerm_container_app.zmg` carries `lifecycle { ignore_changes = [template[0].container[0].image] }`,
+  so deploys ship a new tag without Terraform reverting it and CI never needs state access.
+  `var.container_image` is a bootstrap default, **not** what prod runs — read the live tag from Azure.
+  Corollary for all of `infra/`: the config was **imported**, so it must match reality, and any plan
+  proposing `forces replacement` is a bug in the config — on `neon_project` that means deleting the
+  production database, on `cloudflare_r2_bucket` every stored cover.
 - **Prod runs Postgres (Neon); integration tests run SQLite in-memory (v2.5/M30).** Migrations are
   Postgres-specific. Keep query code **provider-agnostic** — e.g.
   title search lowercases both sides of `Like` rather than using Npgsql `ILike` — so SQLite tests stay
@@ -297,17 +210,23 @@ src/Zmg.Infra    EF Core + Npgsql/Postgres: ZmgDbContext (seeding) + migrations
 src/Zmg.Web      React + Vite + Tailwind SPA, organized by feature folder
 tests/Zmg.Domain.Tests   xUnit unit tests
 tests/Zmg.Api.Tests      integration tests (WebApplicationFactory + in-memory SQLite)
+infra                    Terraform: azurerm + neon + cloudflare in one root module (see infra/README.md)
 ```
 
 ---
 
 ## Backlog / next steps
 
+- **Shipped — v2.4 (M26–M28):** UI polish · semantic color tokens · dark/light toggle.
+- **Shipped — v2.5 (M29–M33):** ACA deploy · Neon Postgres · R2 covers · cover normalization · Terraform.
+- **Next: M34 — CI/CD image pipeline** ([build-plan-2.5.md](build-plan-2.5.md)). Its decisions are already
+  locked by M32 (Terraform ignores the image tag; OIDC for Azure; `GITHUB_TOKEN` for GHCR; SHA tags).
+- **Quick check outstanding:** a cover upload was never re-verified **end to end in prod** after the M32
+  wiring and the `31c16e4` rollout — the tile UI is live, but confirm an image actually round-trips to
+  R2. The suite covers the code path; this is about the prod credentials being right.
 - **After v2.5 — Phase 2: DSP stats** (the reason this exists over Notion/Trello): hang streaming/revenue data
   off the stable Artist / Release / **Song** / Track ids and the UPC/ISRC columns; the v2.0 Song ids are
   its foundation. No build plan yet — write `build-plan-3.0.md` when it starts.
-- **M31 prod wiring (do before the next deploy):** set the five `R2__*` values as ACA secrets/env on
-  `zmg-app` and redeploy — until then, prod uploads fail with "Cover storage is not configured."
 - **Still open (not gating):** Low-value test polish (exhaustive AAA pass, the last few Theory
   conversions). The suite is green without it.
 - **Per-track task fan-out** on albums: registrations that repeat per track are single "per track" tasks

@@ -1,6 +1,6 @@
 # ZMG Release Tracker — Build Plan v2.5 (deployment)
 
-Delta on [build-plan-2.4.md](build-plan-2.4.md). Continues milestone numbering from M28 → **M29–M33**.
+Delta on [build-plan-2.4.md](build-plan-2.4.md). Continues milestone numbering from M28 → **M29–M34**.
 
 ## Context
 
@@ -26,7 +26,7 @@ Decisions locked with the user:
   (learn-then-codify).
 
 Blast radius (per CLAUDE.md): **M29** infra-only. **M30/M31** touch API/DTO/migration → full
-`dotnet test`. **M32** IaC-only, no app code.
+`dotnet test`. **M32** IaC-only, no app code. **M34** CI/pipeline-only, no app code.
 
 ---
 
@@ -234,6 +234,51 @@ full `dotnet test`. No SPA change (the tile already renders whatever URL comes b
 
 ---
 
+## M34 — CI/CD image pipeline (build + deploy on push to main)
+
+**Why:** M29–M33 all shipped through a hand-run `docker build` → `docker push` →
+`az containerapp update`, which is remembered rather than enforced. M32 exposed the cost: prod sat on
+`7bac077` (M30) for two milestones while M31's covers and M33's normalization existed only in git, and
+the R2 wiring M32 codified couldn't be verified until the image was finally rolled forward by hand.
+Promoted out of Phase 2 because the gap is now a known, recurring failure rather than a nice-to-have.
+
+**Scope:** a second workflow that builds and pushes the image on every `push: main` and rolls the ACA
+app to the new tag. `ci.yml` keeps its current job (test/lint/build); this one deploys, gated on green.
+
+**Decisions (locked during M32, do not relitigate):**
+- **Terraform does not deploy.** `azurerm_container_app.zmg` carries
+  `lifecycle { ignore_changes = [template[0].container[0].image] }`, so the pipeline owns the image tag
+  and needs no Terraform, no state access, and no state lock. This is the standard IaC/CD split —
+  infra changes yearly, the image changes per commit.
+- **Azure auth via OIDC federated credentials** (`azure/login` + `permissions: id-token: write`), not a
+  stored service-principal secret. The identity, its federated credential and its role assignment are
+  `azurerm` resources → codified in `infra/`, not clicked.
+- **GHCR auth via `GITHUB_TOKEN`** with `packages: write` — the manual pushes used a personal PAT; CI
+  must not.
+- **SHA tags per commit** (semver on git tag/release) via `docker/metadata-action`. Never deploy
+  `:latest` — the running tag must name a commit.
+
+**Steps:**
+- `.github/workflows/deploy.yml`: `docker/login-action` → `docker/metadata-action` →
+  `docker/build-push-action` (linux/amd64) → `azure/login` (OIDC) → `az containerapp update --image`.
+- Fix the trigger gap: `ci.yml` lists `Dockerfile` under `paths-ignore`, so a Dockerfile-only change
+  currently runs nothing. The deploy workflow must **not** ignore it. Add `infra/**` to `ci.yml`'s
+  ignore list while there — Terraform changes need neither dotnet nor pnpm.
+- Codify the deploy identity in `infra/`: user-assigned managed identity (or app registration), a
+  federated credential scoped to `repo:danielsantil/zmg-tracker:ref:refs/heads/main`, and the narrowest
+  role assignment that can update `zmg-app`.
+- Optional: a `terraform fmt -check` + `terraform validate` job so `infra/` drift is caught in review.
+
+**Verification:** push a no-op commit to main → image builds, pushes under the commit SHA tag, ACA
+rolls a revision, `/api/health` returns 200, and `terraform plan` still reports **No changes** (proving
+`ignore_changes` holds under an automated deploy). Then confirm a cover upload end-to-end in prod.
+
+**Files:** `.github/workflows/deploy.yml` (new), `.github/workflows/ci.yml` (paths), `infra/azure.tf`
+(deploy identity + federated credential + role assignment), `infra/outputs.tf`. No app code → no
+`dotnet test`.
+
+---
+
 ## Phase 2 — deferred (not scheduled)
 
 - **SPA → Cloudflare Pages split.** Move the React app off the API container to Pages (global CDN,
@@ -266,7 +311,4 @@ full `dotnet test`. No SPA change (the tile already renders whatever URL comes b
   locally + a GitHub Actions Postgres **service container** in CI — closing the SQLite/Postgres parity
   gap. (A Testcontainers-in-CI hang during M30 made this not worth blocking on; the factory already has
   the env-var branch pattern sketched for it.)
-- **CI/CD image pipeline.** Automate the manual `docker build`/`push`/`az containerapp update` on push
-  to main via `docker/login-action` + `docker/metadata-action` + `docker/build-push-action` — SHA tags
-  per commit, semver tags on git-tag/release, `GITHUB_TOKEN` auth (no PAT). Optionally a CD step running
-  `az containerapp update` with the fresh tag.
+- ~~CI/CD image pipeline~~ — **promoted to M34 above.**
