@@ -17,8 +17,7 @@ namespace Zmg.Api.Services;
 public sealed class SongService(ZmgDbContext db) : ISongService
 {
     // scope=archived returns archived songs (ArchivedAt desc); any other scope returns active ones
-    // ordered by title. Orphans (no links) are included by design. Deleted songs are hidden by the
-    // global query filter. q is a case-insensitive title search.
+    // ordered by title. Orphans (no links) are included by design. q is a case-insensitive title search.
     public async Task<IReadOnlyList<SongListItemDto>> ListAsync(string? q, string? scope, Guid? artistId, CancellationToken ct = default)
     {
         var isArchived = string.Equals(scope, "archived", StringComparison.OrdinalIgnoreCase);
@@ -38,8 +37,7 @@ public sealed class SongService(ZmgDbContext db) : ISongService
         return await query
             .Select(s => new SongListItemDto(
                 s.Id, s.Title, s.MainArtistId, s.MainArtist!.Name,
-                // Earliest non-archived linked release date (deleted-release links are already hidden
-                // by the Track query filter); null for orphans/unreleased.
+                // Earliest non-archived linked release date; null for orphans/unreleased.
                 s.ReleaseLinks
                     .Where(t => t.Release!.ArchivedAt == null)
                     .Select(t => (DateOnly?)t.Release!.ReleaseDate)
@@ -154,9 +152,9 @@ public sealed class SongService(ZmgDbContext db) : ISongService
         return OperationResult.Success();
     }
 
-    // Soft delete (M15): allowed only for an archived song or an orphan (never released). Songs are never
-    // hard-deleted — the row is stamped DeletedAt and hidden by the global query filter; the Track query
-    // filter drops any stale join rows with it.
+    // Delete (M15, hard-delete M36): allowed only for an archived song or an orphan (never released). The
+    // Track FK to Song is Restrict, so any lingering links (an archived-but-linked song) are removed in the
+    // same SaveChanges; orphans have none. Feats/collabs cascade with the song.
     public async Task<OperationResult> DeleteAsync(Guid id, CancellationToken ct = default)
     {
         var song = await db.Songs
@@ -168,7 +166,8 @@ public sealed class SongService(ZmgDbContext db) : ISongService
         if (!song.IsArchived && !isOrphan)
             return OperationResult.Conflict(new[] { "Only archived or never-released songs can be removed." });
 
-        song.DeletedAt = DateTime.UtcNow;
+        db.Tracks.RemoveRange(song.ReleaseLinks);
+        db.Songs.Remove(song);
         await db.SaveChangesAsync(ct);
         return OperationResult.Success();
     }

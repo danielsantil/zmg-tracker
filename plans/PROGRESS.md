@@ -90,7 +90,10 @@ persisted, and applied pre-paint. **+5 Vitest → 32** web tests.
 `R2StorageService` drops its `Lazy<IAmazonS3>` for a client built eagerly in the constructor. Validation
 runs in **every environment including tests** — `ZmgApiFactory` supplies dummy `R2:*` values via
 `UseSetting` so the suite boots the same validated path as prod (never dereferenced; `UploadApiFactory`
-swaps in the fake storage). Backend **domain 119 / API 156** unchanged.
+swaps in the fake storage). M36: **hard-delete replaces soft-delete** — dropped `DeletedAt`, the three
+query filters, and the soft-delete model; DELETE now `Remove()`s the row (Release cascades to tasks +
+track links; Song `RemoveRange`s its links first past the Restrict FK). `DropSoftDelete` migration ships
+the `DROP COLUMN`. Archive (`ArchivedAt`) untouched. Backend **domain 119 / API 156** unchanged.
 
 **v2.5 (M29–M34) — deployment.** First hosting: the container image on **Azure Container Apps**
 (Consumption, scale-to-zero) (M29); prod off ephemeral SQLite onto **Neon Postgres** via EF Npgsql
@@ -113,10 +116,14 @@ green push to main and deploys to ACA via **OIDC**, with a `workflow_dispatch` r
   matching the song lifecycle. Any new release-write endpoint must call it. The mirror question "may this
   still be archived?" is the separate pure `ReleaseArchival.CanArchive` (upcoming and not yet archived),
   shipped on the release DTOs so the SPA never re-derives `releaseDate >= today`.
-- **Soft-delete, never hard-delete** (v1.2). Removed releases are stamped `DeletedAt` and hidden by a
-  global query filter, so stable ids survive for phase-2 stats. A join between two soft-filtered entities
-  needs **its own** filter (`Track` checks both parents) or a stale join outlives them; EF's "required end
-  of a relationship" advisory on the child navs is benign.
+- **Hard-delete (M36, was soft-delete v1.2–v2.5).** DELETE removes the row. `Release.Remove` **cascades**
+  to its `ReleaseTask`s and `Track` links; `Song` delete `RemoveRange`s its `Track` links first (the
+  `Track`→`Song` FK is Restrict) then removes the song, its feats/collabs cascading. Delete is reachable
+  **only** for an already-archived or orphan entity (a released item must be archived first, and archive
+  is kept), so the soft-delete rationale — preserving stable ids for phase-2 stats — was moot: those
+  entities carry no stats worth keeping. `DeletedAt`, the three `HasQueryFilter`s (Release, Song, and the
+  Track filter that existed only because its parents were filtered), and the `DropSoftDelete` migration
+  are all gone.
 - **Template-copy-on-create is backend logic** — a release is born with a full snapshot checklist, and
   editing a template never touches existing releases (locked by `TemplateApiTests`).
 - **Reorder is move-up/move-down, not drag-and-drop.** The endpoint takes the full ordered id list for a

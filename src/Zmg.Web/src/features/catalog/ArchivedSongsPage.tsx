@@ -8,8 +8,8 @@ import { useConfirmDelete } from '@/hooks/useConfirmDelete';
 
 /**
  * Archived Songs (M15) — the terminal, read-only bucket, mirroring Archived Releases. Table is
- * Name · Main Artist · Action, where the action is Delete: a soft-delete on the server (songs are
- * never hard-deleted). Reached via the "Archived Songs →" link on the catalog, not a nav item.
+ * Name · Main Artist · Action, where the action is Delete: a hard-delete on the server (M36).
+ * Reached via the "Archived Songs →" link on the catalog, not a nav item.
  */
 export default function ArchivedSongsPage() {
   const navigate = useNavigate();

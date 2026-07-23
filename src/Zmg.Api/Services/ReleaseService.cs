@@ -324,8 +324,8 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
         return OperationResult.Success();
     }
 
-    // Remove (v1.2): a soft-delete reachable only from an archived release. Releases are never hard-deleted —
-    // the row is stamped DeletedAt and hidden everywhere by the global query filter.
+    // Remove (v1.2, hard-delete M36): reachable only from an archived release. The row is deleted; the FK
+    // cascade takes its ReleaseTasks and Track links with it. Songs left orphaned by a dropped link are fine.
     public async Task<OperationResult> DeleteAsync(Guid id, CancellationToken ct = default)
     {
         var release = await db.Releases.FindAsync([id], ct);
@@ -334,7 +334,7 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
         if (!release.IsArchived)
             return OperationResult.Conflict(new[] { "Only archived releases can be removed." });
 
-        release.DeletedAt = DateTime.UtcNow;
+        db.Releases.Remove(release);
         await db.SaveChangesAsync(ct);
         return OperationResult.Success();
     }
