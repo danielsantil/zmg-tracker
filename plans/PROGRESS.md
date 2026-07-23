@@ -13,17 +13,17 @@ for where the project stands and the rules that span plans.
 - [build-plan-2.2.md](build-plan-2.2.md) — UX improvements (M19–M23). Shipped.
 - [build-plan-2.3.md](build-plan-2.3.md) — refactor · code health (M24–M25). Shipped.
 - [build-plan-2.4.md](build-plan-2.4.md) — UI polish · dark/light (M26–M28). Shipped.
-- [build-plan-2.5.md](build-plan-2.5.md) — deployment · ACA/Neon/R2/Terraform/CI-CD (M29–M34). M29–M33 shipped; M34 open.
+- [build-plan-2.5.md](build-plan-2.5.md) — deployment · ACA/Neon/R2/Terraform/CI-CD (M29–M34). Shipped.
 
 Newer plan versions go in new `build-plan-N.N.md` files; older ones stay frozen.
 
-**Current state:** feature-complete through **v2.4** and **hosted** through v2.5 M29–M33 — live on
-**Azure Container Apps** over **Neon Postgres**, covers in **Cloudflare R2** (normalized to a 1000px
-WebP on ingest), and the whole stack codified in Terraform under [`infra/`](../infra/README.md). Prod
-runs `31c16e4`. Backend **domain 119 / API 156**, SPA **32 Vitest** — unchanged since M33, as M32
-touched no app code. **Next is M34 — the CI/CD image pipeline**, promoted out of Phase 2 after prod
-spent two milestones behind main. Phase 2 (DSP stats, SPA/Pages split, cold-start tuning,
-real-Postgres tests) follows.
+**Current state:** feature-complete through **v2.4** and **fully deployed** — **v2.5 (M29–M34) is
+complete**. Live on **Azure Container Apps** over **Neon Postgres**, covers in **Cloudflare R2**
+(normalized to a 1000px WebP on ingest), the whole stack codified in Terraform under
+[`infra/`](../infra/README.md), and a **GitHub Actions pipeline** that builds + pushes on every green
+push to main and deploys via OIDC (M34). Backend **domain 119 / API 156**, SPA **32 Vitest** — the
+pipeline gates on these. **No milestone open** — next is **Phase 2** (DSP stats first; also SPA/Pages
+split, cold-start tuning, real-Postgres tests), which starts a new `build-plan-3.0.md`.
 
 > ⚠️ **DB is Postgres (Neon) as of v2.5/M30.** Dev + prod both use `ConnectionStrings__Zmg` — **dev** via
 > `dotnet user-secrets` in `src/Zmg.Api` (never commit it), **prod** as an ACA secret. Startup applies
@@ -79,16 +79,14 @@ hardcoded neutrals were routed through CSS-variable tokens as a deliberate visua
 the **dark/light toggle** cashed in immediately after (M28) — OS-following until explicitly toggled,
 persisted, and applied pre-paint. **+5 Vitest → 32** web tests.
 
-**v2.5 (M29–M33) — deployment.** Hosted for the first time: the existing container image on **Azure
-Container Apps** (Consumption, scale-to-zero, GHCR registry) (M29), prod storage off ephemeral SQLite
-onto **Neon Postgres** via EF Npgsql with regenerated migrations (M30), covers into **Cloudflare R2**
-behind an upload/paste-URL tile that re-stores remote URLs server-side rather than hotlinking (M31),
-every accepted image normalized to a 1000px WebP on ingest (M33), and the whole stack codified in
-**Terraform** across `azurerm` + `neon` + `cloudflare` — **imported**, not recreated, so prod never
-moved (M32). That last apply also closed M31's dangling prod wiring (the `R2__*` settings had never
-been set on the container app) and forced the first deploy since M30 — prod had been running two
-milestones behind main, which is exactly why **M34** exists. **Cover upload is verified end-to-end in
-prod**, so the whole v2.5 stack is confirmed live.
+**v2.5 (M29–M34) — deployment.** First hosting: the container image on **Azure Container Apps**
+(Consumption, scale-to-zero) (M29); prod off ephemeral SQLite onto **Neon Postgres** via EF Npgsql
+(M30); release covers into **Cloudflare R2** through an upload/paste-URL tile that re-stores remote URLs
+server-side rather than hotlinking (M31), normalized to a 1000px WebP on ingest (M33); the whole stack
+codified in **Terraform** across `azurerm` + `neon` + `cloudflare`, **imported** rather than recreated
+so prod never moved (M32); and a **GitHub Actions pipeline** that builds a SHA-tagged image on every
+green push to main and deploys to ACA via **OIDC**, with a `workflow_dispatch` rollback to any prior tag
+(M34).
 
 ---
 
@@ -187,13 +185,19 @@ prod**, so the whole v2.5 stack is confirmed live.
   a 4.3 MB source came back at 2.9 MB instead of 584 KB, with the unit tests perfectly green. Do not let
   the package float to **4.0.0**, which added a build-time licence check (a `sixlabors.lic` file must be
   present to compile) that would break the Dockerfile and CI.
-- **Terraform owns infrastructure; the delivery pipeline owns the image tag (M32).**
-  `azurerm_container_app.zmg` carries `lifecycle { ignore_changes = [template[0].container[0].image] }`,
-  so deploys ship a new tag without Terraform reverting it and CI never needs state access.
-  `var.container_image` is a bootstrap default, **not** what prod runs — read the live tag from Azure.
-  Corollary for all of `infra/`: the config was **imported**, so it must match reality, and any plan
-  proposing `forces replacement` is a bug in the config — on `neon_project` that means deleting the
-  production database, on `cloudflare_r2_bucket` every stored cover.
+- **Terraform (`infra/`) owns infrastructure; the pipeline owns the image tag.** The container app
+  `ignore_changes = [...image]`, so deploys ship a new tag without Terraform reverting it and CI needs no
+  state access; `var.container_image` is a bootstrap default, not the live tag. The config was
+  **imported**, so it must match reality — any `forces replacement` is a config bug, and on
+  `neon_project` / `cloudflare_r2_bucket` it means destroying the production database / every cover.
+- **Deploy is a GitHub Actions pipeline over an immutable SHA-tagged image.** `ci.yml` tests → builds +
+  pushes `ghcr.io/…:{short-sha}` → calls reusable `deploy.yml` on green pushes to main; `deploy.yml`'s
+  `workflow_dispatch` re-points ACA at any existing tag (rollback, never rebuilds) — **build once,
+  deploy separately**. Azure auth is **OIDC**, no stored secret: the token subject
+  `repo:…:environment:production` must equal the GitHub Environment name exactly (else `AADSTS70021`).
+  Traps: `cache-to: type=gha` needs a `setup-buildx-action` step; `GITHUB_TOKEN` pushes only to a GHCR
+  package the repo is linked to with Write; `id-token: write` must be on the **calling** job; pin the
+  `docker/*` + `azure/login` majors from the live registry (Node-24 releases), not memory.
 - **Prod runs Postgres (Neon); integration tests run SQLite in-memory (v2.5/M30).** Migrations are
   Postgres-specific. Keep query code **provider-agnostic** — e.g.
   title search lowercases both sides of `Like` rather than using Npgsql `ILike` — so SQLite tests stay
@@ -219,12 +223,14 @@ infra                    Terraform: azurerm + neon + cloudflare in one root modu
 ## Backlog / next steps
 
 - **Shipped — v2.4 (M26–M28):** UI polish · semantic color tokens · dark/light toggle.
-- **Shipped — v2.5 (M29–M33):** ACA deploy · Neon Postgres · R2 covers · cover normalization · Terraform.
-- **Next: M34 — CI/CD image pipeline** ([build-plan-2.5.md](build-plan-2.5.md)). Its decisions are already
-  locked by M32 (Terraform ignores the image tag; OIDC for Azure; `GITHUB_TOKEN` for GHCR; SHA tags).
-- **After v2.5 — Phase 2: DSP stats** (the reason this exists over Notion/Trello): hang streaming/revenue data
+- **Shipped — v2.5 (M29–M34):** ACA deploy · Neon Postgres · R2 covers · cover normalization · Terraform ·
+  CI/CD image pipeline. **v2.5 complete — no milestone open.**
+- **Next: Phase 2 — DSP stats** (the reason this exists over Notion/Trello): hang streaming/revenue data
   off the stable Artist / Release / **Song** / Track ids and the UPC/ISRC columns; the v2.0 Song ids are
   its foundation. No build plan yet — write `build-plan-3.0.md` when it starts.
+- **Infra hardening (not gating):** Terraform state is **local on one machine** — move to a remote
+  encrypted backend (Azure Storage + locking) before anyone else applies; and add a `terraform fmt
+  -check` + `validate` CI job so `infra/` drift is caught in review. Neither blocks; both are cheap.
 - **Still open (not gating):** Low-value test polish (exhaustive AAA pass, the last few Theory
   conversions). The suite is green without it.
 - **Per-track task fan-out** on albums: registrations that repeat per track are single "per track" tasks
