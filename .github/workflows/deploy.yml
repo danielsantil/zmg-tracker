@@ -1,0 +1,67 @@
+name: Deploy
+
+on:
+  # Callable as a job from another workflow (CI calls it after successful build)
+  workflow_call:
+    inputs:
+      image_tag:
+        description: Image tag to deploy - a commit SHA, for example 31c16e4
+        type: string
+        required: true
+
+  # Runnable manually from the Actions tab: redeploy or roll back to any previous working tag
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: Image tag to deploy - a commit SHA.
+        type: string
+        required: true
+
+permissions:
+  id-token: write # required to create the OICD token
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy Container App
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: ${{ steps.app.outputs.url }}
+
+    steps:
+      - name: Azure login (OIDC - no stored secrets)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      
+      - name: Resolve app URL
+        id: app
+        run: |
+          fqdn=$(az containerapp show --name zmg-app --resource-group zmg-rg \
+            --query properties.configuration.ingress.fqdn -o tsv)
+          echo "url=https://$fqdn" >> $GITHUB_OUTPUT
+
+      - name: Update container app with the new image
+        run: |
+          az containerapp update \
+            --name zmg-app \
+            --resource-group zmg-rg \
+            --image "ghcr.io/${{ github.repository }}:${{ inputs.image_tag }}" \
+            --output none
+
+      - name: Test health endpoint
+        env:
+          APP_URL: ${{ steps.app.outputs.url }}
+        run: |
+          echo "Checking $APP_URL/api/health"
+          for attempt in $(seq 1 12); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "$APP_URL/api/health" || true)
+            echo "Attempt $attempt: HTTP Code $code"
+            [ "$code" = "200" ] && exit 0
+            sleep 10
+          done
+          echo "::error::App never returned a 200 status after deployment"
+          exit 1
