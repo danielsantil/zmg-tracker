@@ -93,7 +93,13 @@ runs in **every environment including tests** — `ZmgApiFactory` supplies dummy
 swaps in the fake storage). M36: **hard-delete replaces soft-delete** — dropped `DeletedAt`, the three
 query filters, and the soft-delete model; DELETE now `Remove()`s the row (Release cascades to tasks +
 track links; Song `RemoveRange`s its links first past the Restrict FK). `DropSoftDelete` migration ships
-the `DROP COLUMN`. Archive (`ArchivedAt`) untouched. Backend **domain 119 / API 156** unchanged.
+the `DROP COLUMN`. Archive (`ArchivedAt`) untouched. Backend **domain 119 / API 156** unchanged. M37:
+the inline `Nav`/`ThemeToggle` came out of `App.tsx` into a new `components/NavBar.tsx`. Desktop (≥sm)
+keeps the horizontal row; below sm the five links collapse into a `☰` dropdown **sheet** while brand +
+theme toggle stay visible. The sheet is a plain `absolute` child of the sticky (untransformed, no
+`overflow-hidden`) `z-10` header — no body-portal needed, unlike RowMenu — with a solid `bg-panel` so
+links stay readable, closing on route change (`useLocation`) and outside click (a ref check, no overlay).
+Verified at 375px + desktop, light + dark, no page-level horizontal scroll.
 
 **v2.5 (M29–M34) — deployment.** First hosting: the container image on **Azure Container Apps**
 (Consumption, scale-to-zero) (M29); prod off ephemeral SQLite onto **Neon Postgres** via EF Npgsql
