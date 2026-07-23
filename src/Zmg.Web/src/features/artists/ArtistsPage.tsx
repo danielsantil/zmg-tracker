@@ -21,8 +21,8 @@ export default function ArtistsPage() {
   const { data: artists = [], isLoading } = useArtists();
 
   async function remove(a: Artist) {
-    const dependents = a.releaseCount + a.songCount + a.creditCount;
-    if (dependents > 0) {
+    const activeDependents = a.releaseCount + a.songCount + a.creditCount;
+    if (activeDependents > 0) {
       const parts = [
         a.releaseCount > 0 ? `${a.releaseCount} release${a.releaseCount === 1 ? '' : 's'}` : null,
         a.songCount > 0 ? `${a.songCount} song${a.songCount === 1 ? '' : 's'}` : null,
@@ -37,10 +37,29 @@ export default function ArtistsPage() {
       return;
     }
 
+    // No active ties, but archived data may reference the artist — warn that deleting the artist
+    // permanently removes that archived data too (the server cascades it in the same delete).
+    const archivedParts = [
+      a.archivedReleaseCount > 0
+        ? `${a.archivedReleaseCount} archived release${a.archivedReleaseCount === 1 ? '' : 's'}`
+        : null,
+      a.archivedSongCount > 0
+        ? `${a.archivedSongCount} archived song${a.archivedSongCount === 1 ? '' : 's'}`
+        : null,
+    ].filter(Boolean);
+
     if (
       !(await confirm({
         title: `Delete artist "${a.name}"?`,
-        body: <p>This can't be undone.</p>,
+        body:
+          archivedParts.length > 0 ? (
+            <p>
+              This artist has {archivedParts.join(' and ')} that will also be permanently removed. This
+              can't be undone.
+            </p>
+          ) : (
+            <p>This can't be undone.</p>
+          ),
         confirmLabel: 'Delete',
         confirmVariant: 'danger',
       }))

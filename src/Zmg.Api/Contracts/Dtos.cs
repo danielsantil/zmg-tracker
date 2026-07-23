@@ -4,7 +4,18 @@ using Zmg.Domain.Enums;
 namespace Zmg.Api.Contracts;
 
 // ---- Artists ----
-public record ArtistDto(Guid Id, string Name, string? Notes, int ReleaseCount, int SongCount, int CreditCount);
+// The three primary counts are ACTIVE only (archived excluded) — they're what the artists table shows
+// and what the UI's up-front delete block reads. ArchivedReleaseCount/ArchivedSongCount surface the
+// archived data that a delete would cascade-remove, so the confirm dialog can warn before it happens.
+public record ArtistDto(
+    Guid Id,
+    string Name,
+    string? Notes,
+    int ReleaseCount,
+    int SongCount,
+    int CreditCount,
+    int ArchivedReleaseCount,
+    int ArchivedSongCount);
 public record ArtistInput(string Name, string? Notes);
 
 // ---- Songs / artists on songs (v2.0) ----

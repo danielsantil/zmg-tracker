@@ -45,7 +45,7 @@ public sealed class ArtistService(ZmgDbContext db) : IArtistService
         db.Artists.Add(artist);
         await db.SaveChangesAsync(ct);
 
-        return OperationResult<ArtistDto>.Success(new ArtistDto(artist.Id, artist.Name, artist.Notes, 0, 0, 0));
+        return OperationResult<ArtistDto>.Success(new ArtistDto(artist.Id, artist.Name, artist.Notes, 0, 0, 0, 0, 0));
     }
 
     public async Task<OperationResult<ArtistDto>> UpdateAsync(Guid id, ArtistInput input, CancellationToken ct = default)
@@ -72,22 +72,43 @@ public sealed class ArtistService(ZmgDbContext db) : IArtistService
         var artist = await db.Artists.FindAsync([id], ct);
         if (artist is null) return OperationResult.NotFound();
 
-        // Blocked if the artist is referenced by any Restrict FK: main artist of a release or song,
-        // or credited (feat/collab) on a song via SongArtist. Missing the credit case here let a
-        // feat-only artist slip past the guard and 500 on the FK instead of a clean conflict.
-        var releaseCount = await db.Releases.CountAsync(r => r.MainArtistId == id, ct);
-        var songCount = await db.Songs.CountAsync(s => s.MainArtistId == id, ct);
-        var creditCount = await db.SongArtists.CountAsync(sa => sa.ArtistId == id, ct);
-        var validation = Validation.ValidateArtistDelete(releaseCount + songCount + creditCount);
+        // Only ACTIVE references block the delete: main artist of a non-archived release or song, or
+        // credited on a non-archived song. (Counting *every* reference — including archived — let a
+        // feat-only artist 500 on the Restrict FK; that's why the credit case is here.) Archived
+        // references don't block — they get cascade-removed below, which the UI warns about first.
+        var activeReleases = await db.Releases.CountAsync(r => r.MainArtistId == id && r.ArchivedAt == null, ct);
+        var activeSongs = await db.Songs.CountAsync(s => s.MainArtistId == id && s.ArchivedAt == null, ct);
+        var activeCredits = await db.SongArtists.CountAsync(sa => sa.ArtistId == id && sa.Song!.ArchivedAt == null, ct);
+        var validation = Validation.ValidateArtistDelete(activeReleases + activeSongs + activeCredits);
         if (!validation.IsValid)
             return OperationResult.Conflict(validation.Errors);
 
+        // No active references — hard-delete the artist, cascading away the archived data that references
+        // it (all remaining references are archived by the guard above). Load the join rows we must clear
+        // by hand: Track→Song is Restrict, so an archived song's links can't cascade with it. Releases and
+        // credits-on-this-artist's-songs cascade at the DB. Including release tracks keeps the shared Track
+        // instances single in the identity map, so nothing is deleted twice.
+        var releases = await db.Releases.Include(r => r.Tracks).Where(r => r.MainArtistId == id).ToListAsync(ct);
+        var songs = await db.Songs.Include(s => s.ReleaseLinks).Where(s => s.MainArtistId == id).ToListAsync(ct);
+        var credits = await db.SongArtists.Where(sa => sa.ArtistId == id).ToListAsync(ct);
+
+        foreach (var s in songs) db.Tracks.RemoveRange(s.ReleaseLinks);
+        db.Releases.RemoveRange(releases);   // cascade: ReleaseTasks + Tracks
+        db.Songs.RemoveRange(songs);         // cascade: SongArtist credits on these songs
+        db.SongArtists.RemoveRange(credits); // this artist's own feat/collab credits elsewhere
         db.Artists.Remove(artist);
         await db.SaveChangesAsync(ct);
         return OperationResult.Success();
     }
 
-    // Shared list/detail shape: name/notes plus the three reference counts (releases, songs, credits).
+    // Shared list/detail shape: name/notes, the three ACTIVE reference counts (releases/songs/credits,
+    // archived excluded), then the archived releases/songs a delete would cascade-remove.
     private static System.Linq.Expressions.Expression<Func<Artist, ArtistDto>> Projection =>
-        a => new ArtistDto(a.Id, a.Name, a.Notes, a.Releases.Count, a.Songs.Count, a.SongCredits.Count);
+        a => new ArtistDto(
+            a.Id, a.Name, a.Notes,
+            a.Releases.Count(r => r.ArchivedAt == null),
+            a.Songs.Count(s => s.ArchivedAt == null),
+            a.SongCredits.Count(sc => sc.Song!.ArchivedAt == null),
+            a.Releases.Count(r => r.ArchivedAt != null),
+            a.Songs.Count(s => s.ArchivedAt != null));
 }
