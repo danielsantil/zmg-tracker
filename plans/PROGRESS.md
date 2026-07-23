@@ -14,7 +14,7 @@ for where the project stands and the rules that span plans.
 - [build-plan-2.3.md](build-plan-2.3.md) — refactor · code health (M24–M25). Shipped.
 - [build-plan-2.4.md](build-plan-2.4.md) — UI polish · dark/light (M26–M28). Shipped.
 - [build-plan-2.5.md](build-plan-2.5.md) — deployment · ACA/Neon/R2/Terraform/CI-CD (M29–M34). Shipped.
-- [build-plan-2.6.md](build-plan-2.6.md) — hardening · hard-delete · navbar · catalog fixes (M35–M38). In progress.
+- [build-plan-2.6.md](build-plan-2.6.md) — hardening · hard-delete · navbar · catalog fixes (M35–M38). Shipped.
 
 Newer plan versions go in new `build-plan-N.N.md` files; older ones stay frozen.
 
@@ -23,11 +23,12 @@ complete**. Live on **Azure Container Apps** over **Neon Postgres**, covers in *
 (normalized to a 1000px WebP on ingest), the whole stack codified in Terraform under
 [`infra/`](../infra/README.md), and a **GitHub Actions pipeline** that builds + pushes on every green
 push to main and deploys via OIDC (M34). Backend **domain 119 / API 156**, SPA **32 Vitest** — the
-pipeline gates on these. **Open: v2.6 (M35–M38)** — a hardening/cleanup pass before the multilingual
-work: startup env-var fail-fast + eager R2 client, hard-delete (drop soft-delete), responsive hamburger
-navbar, and catalog release-counting fixes; see [build-plan-2.6.md](build-plan-2.6.md). Multilingual
-(EN/ES) and the Terraform remote-state move are deferred to **v2.7**. **Phase 2** (DSP stats; also
-SPA/Pages split, cold-start tuning, real-Postgres tests) follows and starts a new `build-plan-3.0.md`.
+pipeline gates on these. **v2.6 (M35–M38) is complete** — a hardening/cleanup pass before the
+multilingual work: startup env-var fail-fast + eager R2 client (M35), hard-delete replacing soft-delete
+(M36), responsive hamburger navbar (M37), and catalog release-counting fixes / field collapse (M38); see
+[build-plan-2.6.md](build-plan-2.6.md). **Next up: v2.7** — multilingual (EN/ES) + the Terraform
+remote-state move; the M37 language selector was deliberately deferred there. **Phase 2** (DSP stats;
+also SPA/Pages split, cold-start tuning, real-Postgres tests) follows and starts a new `build-plan-3.0.md`.
 
 > ⚠️ **DB is Postgres (Neon) as of v2.5/M30.** Dev + prod both use `ConnectionStrings__Zmg` — **dev** via
 > `dotnet user-secrets` in `src/Zmg.Api` (never commit it), **prod** as an ACA secret. Startup applies
@@ -83,7 +84,7 @@ hardcoded neutrals were routed through CSS-variable tokens as a deliberate visua
 the **dark/light toggle** cashed in immediately after (M28) — OS-following until explicitly toggled,
 persisted, and applied pre-paint. **+5 Vitest → 32** web tests.
 
-**v2.6 (M35–M38) — hardening (in progress).** M35: startup env-var **fail-fast** — a new
+**v2.6 (M35–M38) — hardening.** M35: startup env-var **fail-fast** — a new
 `StartupValidationExtensions.Validate(IConfiguration)` gathers *every* missing/blank required key
 (`ConnectionStrings__Zmg` + all five `R2__*`) and throws one message naming them all, called right after
 `CreateBuilder` (folding in the old connection-string throw). R2 is now **required at startup**, so
@@ -99,7 +100,15 @@ keeps the horizontal row; below sm the five links collapse into a `☰` dropdown
 theme toggle stay visible. The sheet is a plain `absolute` child of the sticky (untransformed, no
 `overflow-hidden`) `z-10` header — no body-portal needed, unlike RowMenu — with a solid `bg-panel` so
 links stay readable, closing on route change (`useLocation`) and outside click (a ref check, no overlay).
-Verified at 375px + desktop, light + dark, no page-level horizontal scroll.
+Verified at 375px + desktop, light + dark, no page-level horizontal scroll. M38: the catalog's
+release-counting is now **one source of truth**. Every link-derived value in `ListAsync` excludes
+archived links (`releaseCount` too, was counting all — Bug A), and `SongListItemDto` **drops
+`isOrphan`/`canArchive`**: the client derives both the three-state **Released** column
+(No / Yes / Upcoming) and the Archive action from `ReleaseDate` alone — `null` ⟺ archivable. The
+`ArchiveAsync` guard was reduced to its active-release check so the equivalence holds (the old
+"already-released" guard 409'd archived-past-release songs the UI offered Archive). Catalog now offers
+**Archive only** (Delete moved to Archived Songs); `WithDetailIncludes` includes archived links so the
+detail page badges them. Verified in-browser across orphan / upcoming / released rows.
 
 **v2.5 (M29–M34) — deployment.** First hosting: the container image on **Azure Container Apps**
 (Consumption, scale-to-zero) (M29); prod off ephemeral SQLite onto **Neon Postgres** via EF Npgsql
@@ -251,7 +260,7 @@ infra                    Terraform: azurerm + neon + cloudflare in one root modu
 - **Shipped — v2.4 (M26–M28):** UI polish · semantic color tokens · dark/light toggle.
 - **Shipped — v2.5 (M29–M34):** ACA deploy · Neon Postgres · R2 covers · cover normalization · Terraform ·
   CI/CD image pipeline.
-- **In progress — v2.6 (M35–M38):** hardening/cleanup — startup env-var fail-fast + eager R2 client
+- **Shipped — v2.6 (M35–M38):** hardening/cleanup — startup env-var fail-fast + eager R2 client
   (M35), hard-delete replacing soft-delete app-wide (M36), responsive hamburger navbar (M37), and
   catalog release-counting fixes / field collapse (M38). See [build-plan-2.6.md](build-plan-2.6.md).
 - **Next: v2.7 — multilingual (EN/ES) + Terraform remote state.** Layered i18n (react-i18next UI chrome ·

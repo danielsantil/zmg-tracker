@@ -12,9 +12,9 @@ public record SongArtistInput(Guid ArtistId, ArtistRole Role);
 public record SongArtistDto(Guid ArtistId, string Name, ArtistRole Role);
 
 // ---- Catalog (M13) ----
-// ReleaseDate = earliest non-archived linked release date, null for orphans/unreleased.
-// CanArchive/IsOrphan (M15) drive the catalog row action from backend truth: Archive when CanArchive,
-// Delete when IsOrphan (never released).
+// ReleaseDate = earliest non-archived linked release date, null for orphans/archived-only/unreleased.
+// One source of truth (M38): the client derives both the Released column (No/Yes/Upcoming) and the
+// Archive action (offered when ReleaseDate == null) from ReleaseDate alone — no CanArchive/IsOrphan.
 public record SongListItemDto(
     Guid Id,
     string Title,
@@ -23,9 +23,7 @@ public record SongListItemDto(
     DateOnly? ReleaseDate,
     string? Isrc,
     int ReleaseCount,
-    bool IsArchived,
-    bool CanArchive,
-    bool IsOrphan);
+    bool IsArchived);
 
 // One linked release on a song's detail. MainArtistId/Name drive the client-side artist-drift hint.
 public record SongReleaseLinkDto(

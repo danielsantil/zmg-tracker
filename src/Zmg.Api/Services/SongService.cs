@@ -21,7 +21,6 @@ public sealed class SongService(ZmgDbContext db) : ISongService
     public async Task<IReadOnlyList<SongListItemDto>> ListAsync(string? q, string? scope, Guid? artistId, CancellationToken ct = default)
     {
         var isArchived = string.Equals(scope, "archived", StringComparison.OrdinalIgnoreCase);
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
         var query = db.Songs.AsNoTracking();
         query = isArchived ? query.Where(s => s.ArchivedAt != null) : query.Where(s => s.ArchivedAt == null);
@@ -34,25 +33,20 @@ public sealed class SongService(ZmgDbContext db) : ISongService
 
         query = isArchived ? query.OrderByDescending(s => s.ArchivedAt) : query.OrderBy(s => s.Title);
 
+        // Every link-derived value excludes archived-release links, so the list is internally consistent
+        // (M38): a song's "released?" state, its earliest date, and its count all agree. The client derives
+        // Released (No/Yes/Upcoming) and the Archive action from ReleaseDate alone — null ⟺ archivable.
         return await query
             .Select(s => new SongListItemDto(
                 s.Id, s.Title, s.MainArtistId, s.MainArtist!.Name,
-                // Earliest non-archived linked release date; null for orphans/unreleased.
+                // Earliest non-archived linked release date; null for orphans/archived-only/unreleased.
                 s.ReleaseLinks
                     .Where(t => t.Release!.ArchivedAt == null)
                     .Select(t => (DateOnly?)t.Release!.ReleaseDate)
                     .Min(),
                 s.Isrc,
-                s.ReleaseLinks.Count,
-                s.ArchivedAt != null,
-                // CanArchive (M15): an active, non-orphan song that manual-archive would accept — no link
-                // to an active (non-archived) release and none released (past-dated). Orphans get Delete.
-                s.ArchivedAt == null
-                    && s.ReleaseLinks.Any()
-                    && !s.ReleaseLinks.Any(t => t.Release!.ArchivedAt == null)
-                    && !s.ReleaseLinks.Any(t => t.Release!.ReleaseDate < today),
-                // IsOrphan (M15): no (non-deleted) release links.
-                !s.ReleaseLinks.Any()))
+                s.ReleaseLinks.Count(t => t.Release!.ArchivedAt == null),
+                s.ArchivedAt != null))
             .ToListAsync(ct);
     }
 
@@ -141,11 +135,13 @@ public sealed class SongService(ZmgDbContext db) : ISongService
         if (song is null) return OperationResult.NotFound();
         if (song.IsArchived) return OperationResult.Conflict(new[] { "Song is already archived." });
 
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        // A link to *any* non-archived release (past or future) blocks manual archive — archive flows
+        // through that release instead. That's the whole guard now (M38): a song whose only links are to
+        // archived releases has a null derived release date and is archivable, matching the catalog's
+        // "ReleaseDate == null ⟺ archivable" equivalence. (The old extra "already-released" guard also
+        // blocked archived-past-release songs, contradicting that and 409ing a row the UI offered Archive.)
         if (song.ReleaseLinks.Any(t => t.Release is { ArchivedAt: null }))
             return OperationResult.Conflict(new[] { "Song is on an active release — archive flows through the release." });
-        if (song.ReleaseLinks.Any(t => t.Release is not null && t.Release.ReleaseDate < today))
-            return OperationResult.Conflict(new[] { "A released song can't be archived." });
 
         song.ArchivedAt = DateTime.UtcNow;
         await db.SaveChangesAsync(ct);

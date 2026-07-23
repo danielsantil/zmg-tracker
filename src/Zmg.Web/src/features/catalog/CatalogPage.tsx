@@ -20,11 +20,13 @@ import {
 import { useToast } from '@/hooks/useToast';
 import { useConfirmDelete } from '@/hooks/useConfirmDelete';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { todayIso } from '@/lib/format';
 
 /**
- * The catalog (M13): every song, searchable by title, ordered by title. Release Date is derived
- * (earliest non-archived linked release, blank for orphans). Rows link into the song detail.
- * M15 adds the "Archived Songs →" link and per-row actions: Archive (canArchive) or Delete (orphan).
+ * The catalog (M13): every song, searchable by title, ordered by title. Everything derives from the
+ * earliest non-archived linked release date (M38): the Released column is No / Yes / Upcoming, and the
+ * only row action is Archive — offered when that date is null (orphan or archived-only, i.e. archivable).
+ * Delete lives on Archived Songs; archive an orphan here and it lands there. Rows link into the detail.
  */
 export default function CatalogPage() {
   const navigate = useNavigate();
@@ -54,18 +56,7 @@ export default function CatalogPage() {
     showToast,
   });
 
-  const remove = useConfirmDelete<SongListItem>({
-    confirm: (s) => ({
-      title: `Delete "${s.title}" from the catalog?`,
-      body: <p>This song was never released. This can't be undone.</p>,
-      confirmLabel: 'Delete',
-      confirmVariant: 'danger',
-    }),
-    mutate: (s) => api.songs.delete(s.id),
-    invalidate: [queryKeys.songs()],
-    errorFallback: 'Failed to delete.',
-    showToast,
-  });
+  const today = todayIso();
 
   return (
     <div>
@@ -106,34 +97,38 @@ export default function CatalogPage() {
             { label: '', className: 'text-right' },
           ]}
         >
-          {songs.map((s) => (
-            <tr key={s.id} onClick={() => navigate(`/catalog/${s.id}`)} className={dataRowClass}>
-              <td className="px-4 py-3 font-medium text-strong">{s.title}</td>
-              <td className="px-4 py-3 text-body">{s.mainArtistName}</td>
-              <td className="px-4 py-3">
-                {s.releaseCount > 0 ? <span className="text-okFg">Yes</span> : <span className="text-muted">No</span>}
-              </td>
-              <td className="px-4 py-3 text-right">
-                {(s.isOrphan || s.canArchive) && (
-                  <div onClick={(e) => e.stopPropagation()} className="flex justify-end">
-                    <RowMenu label="Song actions">
-                      {(close) =>
-                        s.isOrphan ? (
-                          <MenuItem tone="danger" onClick={() => { close(); void remove(s); }}>
-                            Delete
-                          </MenuItem>
-                        ) : (
+          {songs.map((s) => {
+            // One derivation off the earliest non-archived date (M38): null → archivable orphan/archived-only.
+            const archivable = s.releaseDate == null;
+            return (
+              <tr key={s.id} onClick={() => navigate(`/catalog/${s.id}`)} className={dataRowClass}>
+                <td className="px-4 py-3 font-medium text-strong">{s.title}</td>
+                <td className="px-4 py-3 text-body">{s.mainArtistName}</td>
+                <td className="px-4 py-3">
+                  {archivable ? (
+                    <span className="text-muted">No</span>
+                  ) : s.releaseDate! <= today ? (
+                    <span className="text-okFg">Yes</span>
+                  ) : (
+                    <span className="text-infoFg">Upcoming</span>
+                  )}
+                </td>
+                <td className="px-4 py-3 text-right">
+                  {archivable && (
+                    <div onClick={(e) => e.stopPropagation()} className="flex justify-end">
+                      <RowMenu label="Song actions">
+                        {(close) => (
                           <MenuItem tone="archive" onClick={() => { close(); void archive(s); }}>
                             Archive
                           </MenuItem>
-                        )
-                      }
-                    </RowMenu>
-                  </div>
-                )}
-              </td>
-            </tr>
-          ))}
+                        )}
+                      </RowMenu>
+                    </div>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
         </DataTable>
       )}
 
