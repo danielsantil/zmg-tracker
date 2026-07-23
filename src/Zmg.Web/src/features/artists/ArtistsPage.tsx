@@ -75,6 +75,7 @@ export default function ArtistsPage() {
             { label: 'Name' },
             { label: 'Releases' },
             { label: 'Songs' },
+            { label: 'Collabs' },
             { label: '', className: 'text-right' },
           ]}
         >
@@ -92,6 +93,7 @@ export default function ArtistsPage() {
               </td>
               <td className="px-4 py-3 text-body">{a.releaseCount}</td>
               <td className="px-4 py-3 text-body">{a.songCount}</td>
+              <td className="px-4 py-3 text-body">{a.creditCount}</td>
               <td className="px-4 py-3 text-right">
                 <div onClick={(e) => e.stopPropagation()} className="flex justify-end">
                   <RowMenu label="Artist actions">

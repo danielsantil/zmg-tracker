@@ -167,9 +167,9 @@ export default function ReleaseFormPage() {
       void queryClient.invalidateQueries({ queryKey: queryKeys.releases() });
       if (isEdit && id) {
         void queryClient.invalidateQueries({ queryKey: queryKeys.release(id) });
-        void queryClient.invalidateQueries({ queryKey: queryKeys.pending });
       }
       void queryClient.invalidateQueries({ queryKey: queryKeys.songs() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.pending });
       if (result.warnings.length > 0) {
         setWarnings(result.warnings);
       } else {

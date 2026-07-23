@@ -26,11 +26,12 @@ export function useReleaseTracks(
 
   useEffect(() => setTracks(initial), [initial]);
 
-  // Tracklist edits can change pending actions, songs and a release's warnings (e.g. "Album is empty").
+  // Tracklist edits can change pending actions, songs, artist (credits) and a release's warnings.
   const refreshData = () => {
     void queryClient.invalidateQueries({ queryKey: queryKeys.pending });
     void queryClient.invalidateQueries({ queryKey: queryKeys.release(release.id) });
     void queryClient.invalidateQueries({ queryKey: queryKeys.songs() });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.artists });
   };
 
   const orderedTracks = useMemo(

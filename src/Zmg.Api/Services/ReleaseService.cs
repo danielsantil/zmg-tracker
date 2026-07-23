@@ -121,7 +121,7 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
         var mainArtistExists = input.MainArtistId != Guid.Empty
             && await db.Artists.AsNoTracking().AnyAsync(a => a.Id == input.MainArtistId, ct);
         var otherTitles = await db.Releases.AsNoTracking()
-            .Where(r => r.MainArtistId == input.MainArtistId)
+            .Where(r => r.MainArtistId == input.MainArtistId && r.ArchivedAt == null)
             .Select(r => r.Title)
             .ToListAsync(ct);
 
