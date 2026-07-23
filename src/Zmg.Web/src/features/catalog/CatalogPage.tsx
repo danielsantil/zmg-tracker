@@ -51,7 +51,7 @@ export default function CatalogPage() {
       confirmVariant: 'archive',
     }),
     mutate: (s) => api.songs.archive(s.id),
-    invalidate: [queryKeys.songs()],
+    invalidate: [queryKeys.songs(), queryKeys.artists],
     errorFallback: 'Failed to archive.',
     showToast,
   });

@@ -30,7 +30,7 @@ export default function ArtistsPage() {
       ].filter(Boolean);
       await confirm({
         title: `Can't delete "${a.name}"`,
-        body: <p>This artist is still tied to {parts.join(', ')}. Remove those first.</p>,
+        body: <p>This artist is tied to {parts.join(', ')}.</p>,
         confirmLabel: 'OK',
         hideCancel: true,
       });
@@ -68,6 +68,8 @@ export default function ArtistsPage() {
     try {
       await api.artists.delete(a.id);
       void queryClient.invalidateQueries({ queryKey: queryKeys.artists });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.songs() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.releases() });
     } catch (e) {
       // Concurrency safety net: a release/song could have been added since the list loaded.
       showToast(errorMessage(e, 'Failed to delete artist.'));

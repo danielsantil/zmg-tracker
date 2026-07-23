@@ -24,7 +24,7 @@ export default function ArchivedSongsPage() {
       confirmVariant: 'danger',
     }),
     mutate: (s) => api.songs.delete(s.id),
-    invalidate: [queryKeys.songs()],
+    invalidate: [queryKeys.songs(), queryKeys.artists],
     errorFallback: 'Failed to delete.',
     showToast,
   });

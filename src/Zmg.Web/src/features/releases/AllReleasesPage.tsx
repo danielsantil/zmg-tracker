@@ -60,7 +60,7 @@ export default function AllReleasesPage() {
   const archive = useConfirmDelete<ReleaseListItem>({
     confirm: (r) => archiveReleaseConfirm(r.id, r.title),
     mutate: (r) => api.releases.archive(r.id),
-    invalidate: [queryKeys.releases(), queryKeys.pending],
+    invalidate: [queryKeys.releases(), queryKeys.pending, queryKeys.songs(), queryKeys.artists],
     errorFallback: 'Failed to archive.',
     showToast,
   });

@@ -167,6 +167,18 @@ green push to main and deploys to ACA via **OIDC**, with a `workflow_dispatch` r
 - **Delete guards must count every reference, not just the obvious ones** (v2.2). Counting only
   main-artist links let a feat-only artist past the guard and into a Restrict FK — a 500 where a clean 409
   belonged. Surface the counts in the DTO so the UI can block up front instead of apologising afterward.
+- **Artist delete blocks on *active* references only; archived ones cascade away with the artist.**
+  `ArtistDto`'s `releaseCount`/`songCount`/`creditCount` are **active (non-archived) counts** — they're
+  what the artists table shows *and* the up-front delete block — so archived work no longer inflates them.
+  `ArtistService.DeleteAsync` 409s only when an active release/song is main-artist'd on the artist or it's
+  credited on a *non-archived* song. With no active refs the delete **succeeds and hard-removes the
+  archived data that references it**: archived releases (cascade → tasks + tracks), archived songs
+  (`RemoveRange` their `Track` links first — `Track`→`Song` is Restrict — then the song, its credits
+  cascading), and the artist's own feat/collab credit rows on *other* artists' archived songs (the credit
+  row only, never the other artist's song). `ArtistDto` also carries `archivedReleaseCount` /
+  `archivedSongCount` so the confirm dialog can warn ("N archived releases/songs will also be permanently
+  removed") before the cascade. Contrast the entity-level rule above: `Release`/`Song` delete is reachable
+  only for already-archived/orphan rows, whereas *this* cascade is the artist-delete cleanup path.
 - **No native dialogs (M16).** `window.confirm`/`alert` are banned app-wide: ask via `useConfirm()` (one
   `<ConfirmDialog>` under the root provider), report failures with an error toast, and build overlays on
   `components/Modal.tsx` rather than hand-rolling a backdrop. Destructive intent is colour-coded: red
