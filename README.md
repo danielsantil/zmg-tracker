@@ -44,16 +44,27 @@ infra                    Terraform for the whole hosted stack (see infra/README.
 
 - .NET SDK 8.0 (pinned via `global.json`)
 - Node.js 24.18.0 (`.nvmrc`) + pnpm (via Corepack — pinned in `package.json`)
-- A Postgres connection string in `ConnectionStrings__Zmg` (a Neon dev branch, or local Postgres)
+All of the following must be set, or the API refuses to boot (M35) — startup lists every missing key:
 
-Set the dev connection string once, in user-secrets — it is never committed:
+| Env var | Purpose |
+| --- | --- |
+| `ConnectionStrings__Zmg` | Postgres connection string (a Neon dev branch, or local Postgres) |
+| `R2__AccountId` | Cloudflare R2 account id |
+| `R2__AccessKeyId` | R2 access key id |
+| `R2__SecretAccessKey` | R2 secret access key |
+| `R2__Bucket` | R2 bucket name |
+| `R2__PublicBaseUrl` | Public read origin for the bucket (the r2.dev URL until a custom domain lands) |
+
+Set them once in user-secrets for dev — never committed (`__` in env vars maps to `:` in user-secrets):
 
 ```bash
 dotnet user-secrets --project src/Zmg.Api set ConnectionStrings:Zmg "<your-postgres-connection-string>"
+dotnet user-secrets --project src/Zmg.Api set R2:AccountId "<account-id>"
+dotnet user-secrets --project src/Zmg.Api set R2:AccessKeyId "<access-key-id>"
+dotnet user-secrets --project src/Zmg.Api set R2:SecretAccessKey "<secret-access-key>"
+dotnet user-secrets --project src/Zmg.Api set R2:Bucket "<bucket>"
+dotnet user-secrets --project src/Zmg.Api set R2:PublicBaseUrl "<https://…r2.dev>"
 ```
-
-Cover uploads additionally need the five `R2:*` secrets; without them the app still boots and only
-uploading fails. See [CLAUDE.md](CLAUDE.md) for the list.
 
 ## Run (development)
 

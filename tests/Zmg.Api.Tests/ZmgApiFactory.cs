@@ -22,9 +22,15 @@ public class ZmgApiFactory : WebApplicationFactory<Program>
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
-        // Satisfy Program.cs's fail-fast connection-string guard; the registration below overrides it
-        // with the shared open in-memory connection.
+        // Satisfy Program.cs's fail-fast startup validation so every test boots the same validated path as
+        // prod. The connection string is overridden below with the shared open in-memory connection; the
+        // dummy R2 values are never dereferenced (UploadApiFactory swaps in FakeStorageService).
         builder.UseSetting("ConnectionStrings:Zmg", "DataSource=:memory:");
+        builder.UseSetting("R2:AccountId", "test-account");
+        builder.UseSetting("R2:AccessKeyId", "test-access-key");
+        builder.UseSetting("R2:SecretAccessKey", "test-secret-access-key");
+        builder.UseSetting("R2:Bucket", "test-bucket");
+        builder.UseSetting("R2:PublicBaseUrl", "https://covers.test");
 
         builder.ConfigureServices(services =>
         {

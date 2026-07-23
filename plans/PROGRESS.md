@@ -14,6 +14,7 @@ for where the project stands and the rules that span plans.
 - [build-plan-2.3.md](build-plan-2.3.md) — refactor · code health (M24–M25). Shipped.
 - [build-plan-2.4.md](build-plan-2.4.md) — UI polish · dark/light (M26–M28). Shipped.
 - [build-plan-2.5.md](build-plan-2.5.md) — deployment · ACA/Neon/R2/Terraform/CI-CD (M29–M34). Shipped.
+- [build-plan-2.6.md](build-plan-2.6.md) — hardening · hard-delete · navbar · catalog fixes (M35–M38). In progress.
 
 Newer plan versions go in new `build-plan-N.N.md` files; older ones stay frozen.
 
@@ -22,8 +23,11 @@ complete**. Live on **Azure Container Apps** over **Neon Postgres**, covers in *
 (normalized to a 1000px WebP on ingest), the whole stack codified in Terraform under
 [`infra/`](../infra/README.md), and a **GitHub Actions pipeline** that builds + pushes on every green
 push to main and deploys via OIDC (M34). Backend **domain 119 / API 156**, SPA **32 Vitest** — the
-pipeline gates on these. **No milestone open** — next is **Phase 2** (DSP stats first; also SPA/Pages
-split, cold-start tuning, real-Postgres tests), which starts a new `build-plan-3.0.md`.
+pipeline gates on these. **Open: v2.6 (M35–M38)** — a hardening/cleanup pass before the multilingual
+work: startup env-var fail-fast + eager R2 client, hard-delete (drop soft-delete), responsive hamburger
+navbar, and catalog release-counting fixes; see [build-plan-2.6.md](build-plan-2.6.md). Multilingual
+(EN/ES) and the Terraform remote-state move are deferred to **v2.7**. **Phase 2** (DSP stats; also
+SPA/Pages split, cold-start tuning, real-Postgres tests) follows and starts a new `build-plan-3.0.md`.
 
 > ⚠️ **DB is Postgres (Neon) as of v2.5/M30.** Dev + prod both use `ConnectionStrings__Zmg` — **dev** via
 > `dotnet user-secrets` in `src/Zmg.Api` (never commit it), **prod** as an ACA secret. Startup applies
@@ -78,6 +82,15 @@ column, badge-folding on the mobile release tables, and self-sizing Home cards (
 hardcoded neutrals were routed through CSS-variable tokens as a deliberate visual no-op (M27), which
 the **dark/light toggle** cashed in immediately after (M28) — OS-following until explicitly toggled,
 persisted, and applied pre-paint. **+5 Vitest → 32** web tests.
+
+**v2.6 (M35–M38) — hardening (in progress).** M35: startup env-var **fail-fast** — a new
+`StartupValidationExtensions.Validate(IConfiguration)` gathers *every* missing/blank required key
+(`ConnectionStrings__Zmg` + all five `R2__*`) and throws one message naming them all, called right after
+`CreateBuilder` (folding in the old connection-string throw). R2 is now **required at startup**, so
+`R2StorageService` drops its `Lazy<IAmazonS3>` for a client built eagerly in the constructor. Validation
+runs in **every environment including tests** — `ZmgApiFactory` supplies dummy `R2:*` values via
+`UseSetting` so the suite boots the same validated path as prod (never dereferenced; `UploadApiFactory`
+swaps in the fake storage). Backend **domain 119 / API 156** unchanged.
 
 **v2.5 (M29–M34) — deployment.** First hosting: the container image on **Azure Container Apps**
 (Consumption, scale-to-zero) (M29); prod off ephemeral SQLite onto **Neon Postgres** via EF Npgsql
@@ -224,12 +237,19 @@ infra                    Terraform: azurerm + neon + cloudflare in one root modu
 
 - **Shipped — v2.4 (M26–M28):** UI polish · semantic color tokens · dark/light toggle.
 - **Shipped — v2.5 (M29–M34):** ACA deploy · Neon Postgres · R2 covers · cover normalization · Terraform ·
-  CI/CD image pipeline. **v2.5 complete — no milestone open.**
-- **Next: Phase 2 — DSP stats** (the reason this exists over Notion/Trello): hang streaming/revenue data
+  CI/CD image pipeline.
+- **In progress — v2.6 (M35–M38):** hardening/cleanup — startup env-var fail-fast + eager R2 client
+  (M35), hard-delete replacing soft-delete app-wide (M36), responsive hamburger navbar (M37), and
+  catalog release-counting fixes / field collapse (M38). See [build-plan-2.6.md](build-plan-2.6.md).
+- **Next: v2.7 — multilingual (EN/ES) + Terraform remote state.** Layered i18n (react-i18next UI chrome ·
+  DB-authored checklist translations · API message codes) plus moving tfstate to an Azure Storage backend
+  (encrypted, locked). Write `build-plan-2.7.md` when it starts; the language selector deferred from M37
+  lands here.
+- **Then: Phase 2 — DSP stats** (the reason this exists over Notion/Trello): hang streaming/revenue data
   off the stable Artist / Release / **Song** / Track ids and the UPC/ISRC columns; the v2.0 Song ids are
   its foundation. No build plan yet — write `build-plan-3.0.md` when it starts.
-- **Infra hardening (not gating):** Terraform state is **local on one machine** — move to a remote
-  encrypted backend (Azure Storage + locking) before anyone else applies; and add a `terraform fmt
+- **Infra hardening (not gating):** Terraform state is **local on one machine** — the move to a remote
+  encrypted backend (Azure Storage + locking) is now slated for **v2.7**; also add a `terraform fmt
   -check` + `validate` CI job so `infra/` drift is caught in review. Neither blocks; both are cheap.
 - **Still open (not gating):** Low-value test polish (exhaustive AAA pass, the last few Theory
   conversions). The suite is green without it.
