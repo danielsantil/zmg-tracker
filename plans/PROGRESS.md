@@ -26,9 +26,11 @@ push to main and deploys via OIDC (M34). Backend **domain 119 / API 156**, SPA *
 pipeline gates on these. **v2.6 (M35–M38) is complete** — a hardening/cleanup pass before the
 multilingual work: startup env-var fail-fast + eager R2 client (M35), hard-delete replacing soft-delete
 (M36), responsive hamburger navbar (M37), and catalog release-counting fixes / field collapse (M38); see
-[build-plan-2.6.md](build-plan-2.6.md). **Next up: v2.7** — multilingual (EN/ES) + the Terraform
-remote-state move; the M37 language selector was deliberately deferred there. **Phase 2** (DSP stats;
-also SPA/Pages split, cold-start tuning, real-Postgres tests) follows and starts a new `build-plan-3.0.md`.
+[build-plan-2.6.md](build-plan-2.6.md). **Next up: v2.7 (M39–M42)** — infra hardening: Terraform state to a
+remote encrypted backend, cold-start work (ACA scale-from-zero is ~17–25s today), and an edge-served SPA;
+see [build-plan-2.7.md](build-plan-2.7.md). **Then v2.8** — multilingual (EN/ES); the M37 language
+selector was deliberately deferred there. **Phase 2** (DSP stats, real-Postgres tests) follows and starts
+a new `build-plan-3.0.md`.
 
 > ⚠️ **DB is Postgres (Neon) as of v2.5/M30.** Dev + prod both use `ConnectionStrings__Zmg` — **dev** via
 > `dotnet user-secrets` in `src/Zmg.Api` (never commit it), **prod** as an ACA secret. Startup applies
@@ -275,21 +277,28 @@ infra                    Terraform: azurerm + neon + cloudflare in one root modu
 - **Shipped — v2.6 (M35–M38):** hardening/cleanup — startup env-var fail-fast + eager R2 client
   (M35), hard-delete replacing soft-delete app-wide (M36), responsive hamburger navbar (M37), and
   catalog release-counting fixes / field collapse (M38). See [build-plan-2.6.md](build-plan-2.6.md).
-- **Next: v2.7 — multilingual (EN/ES) + Terraform remote state.** Layered i18n (react-i18next UI chrome ·
-  DB-authored checklist translations · API message codes) plus moving tfstate to an Azure Storage backend
-  (encrypted, locked). Write `build-plan-2.7.md` when it starts; the language selector deferred from M37
-  lands here.
+- **Next: v2.7 — infra hardening · remote state · cold start (M39–M42).** See
+  [build-plan-2.7.md](build-plan-2.7.md). **M39** moves Terraform state off one laptop into an encrypted,
+  versioned Azure Storage container with blob-lease locking (~$0/mo; state holds the Neon connection
+  string, GHCR token and both R2 keys today), and lands the `terraform fmt -check` + `validate` job as a
+  separate `infra.yml`. **M40** measures the cold-start baseline before anything is tuned. **M41** cuts
+  the boot path — migrations move to a deploy-time EF bundle, plain `chiseled` base image, dev-only
+  Swagger, lazy S3 client. **M42** serves the SPA from a Cloudflare Worker with a same-origin `/api/*`
+  proxy, so the UI paints immediately instead of waiting out the container. The plan is written as a
+  step-by-step runbook — it's being executed by hand.
+- **Then: v2.8 — multilingual (EN/ES).** Layered i18n (react-i18next UI chrome · DB-authored checklist
+  translations · API message codes); the language selector deferred from M37 lands here. Outline lives at
+  the end of `build-plan-2.7.md`; write `build-plan-2.8.md` when it starts. **Keep the server
+  culture-free** — M41 ships `InvariantGlobalization=true`, which is safe only because all three i18n
+  layers translate in the browser or the DB.
 - **Then: Phase 2 — DSP stats** (the reason this exists over Notion/Trello): hang streaming/revenue data
   off the stable Artist / Release / **Song** / Track ids and the UPC/ISRC columns; the v2.0 Song ids are
-  its foundation. No build plan yet — write `build-plan-3.0.md` when it starts.
-- **Infra hardening (not gating):** Terraform state is **local on one machine** — the move to a remote
-  encrypted backend (Azure Storage + locking) is now slated for **v2.7**; also add a `terraform fmt
-  -check` + `validate` CI job so `infra/` drift is caught in review. Neither blocks; both are cheap.
+  its foundation. Also real-Postgres tests. No build plan yet — write `build-plan-3.0.md` when it starts.
 - **Still open (not gating):** Low-value test polish (exhaustive AAA pass, the last few Theory
   conversions). The suite is green without it.
 - **Per-track task fan-out** on albums: registrations that repeat per track are single "per track" tasks
   today. Decide after the first real album.
-- Deferred: un-archive/restore and hard-delete/purge (archives are terminal by rule); auth for hosted
+- Deferred: un-archive/restore (archives are terminal by rule); auth for hosted
   deploys; absolute per-task due dates (v1.1 only added timeframe *ranges*). Also carried forward from
   the M24 audit: the **seed-data 3-way drift hazard** (`SeedData.cs` → `InitialCreate` → snapshot, with
   `DeterministicTaskId` renumbering every later GUID on a mid-list insert) — left as-is per CLAUDE.md's
