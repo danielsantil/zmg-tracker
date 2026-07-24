@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { Menu, Moon, Sun, X } from 'lucide-react';
-import { useTheme } from '../hooks/useTheme';
+import { useTheme, type Theme } from '../hooks/useTheme';
+import Logo from './Logo';
 
 // One source for both the desktop row and the mobile sheet, so a destination can't drift between them.
 const NAV_LINKS: { to: string; label: string; end?: boolean }[] = [
@@ -23,8 +24,9 @@ const mobileLink = ({ isActive }: { isActive: boolean }) =>
   }`;
 
 // Shows the mode you'd switch TO: a sun in dark mode (→ light), a moon in light mode (→ dark).
-function ThemeToggle() {
-  const { theme, toggle } = useTheme();
+// Presentational: theme/toggle come from NavBar's single useTheme so the logo and this button never
+// disagree (useTheme is per-caller local state — two independent calls would diverge on toggle).
+function ThemeToggle({ theme, toggle }: { theme: Theme; toggle: () => void }) {
   const Icon = theme === 'dark' ? Sun : Moon;
   return (
     <button
@@ -52,6 +54,7 @@ export default function NavBar() {
   const [open, setOpen] = useState(false);
   const headerRef = useRef<HTMLElement>(null);
   const location = useLocation();
+  const { theme, toggle } = useTheme();
 
   // Close on navigation — tapping a sheet link should land on the page, not leave the sheet hanging.
   useEffect(() => setOpen(false), [location]);
@@ -69,10 +72,9 @@ export default function NavBar() {
   return (
     <header ref={headerRef} className="sticky top-0 z-10 border-b border-edge bg-ink/80 backdrop-blur">
       <div className="mx-auto flex max-w-5xl items-center gap-x-2 px-4 py-3">
-        <NavLink to="/" className="mr-2 flex items-center gap-2 font-semibold text-strong">
-          {/* text-white, not inherited text-strong: the Z sits on the solid accent in both themes. */}
-          <span className="grid h-7 w-7 place-items-center rounded-lg bg-accent text-sm text-white">Z</span>
-          <span className="hidden sm:inline">ZMG Tracker</span>
+        <NavLink to="/" className="mr-2 flex items-center" aria-label="Zion Music Group — home">
+          {/* Inline SVG wordmark; text-strong makes it near-black in light / near-white in dark. */}
+          <Logo className="h-7 w-auto text-strong" />
         </NavLink>
 
         {/* Desktop: the inline row, unchanged from before. */}
@@ -87,7 +89,7 @@ export default function NavBar() {
         {/* Always-visible controls, right-aligned. The theme toggle stays; the v2.7 language selector
             will slot in just before it. The hamburger is mobile-only. */}
         <div className="ml-auto flex items-center gap-x-1">
-          <ThemeToggle />
+          <ThemeToggle theme={theme} toggle={toggle} />
           <button
             type="button"
             className="grid h-8 w-8 place-items-center rounded-lg text-muted transition hover:bg-edge hover:text-body sm:hidden"
