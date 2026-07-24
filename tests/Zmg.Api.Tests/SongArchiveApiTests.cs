@@ -86,7 +86,8 @@ public class SongArchiveApiTests(ZmgApiFactory factory) : IClassFixture<ZmgApiFa
         (await client.DeleteAsync($"/api/releases/{album.Id}/tracks/{songId}")).EnsureSuccessStatusCode();
 
         var orphan = await FindSong(client, songId);
-        Assert.True(orphan.IsOrphan);
+        Assert.Null(orphan.ReleaseDate);       // orphan → archivable (M38: ReleaseDate == null)
+        Assert.Equal(0, orphan.ReleaseCount);
 
         var res = await client.PostAsync($"/api/songs/{songId}/archive", null);
         Assert.Equal(HttpStatusCode.NoContent, res.StatusCode);

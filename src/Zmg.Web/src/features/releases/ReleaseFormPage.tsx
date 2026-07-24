@@ -170,6 +170,7 @@ export default function ReleaseFormPage() {
       }
       void queryClient.invalidateQueries({ queryKey: queryKeys.songs() });
       void queryClient.invalidateQueries({ queryKey: queryKeys.pending });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.artists });
       if (result.warnings.length > 0) {
         setWarnings(result.warnings);
       } else {

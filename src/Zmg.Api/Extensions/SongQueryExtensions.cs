@@ -14,6 +14,6 @@ public static class SongQueryExtensions
         query
             .Include(s => s.MainArtist)
             .Include(s => s.Artists).ThenInclude(a => a.Artist)
-            .Include(s => s.ReleaseLinks.Where(x => x.Release!.ArchivedAt == null))
+            .Include(s => s.ReleaseLinks)
             .ThenInclude(t => t.Release).ThenInclude(r => r!.MainArtist);
 }

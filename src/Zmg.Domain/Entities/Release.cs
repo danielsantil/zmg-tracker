@@ -23,11 +23,10 @@ public class Release
 
     /// <summary>
     /// Archive lifecycle (v1.2). <see cref="ArchivedAt"/> is set when a release is archived (terminal,
-    /// non-restorable — see build-plan-1.2.md); <see cref="DeletedAt"/> is a soft-delete stamp set when an
-    /// archived release is removed. Releases are never hard-deleted; a global query filter hides removed rows.
+    /// non-restorable — see build-plan-1.2.md). Removing an archived release hard-deletes the row (M36);
+    /// the FK cascade takes its tasks and track links with it.
     /// </summary>
     public DateTime? ArchivedAt { get; set; }
-    public DateTime? DeletedAt { get; set; }
 
     /// <summary>True while the release is archived (and not removed).</summary>
     public bool IsArchived => ArchivedAt is not null;

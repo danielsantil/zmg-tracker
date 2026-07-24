@@ -107,10 +107,11 @@ public class SongApiTests(ZmgApiFactory factory) : IClassFixture<ZmgApiFactory>
         Assert.Empty(created.Releases); // born an orphan — no release links
         Assert.Single(created.Artists, a => a.ArtistId == feat.Id);
 
-        // It shows up in the catalog list with a null (derived) release date.
+        // It shows up in the catalog list with a null (derived) release date — an orphan (no links),
+        // which the client reads as archivable (M38: ReleaseDate == null).
         var listed = (await ListSongs(client)).Single(s => s.Id == created.Id);
         Assert.Null(listed.ReleaseDate);
-        Assert.True(listed.IsOrphan);
+        Assert.Equal(0, listed.ReleaseCount);
     }
 
     [Fact]

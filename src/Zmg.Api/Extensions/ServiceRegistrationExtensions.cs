@@ -21,8 +21,8 @@ public static class ServiceRegistrationExtensions
         services.AddScoped<ITemplateService, TemplateService>();
         services.AddScoped<IReleaseTaskService, ReleaseTaskService>();
         
-        // Cover images (M31). The S3 client is built lazily inside the service, so a box without the R2:*
-        // settings still boots — only an upload attempt fails, with a clear message.
+        // Cover images (M31). R2 is required at startup (M35) — the env-var validator fails the boot if any
+        // R2:* setting is missing, so the eagerly-built S3 client always has real credentials to work with.
         services.Configure<R2Options>(configuration.GetSection(R2Options.SectionName));
         // Singleton, not scoped like the DbContext-backed services: the S3 client owns a connection pool, and
         // R2StorageService disposes it — scoped would build and tear down a pool on every upload.

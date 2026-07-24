@@ -14,6 +14,7 @@ for where the project stands and the rules that span plans.
 - [build-plan-2.3.md](build-plan-2.3.md) — refactor · code health (M24–M25). Shipped.
 - [build-plan-2.4.md](build-plan-2.4.md) — UI polish · dark/light (M26–M28). Shipped.
 - [build-plan-2.5.md](build-plan-2.5.md) — deployment · ACA/Neon/R2/Terraform/CI-CD (M29–M34). Shipped.
+- [build-plan-2.6.md](build-plan-2.6.md) — hardening · hard-delete · navbar · catalog fixes (M35–M38). Shipped.
 
 Newer plan versions go in new `build-plan-N.N.md` files; older ones stay frozen.
 
@@ -22,8 +23,12 @@ complete**. Live on **Azure Container Apps** over **Neon Postgres**, covers in *
 (normalized to a 1000px WebP on ingest), the whole stack codified in Terraform under
 [`infra/`](../infra/README.md), and a **GitHub Actions pipeline** that builds + pushes on every green
 push to main and deploys via OIDC (M34). Backend **domain 119 / API 156**, SPA **32 Vitest** — the
-pipeline gates on these. **No milestone open** — next is **Phase 2** (DSP stats first; also SPA/Pages
-split, cold-start tuning, real-Postgres tests), which starts a new `build-plan-3.0.md`.
+pipeline gates on these. **v2.6 (M35–M38) is complete** — a hardening/cleanup pass before the
+multilingual work: startup env-var fail-fast + eager R2 client (M35), hard-delete replacing soft-delete
+(M36), responsive hamburger navbar (M37), and catalog release-counting fixes / field collapse (M38); see
+[build-plan-2.6.md](build-plan-2.6.md). **Next up: v2.7** — multilingual (EN/ES) + the Terraform
+remote-state move; the M37 language selector was deliberately deferred there. **Phase 2** (DSP stats;
+also SPA/Pages split, cold-start tuning, real-Postgres tests) follows and starts a new `build-plan-3.0.md`.
 
 > ⚠️ **DB is Postgres (Neon) as of v2.5/M30.** Dev + prod both use `ConnectionStrings__Zmg` — **dev** via
 > `dotnet user-secrets` in `src/Zmg.Api` (never commit it), **prod** as an ACA secret. Startup applies
@@ -79,6 +84,32 @@ hardcoded neutrals were routed through CSS-variable tokens as a deliberate visua
 the **dark/light toggle** cashed in immediately after (M28) — OS-following until explicitly toggled,
 persisted, and applied pre-paint. **+5 Vitest → 32** web tests.
 
+**v2.6 (M35–M38) — hardening.** M35: startup env-var **fail-fast** — a new
+`StartupValidationExtensions.Validate(IConfiguration)` gathers *every* missing/blank required key
+(`ConnectionStrings__Zmg` + all five `R2__*`) and throws one message naming them all, called right after
+`CreateBuilder` (folding in the old connection-string throw). R2 is now **required at startup**, so
+`R2StorageService` drops its `Lazy<IAmazonS3>` for a client built eagerly in the constructor. Validation
+runs in **every environment including tests** — `ZmgApiFactory` supplies dummy `R2:*` values via
+`UseSetting` so the suite boots the same validated path as prod (never dereferenced; `UploadApiFactory`
+swaps in the fake storage). M36: **hard-delete replaces soft-delete** — dropped `DeletedAt`, the three
+query filters, and the soft-delete model; DELETE now `Remove()`s the row (Release cascades to tasks +
+track links; Song `RemoveRange`s its links first past the Restrict FK). `DropSoftDelete` migration ships
+the `DROP COLUMN`. Archive (`ArchivedAt`) untouched. Backend **domain 119 / API 156** unchanged. M37:
+the inline `Nav`/`ThemeToggle` came out of `App.tsx` into a new `components/NavBar.tsx`. Desktop (≥sm)
+keeps the horizontal row; below sm the five links collapse into a `☰` dropdown **sheet** while brand +
+theme toggle stay visible. The sheet is a plain `absolute` child of the sticky (untransformed, no
+`overflow-hidden`) `z-10` header — no body-portal needed, unlike RowMenu — with a solid `bg-panel` so
+links stay readable, closing on route change (`useLocation`) and outside click (a ref check, no overlay).
+Verified at 375px + desktop, light + dark, no page-level horizontal scroll. M38: the catalog's
+release-counting is now **one source of truth**. Every link-derived value in `ListAsync` excludes
+archived links (`releaseCount` too, was counting all — Bug A), and `SongListItemDto` **drops
+`isOrphan`/`canArchive`**: the client derives both the three-state **Released** column
+(No / Yes / Upcoming) and the Archive action from `ReleaseDate` alone — `null` ⟺ archivable. The
+`ArchiveAsync` guard was reduced to its active-release check so the equivalence holds (the old
+"already-released" guard 409'd archived-past-release songs the UI offered Archive). Catalog now offers
+**Archive only** (Delete moved to Archived Songs); `WithDetailIncludes` includes archived links so the
+detail page badges them. Verified in-browser across orphan / upcoming / released rows.
+
 **v2.5 (M29–M34) — deployment.** First hosting: the container image on **Azure Container Apps**
 (Consumption, scale-to-zero) (M29); prod off ephemeral SQLite onto **Neon Postgres** via EF Npgsql
 (M30); release covers into **Cloudflare R2** through an upload/paste-URL tile that re-stores remote URLs
@@ -100,10 +131,14 @@ green push to main and deploys to ACA via **OIDC**, with a `workflow_dispatch` r
   matching the song lifecycle. Any new release-write endpoint must call it. The mirror question "may this
   still be archived?" is the separate pure `ReleaseArchival.CanArchive` (upcoming and not yet archived),
   shipped on the release DTOs so the SPA never re-derives `releaseDate >= today`.
-- **Soft-delete, never hard-delete** (v1.2). Removed releases are stamped `DeletedAt` and hidden by a
-  global query filter, so stable ids survive for phase-2 stats. A join between two soft-filtered entities
-  needs **its own** filter (`Track` checks both parents) or a stale join outlives them; EF's "required end
-  of a relationship" advisory on the child navs is benign.
+- **Hard-delete (M36, was soft-delete v1.2–v2.5).** DELETE removes the row. `Release.Remove` **cascades**
+  to its `ReleaseTask`s and `Track` links; `Song` delete `RemoveRange`s its `Track` links first (the
+  `Track`→`Song` FK is Restrict) then removes the song, its feats/collabs cascading. Delete is reachable
+  **only** for an already-archived or orphan entity (a released item must be archived first, and archive
+  is kept), so the soft-delete rationale — preserving stable ids for phase-2 stats — was moot: those
+  entities carry no stats worth keeping. `DeletedAt`, the three `HasQueryFilter`s (Release, Song, and the
+  Track filter that existed only because its parents were filtered), and the `DropSoftDelete` migration
+  are all gone.
 - **Template-copy-on-create is backend logic** — a release is born with a full snapshot checklist, and
   editing a template never touches existing releases (locked by `TemplateApiTests`).
 - **Reorder is move-up/move-down, not drag-and-drop.** The endpoint takes the full ordered id list for a
@@ -132,6 +167,18 @@ green push to main and deploys to ACA via **OIDC**, with a `workflow_dispatch` r
 - **Delete guards must count every reference, not just the obvious ones** (v2.2). Counting only
   main-artist links let a feat-only artist past the guard and into a Restrict FK — a 500 where a clean 409
   belonged. Surface the counts in the DTO so the UI can block up front instead of apologising afterward.
+- **Artist delete blocks on *active* references only; archived ones cascade away with the artist.**
+  `ArtistDto`'s `releaseCount`/`songCount`/`creditCount` are **active (non-archived) counts** — they're
+  what the artists table shows *and* the up-front delete block — so archived work no longer inflates them.
+  `ArtistService.DeleteAsync` 409s only when an active release/song is main-artist'd on the artist or it's
+  credited on a *non-archived* song. With no active refs the delete **succeeds and hard-removes the
+  archived data that references it**: archived releases (cascade → tasks + tracks), archived songs
+  (`RemoveRange` their `Track` links first — `Track`→`Song` is Restrict — then the song, its credits
+  cascading), and the artist's own feat/collab credit rows on *other* artists' archived songs (the credit
+  row only, never the other artist's song). `ArtistDto` also carries `archivedReleaseCount` /
+  `archivedSongCount` so the confirm dialog can warn ("N archived releases/songs will also be permanently
+  removed") before the cascade. Contrast the entity-level rule above: `Release`/`Song` delete is reachable
+  only for already-archived/orphan rows, whereas *this* cascade is the artist-delete cleanup path.
 - **No native dialogs (M16).** `window.confirm`/`alert` are banned app-wide: ask via `useConfirm()` (one
   `<ConfirmDialog>` under the root provider), report failures with an error toast, and build overlays on
   `components/Modal.tsx` rather than hand-rolling a backdrop. Destructive intent is colour-coded: red
@@ -224,12 +271,19 @@ infra                    Terraform: azurerm + neon + cloudflare in one root modu
 
 - **Shipped — v2.4 (M26–M28):** UI polish · semantic color tokens · dark/light toggle.
 - **Shipped — v2.5 (M29–M34):** ACA deploy · Neon Postgres · R2 covers · cover normalization · Terraform ·
-  CI/CD image pipeline. **v2.5 complete — no milestone open.**
-- **Next: Phase 2 — DSP stats** (the reason this exists over Notion/Trello): hang streaming/revenue data
+  CI/CD image pipeline.
+- **Shipped — v2.6 (M35–M38):** hardening/cleanup — startup env-var fail-fast + eager R2 client
+  (M35), hard-delete replacing soft-delete app-wide (M36), responsive hamburger navbar (M37), and
+  catalog release-counting fixes / field collapse (M38). See [build-plan-2.6.md](build-plan-2.6.md).
+- **Next: v2.7 — multilingual (EN/ES) + Terraform remote state.** Layered i18n (react-i18next UI chrome ·
+  DB-authored checklist translations · API message codes) plus moving tfstate to an Azure Storage backend
+  (encrypted, locked). Write `build-plan-2.7.md` when it starts; the language selector deferred from M37
+  lands here.
+- **Then: Phase 2 — DSP stats** (the reason this exists over Notion/Trello): hang streaming/revenue data
   off the stable Artist / Release / **Song** / Track ids and the UPC/ISRC columns; the v2.0 Song ids are
   its foundation. No build plan yet — write `build-plan-3.0.md` when it starts.
-- **Infra hardening (not gating):** Terraform state is **local on one machine** — move to a remote
-  encrypted backend (Azure Storage + locking) before anyone else applies; and add a `terraform fmt
+- **Infra hardening (not gating):** Terraform state is **local on one machine** — the move to a remote
+  encrypted backend (Azure Storage + locking) is now slated for **v2.7**; also add a `terraform fmt
   -check` + `validate` CI job so `infra/` drift is caught in review. Neither blocks; both are cheap.
 - **Still open (not gating):** Low-value test polish (exhaustive AAA pass, the last few Theory
   conversions). The suite is green without it.

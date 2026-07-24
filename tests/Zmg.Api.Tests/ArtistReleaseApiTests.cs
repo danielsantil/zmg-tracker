@@ -198,4 +198,53 @@ public class ArtistReleaseApiTests(ZmgApiFactory factory) : IClassFixture<ZmgApi
         Assert.Contains(albums!, r => r.Title == "An Album");
         Assert.DoesNotContain(albums!, r => r.Title == "A Single");
     }
+
+    [Fact]
+    public async Task Artist_counts_exclude_archived_and_surface_it_separately()
+    {
+        var client = factory.CreateClient();
+        var artist = await CreateArtist(client, "Archived Footprint Artist");
+
+        var relRes = await client.PostAsJsonAsync("/api/releases", new ReleaseInput(
+            "Fades Out", ReleaseType.Single, TestDates.Upcoming, artist.Id, null, null, OneTrack()));
+        var release = (await relRes.Content.ReadFromJsonAsync<CreatedWithWarnings<ReleaseDetailDto>>())!.Data;
+
+        // Active while upcoming: counted in the primary columns, nothing archived yet.
+        var active = (await client.GetFromJsonAsync<List<ArtistDto>>("/api/artists"))!.Single(a => a.Id == artist.Id);
+        Assert.Equal(1, active.ReleaseCount);
+        Assert.Equal(1, active.SongCount);
+        Assert.Equal(0, active.ArchivedReleaseCount);
+        Assert.Equal(0, active.ArchivedSongCount);
+
+        // Archiving the single archives its exclusively-linked upcoming song too.
+        (await client.PostAsync($"/api/releases/{release.Id}/archive", null)).EnsureSuccessStatusCode();
+
+        var row = (await client.GetFromJsonAsync<List<ArtistDto>>("/api/artists"))!.Single(a => a.Id == artist.Id);
+        Assert.Equal(0, row.ReleaseCount);          // archived excluded from the primary counts
+        Assert.Equal(0, row.SongCount);
+        Assert.Equal(1, row.ArchivedReleaseCount);  // surfaced separately, drives the delete warning
+        Assert.Equal(1, row.ArchivedSongCount);
+    }
+
+    [Fact]
+    public async Task Deleting_an_artist_with_only_archived_data_succeeds_and_cascades()
+    {
+        var client = factory.CreateClient();
+        var artist = await CreateArtist(client, "Only Archived Artist");
+
+        var relRes = await client.PostAsJsonAsync("/api/releases", new ReleaseInput(
+            "Gone Soon", ReleaseType.Single, TestDates.Upcoming, artist.Id, null, null, OneTrack()));
+        var release = (await relRes.Content.ReadFromJsonAsync<CreatedWithWarnings<ReleaseDetailDto>>())!.Data;
+        var songId = release.Tracks.Single().SongId;
+
+        (await client.PostAsync($"/api/releases/{release.Id}/archive", null)).EnsureSuccessStatusCode();
+
+        // No active references — the delete goes through and cascade-removes the archived release + song.
+        var delete = await client.DeleteAsync($"/api/artists/{artist.Id}");
+        Assert.Equal(HttpStatusCode.NoContent, delete.StatusCode);
+
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync($"/api/artists/{artist.Id}")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync($"/api/releases/{release.Id}")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync($"/api/songs/{songId}")).StatusCode);
+    }
 }

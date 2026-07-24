@@ -5,11 +5,12 @@ using Zmg.Infra.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Production supplies this via ConnectionStrings__Zmg (see the Dockerfile); Development has it in
-// appsettings.Development.json. Fail fast with a clear message rather than letting UseSqlite receive null.
-var connectionString = builder.Configuration.GetConnectionString("Zmg")
-    ?? throw new InvalidOperationException(
-        "Connection string 'Zmg' is not configured. Set ConnectionStrings__Zmg.");
+// Fail fast on any missing required setting (connection string + all R2:* keys), naming every offender
+// at once, rather than letting a null surface deep inside the first request that needs it. Prod supplies
+// these as ACA secrets; dev via user-secrets; tests via dummy UseSetting values (never dereferenced).
+builder.Configuration.Validate();
+
+var connectionString = builder.Configuration.GetConnectionString("Zmg");
 builder.Services.AddDbContext<ZmgDbContext>(options => options.UseNpgsql(connectionString));
 
 builder.Services.RegisterServices(builder.Configuration);
