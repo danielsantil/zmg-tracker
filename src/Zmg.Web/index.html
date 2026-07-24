@@ -4,6 +4,12 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ZMG Release Tracker</title>
+    <!-- Theme-aware SVG favicon (its embedded prefers-color-scheme swaps the fill for the tab bar)
+         for modern browsers; the .ico is the universal fallback (Safari <16.4, older browsers);
+         apple-touch-icon is the iOS home-screen tile. -->
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <script>
       // Set data-theme before first paint so a light-mode reload never flashes dark. A saved choice
       // (zmg.theme, JSON) wins, else follow the OS. Mirrors resolveInitialTheme() in hooks/useTheme.ts.

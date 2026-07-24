@@ -8,8 +8,8 @@ import { useConfirmDelete } from '@/hooks/useConfirmDelete';
 
 /**
  * Archived Releases (v1.2) — the terminal, read-only bucket. Same table design as All Releases
- * (Name · Type · Released Date · Action), but the action is Remove: a soft-delete on the server
- * (releases are never hard-deleted). Reached via the "Archived Releases →" link on All Releases,
+ * (Name · Type · Released Date · Action), but the action is Remove: a hard-delete on the server
+ * (M36). Reached via the "Archived Releases →" link on All Releases,
  * not a nav item.
  */
 export default function ArchivedReleasesPage() {

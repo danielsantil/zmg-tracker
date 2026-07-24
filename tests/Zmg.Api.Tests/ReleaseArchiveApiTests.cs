@@ -82,7 +82,7 @@ public class ReleaseArchiveApiTests(ZmgApiFactory factory) : IClassFixture<ZmgAp
     }
 
     [Fact]
-    public async Task Remove_soft_deletes_an_archived_release()
+    public async Task Remove_hard_deletes_an_archived_release()
     {
         var client = factory.CreateClient();
         var artist = await CreateArtist(client, "Remove Artist");
@@ -92,7 +92,7 @@ public class ReleaseArchiveApiTests(ZmgApiFactory factory) : IClassFixture<ZmgAp
         var del = await client.DeleteAsync($"/api/releases/{id}");
         Assert.Equal(HttpStatusCode.NoContent, del.StatusCode);
 
-        // Gone from every scope, and the detail 404s.
+        // Row is gone (M36 hard-delete): missing from every scope, and the detail 404s.
         Assert.DoesNotContain((await List(client, "archived"))!, r => r.Id == id);
         Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync($"/api/releases/{id}")).StatusCode);
     }

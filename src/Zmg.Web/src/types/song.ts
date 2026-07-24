@@ -19,18 +19,17 @@ export interface SongListFilters {
   artistId?: string;
 }
 
-// Catalog (M13).
+// Catalog (M13). ReleaseDate is the one source of truth (M38): the Released column and the Archive
+// action both derive from it — null (orphan/archived-only) ⟺ archivable.
 export interface SongListItem {
   id: string;
   title: string;
   mainArtistId: string;
   mainArtistName: string;
-  releaseDate: string | null; // earliest non-archived linked release date, null for orphans
+  releaseDate: string | null; // earliest non-archived linked release date, null for orphans/archived-only
   isrc: string | null;
   releaseCount: number;
   isArchived: boolean;
-  canArchive: boolean; // M15: catalog offers Archive when true
-  isOrphan: boolean; // M15: never released → catalog offers Delete
 }
 
 export interface SongReleaseLink {

@@ -30,6 +30,7 @@ export function useReleaseTasks(
   const refreshPending = () => {
     void queryClient.invalidateQueries({ queryKey: queryKeys.pending });
     void queryClient.invalidateQueries({ queryKey: queryKeys.releases() });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.release(id) });
   };
 
   const grouped = byPhase(tasks);

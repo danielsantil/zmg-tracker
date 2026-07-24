@@ -34,8 +34,6 @@ public class ZmgDbContext(DbContextOptions<ZmgDbContext> options) : DbContext(op
                 .WithMany(a => a.Releases)
                 .HasForeignKey(x => x.MainArtistId)
                 .OnDelete(DeleteBehavior.Restrict); // artist with releases can't be deleted
-            // Soft-delete (v1.2): removed releases are never hard-deleted, just hidden everywhere.
-            e.HasQueryFilter(x => x.DeletedAt == null);
         });
 
         b.Entity<Song>(e =>
@@ -47,9 +45,6 @@ public class ZmgDbContext(DbContextOptions<ZmgDbContext> options) : DbContext(op
                 .HasForeignKey(x => x.MainArtistId)
                 .OnDelete(DeleteBehavior.Restrict); // artist who's a song's main artist can't be deleted
             e.HasIndex(x => x.Title);
-            // Soft-delete (v2.0): removed songs are hidden everywhere. Stale join rows are hidden by
-            // the Track query filter below.
-            e.HasQueryFilter(x => x.DeletedAt == null);
         });
 
         b.Entity<SongArtist>(e =>
@@ -77,9 +72,6 @@ public class ZmgDbContext(DbContextOptions<ZmgDbContext> options) : DbContext(op
                 .WithMany(s => s.ReleaseLinks)
                 .HasForeignKey(x => x.SongId)
                 .OnDelete(DeleteBehavior.Restrict);
-            // A join between two soft-filtered entities must vanish with either parent; this also
-            // silences EF's required-nav-to-filtered-entity warning.
-            e.HasQueryFilter(x => x.Release!.DeletedAt == null && x.Song!.DeletedAt == null);
         });
 
         b.Entity<ReleaseTask>(e =>

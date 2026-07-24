@@ -8,7 +8,7 @@ on:
       - '**/*.md'
       - 'infra/**'
   push:
-    branches: [main]
+    branches: [main, dev]
     paths-ignore:
       - 'plans/**'
       - '.claude/**'

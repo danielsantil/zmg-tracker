@@ -20,11 +20,10 @@ public class Song
 
     /// <summary>
     /// Archive lifecycle (mirrors <see cref="Release"/>). <see cref="ArchivedAt"/> is set on archive
-    /// (terminal, read-only); <see cref="DeletedAt"/> is a soft-delete stamp hidden by a global query
-    /// filter. Both columns exist from M12; the lifecycle wiring lands in M15.
+    /// (terminal, read-only); the lifecycle wiring lands in M15. Removing an archived-or-orphan song
+    /// hard-deletes the row (M36).
     /// </summary>
     public DateTime? ArchivedAt { get; set; }
-    public DateTime? DeletedAt { get; set; }
 
     /// <summary>Feats/collabs on the song (main artist stays a direct FK).</summary>
     public List<SongArtist> Artists { get; set; } = new();
