@@ -22,14 +22,17 @@ Newer plan versions go in new `build-plan-N.N.md` files; older ones stay frozen.
 complete**. Live on **Azure Container Apps** over **Neon Postgres**, covers in **Cloudflare R2**
 (normalized to a 1000px WebP on ingest), the whole stack codified in Terraform under
 [`infra/`](../infra/README.md), and a **GitHub Actions pipeline** that builds + pushes on every green
-push to main and deploys via OIDC (M34). Backend **domain 119 / API 156**, SPA **32 Vitest** — the
+push to main and deploys via OIDC (M34). Backend **domain 119 / API 158**, SPA **32 Vitest** — the
 pipeline gates on these. **v2.6 (M35–M38) is complete** — a hardening/cleanup pass before the
 multilingual work: startup env-var fail-fast + eager R2 client (M35), hard-delete replacing soft-delete
 (M36), responsive hamburger navbar (M37), and catalog release-counting fixes / field collapse (M38); see
 [build-plan-2.6.md](build-plan-2.6.md). **v2.7 (M39–M42) is in progress** — infra hardening; **M39 is
 done**: Terraform state now lives in an encrypted, versioned Azure Storage container with blob-lease
-locking instead of a cleartext file on one laptop. Still ahead in v2.7: cold-start work (ACA
-scale-from-zero is ~17–25s today) and an edge-served SPA; see [build-plan-2.7.md](build-plan-2.7.md). **Then v2.8** — multilingual (EN/ES); the M37 language
+locking instead of a cleartext file on one laptop. **M40 measured the cold-start baseline** and **M41
+items 1–4 cut app boot 2.0s → 0.18s** (migrations moved to the deploy pipeline, chiseled base image);
+its re-measure and **M42's edge-served SPA** are what remain — cold start is dominated by Azure platform
+latency, so M42 is the milestone that changes what users feel. See
+[build-plan-2.7.md](build-plan-2.7.md). **Then v2.8** — multilingual (EN/ES); the M37 language
 selector was deliberately deferred there. **Phase 2** (DSP stats, real-Postgres tests) follows and starts
 a new `build-plan-3.0.md`.
 
@@ -97,7 +100,7 @@ runs in **every environment including tests** — `ZmgApiFactory` supplies dummy
 swaps in the fake storage). M36: **hard-delete replaces soft-delete** — dropped `DeletedAt`, the three
 query filters, and the soft-delete model; DELETE now `Remove()`s the row (Release cascades to tasks +
 track links; Song `RemoveRange`s its links first past the Restrict FK). `DropSoftDelete` migration ships
-the `DROP COLUMN`. Archive (`ArchivedAt`) untouched. Backend **domain 119 / API 156** unchanged. M37:
+the `DROP COLUMN`. Archive (`ArchivedAt`) untouched. Backend **domain 119 / API 158** unchanged. M37:
 the inline `Nav`/`ThemeToggle` came out of `App.tsx` into a new `components/NavBar.tsx`. Desktop (≥sm)
 keeps the horizontal row; below sm the five links collapse into a `☰` dropdown **sheet** while brand +
 theme toggle stay visible. The sheet is a plain `absolute` child of the sticky (untransformed, no
@@ -156,7 +159,8 @@ App internals barely vary: `built` 132–144ms, `DB ready` 1.92–2.01s, `listen
 **Two of the plan's assumptions were wrong.** (1) **There is no image-cached case** — all three B runs
 re-pulled the *same* tag on a fresh node within 20 minutes, because the Consumption profile gives no
 node affinity. The A-vs-B comparison M40 was designed around doesn't exist; image size costs on *every*
-cold start. (2) **The image is ~91MB** (95,420,416 bytes as reported by ACA), not the 216MB the plan
+cold start. (2) **The image is ~91MB compressed** (95,420,416 bytes as reported by ACA; 340MB
+uncompressed locally), not the 216MB the plan
 assumed — which lowers the ceiling on the chiseled work.
 
 **The split: app boot is 2.0s; everything else is platform.** Of that 2.0s, **1.8s is the DB step**
@@ -175,6 +179,52 @@ JIT-sensitive window exists outside the DB step, and +10–15MB on an always-pul
 **Net M41 ≈ 3.3s off a 17.7–28.1s cold start** — the plan's "→ 10–16s" is not reachable, because there
 was only ever 2s of app time to win. Cold start is essentially all platform latency, which makes **M42
 (edge-served SPA) the only milestone that fixes what the user experiences.**
+
+**v2.7 (M41) — API boot path.** Items 1–4 shipped; the re-measure (step 5) is pending a deploy of the
+chiseled image. **App boot went 2.0s → 0.18s** (`built` 120–136ms, `DB ready` 124–140ms, `listening`
+164–192ms), and the DB step went 1.8s → 4ms because it no longer touches the database at all.
+
+**Migrations moved to the deploy pipeline.** `Program.cs` gates `Migrate()` on
+`Database:MigrateOnStartup`, **defaulting to `true`** — load-bearing, because `ZmgApiFactory` documents
+that the API integration tests get their SQLite schema from that call, and local `dotnet run` relies on
+it too. Only prod opts out, via `Database__MigrateOnStartup=false` in `infra/azure.tf`. `deploy.yml`
+builds an EF bundle and applies it **before** `az containerapp update`, so a failed migration aborts the
+deploy while the old image is still serving. A new `src/Zmg.Infra/Data/ZmgDbContextFactory.cs`
+(`IDesignTimeDbContextFactory`) is the prerequisite: without it `dotnet ef` boots `Program.cs`, hits
+M35's `Configuration.Validate()`, and demands R2 settings CI has no reason to hold. Referencing
+`IDesignTimeDbContextFactory` also required adding `compile` to the EF Design package's `IncludeAssets`
+in `Zmg.Infra.csproj` — the NuGet default omits it, so the interface isn't referenceable otherwise.
+
+**Three pipeline gotchas, all now fixed:** image tags are *short* SHAs
+([ci.yml](../.github/workflows/ci.yml) uses `type=sha,format=short`), and `actions/checkout` only treats
+`ref` as a commit when it's a full 40-char SHA — abbreviated SHAs can't be fetched server-side either, so
+the job checks out with `fetch-depth: 0` + `filter: blob:none` (commit graph and trees, no file contents)
+and resolves the abbreviation locally with `git checkout`. The repo already pins `dotnet-ef` 8.0.11 in
+`.config/dotnet-tools.json`, and that local manifest takes precedence over a global install, so the step
+uses `dotnet tool restore`. And **secrets are not passed to reusable workflows automatically** — unlike
+`vars`, which is why OIDC worked while `NEON_CONNECTION_STRING` arrived empty; `ci.yml` now calls
+`deploy.yml` with `secrets: inherit`.
+
+**Item 3 shrank.** Swagger's `AddEndpointsApiExplorer`/`AddSwaggerGen` (and the dev-only CORS policy)
+moved inside `builder.Environment.IsDevelopment()`. The planned lazy `IAmazonS3` was **dropped**:
+`R2StorageService` is a singleton, .NET creates singletons on first resolution, `IStorageService` is only
+injected into the per-request `CoverUploadService`, and there's no `ValidateOnBuild` — so the S3 client
+was never built at boot and `Lazy<T>` would have saved nothing while making M35's comments less accurate.
+
+**Item 4 — chiseled + `InvariantGlobalization`.** `aspnet:8.0` → `aspnet:8.0-noble-chiseled`,
+**340MB → 181MB uncompressed (47%)**. Plain chiseled ships no ICU, so .NET 8 needs invariant mode
+declared explicitly or it refuses to start. Re-audited before switching: every `string.Equals` is
+`OrdinalIgnoreCase`, `CoverImage.cs:55` uses `ToLowerInvariant`, the `.ToLower()` calls in
+`SongService`/`ReleaseService` are inside EF expression trees (Postgres `lower()`), and
+`PendingActions.cs:108` passes `StringComparer.OrdinalIgnoreCase` explicitly. **Verification gap worth
+remembering:** `InvariantGlobalization` lands in the *executable's* runtimeconfig, which the test host
+doesn't inherit, and the tests run **SQLite** — so `DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1 dotnet test`
+never exercises Npgsql. Proven instead with `docker run` against real Neon, hitting `/api/artists` (not
+`/api/health`, which touches no database) plus loading the SPA. The `CultureNotFoundException` risk that
+gets attributed to EF Core is really `Microsoft.Data.SqlClient`; Npgsql has no such dependency. Escape
+hatch if one ever surfaces: `<PredefinedCulturesOnly>false</PredefinedCulturesOnly>`, left at the
+default deliberately so anything unexpected fails loudly. Trade-off accepted: no shell in the image, so
+`az containerapp exec` loses bash.
 
 ---
 
@@ -338,10 +388,13 @@ infra                    Terraform: azurerm + neon + cloudflare in one root modu
   the local cleartext state deleted; `infra.yml` runs `fmt -check` + `validate`. **M40 is done** — the
   cold-start baseline is measured and recorded in the journal above; it found app boot is only **2.0s**
   (1.8s of it the Neon wake + migration check) against 14–26s of untouchable Azure platform latency, and
-  that **the image is re-pulled on every cold start** (no node affinity on Consumption). **M41 is next**,
-  with scope revised by those numbers: items 1–2 confirmed (~1.8s), item 3 kept as cleanup, item 4
-  (chiseled) kept (~1.5s), **item 5 (ReadyToRun) dropped** as net-negative on an always-pulled image —
-  ~3.3s total, so **M42 is where the real win is**. **M41** cuts
+  that **the image is re-pulled on every cold start** (no node affinity on Consumption). **M41 items 1–4
+  are done** — app boot 2.0s → 0.18s, migrations moved to the deploy pipeline behind
+  `Database__MigrateOnStartup=false`, Swagger/CORS gated to dev, and the chiseled base image at 340MB →
+  181MB uncompressed. **ReadyToRun was cut from the plan outright** as net-negative on an always-pulled
+  image. **Next: M41 step 5** — deploy the chiseled image and re-run M40's exact measurement to report
+  the end-to-end delta; expect ~3.3s off a 17.7–28.1s cold start, which is why **M42 is where the real
+  win is**. **M41** cuts
   the boot path — migrations move to a deploy-time EF bundle, plain `chiseled` base image, dev-only
   Swagger, lazy S3 client. **M42** serves the SPA from a Cloudflare Worker with a same-origin `/api/*`
   proxy, so the UI paints immediately instead of waiting out the container. The plan is written as a

@@ -201,13 +201,14 @@ request, for both cases. M41 re-runs the identical measurement and reports the d
 [x] 1. Design-time DbContext factory     ← Code change  (prerequisite for #2)
 [x] 2. Migrations out of startup       → app boot 2.0s → 0.18s; DB step 1.8s → 4ms
 [x] 3. Swagger dev-only + lazy S3        ← Code change (CORS policy for dev also moved inside block)
-[ ] 4. Chiseled base image               ← Code change
-[ ] 5. Re-measure vs M40
+                                       → lazy S3 dropped: the singleton is already lazy
+[x] 4. Chiseled base image             → 340MB → 181MB uncompressed; Npgsql verified invariant
+[ ] 5. Re-measure vs M40                 (needs a deploy of the chiseled image)
 ```
 
 Ordered by confidence, each independently revertible. **M40 revised this scope:** items 1–2 are worth
 ~1.8s (90% of all app boot time), item 3 is cleanup worth ~50ms rather than a perf item, and item 4 is
-worth ~1.5s — weaker than planned on size (the image is 91MB, not 216MB) but stronger in payout, since
+worth ~1.5s — weaker than planned on size (91MB compressed / 340MB uncompressed, not 216MB) but stronger in payout, since
 M40 found the image is re-pulled on **every** cold start. A sixth item, **ReadyToRun, was cut outright**
 — see "Not doing". Realistic total ≈ **3.3s off a 17.7–28.1s cold start**; the rest is Azure platform
 latency with no knob, which is why M42 is the milestone that actually changes what users feel.

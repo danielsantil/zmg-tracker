@@ -31,7 +31,11 @@ RUN dotnet publish src/Zmg.Api/Zmg.Api.csproj -c Release -o /app --no-restore
 COPY --from=web /web/dist /app/wwwroot
 
 # --- Stage 3: runtime ---------------------------------------------------------
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
+# Chiseled: no shell, no package manager, non-root by default — smaller image. Benchmarks showed
+# image is re-pulled on every cold start, so size is paid every time. Plain chiseled (not -extra)
+# ships no ICU, which is why InvariantGlobalization is set in Zmg.Api.csproj; the codebase is
+# ordinal/invariant throughout and all string ordering is SQL-side.
+FROM mcr.microsoft.com/dotnet/aspnet:8.0-noble-chiseled AS runtime
 WORKDIR /app
 COPY --from=build /app ./
 # ConnectionStrings__Zmg (Postgres/Neon) is injected at runtime — as an ACA secretref
