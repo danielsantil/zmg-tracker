@@ -17,7 +17,7 @@ rather than with `~>`, because a `0.x` release makes no compatibility promise be
 
 | File | Contents |
 |---|---|
-| `versions.tf` | `required_providers` + version pins |
+| `versions.tf` | `required_providers` + version pins, and the `azurerm` remote state backend |
 | `providers.tf` | provider auth (Azure via `az login`; Neon + Cloudflare via API-key vars) |
 | `variables.tf` | all inputs |
 | `azure.tf` | resource group, Log Analytics, Container Apps environment, the container app + its secrets/env |
@@ -61,6 +61,9 @@ the config is wrong — fix the config. Two replacements would be unrecoverable:
   new tag without Terraform reverting it. Terraform owns the infrastructure; the pipeline owns the
   application version. `var.container_image` is a **bootstrap default, not the live tag** — read the
   running tag from Azure, not from this repo.
+- **The state backend itself** (`zmg-tfstate-rg` + the `zmgtfstate1` storage account) is created by
+  hand with `az` — Terraform can't create the account its own state lives in. Setup steps are in
+  [plans/build-plan-2.7.md](../plans/build-plan-2.7.md) (M39).
 
 ## Deploy identity (OIDC)
 
@@ -87,12 +90,36 @@ The GitHub side pairs with it: a repo **Environment** named `production` and thr
 - `R2__Bucket` reads `cloudflare_r2_bucket.covers.name`, so the app can't point at a bucket this config
   doesn't manage. The other four `R2__*` values come from variables.
 
-## Secrets and state
+## Remote state
 
-`terraform.tfstate` is **local and gitignored**, and holds the Neon password, R2 secret and GHCR token
-**in cleartext** — `sensitive = true` redacts values from CLI output, but encrypts nothing at rest.
-Also gitignored: `terraform.tfvars`, `.terraform/`, `generated.tf`. `.terraform.lock.hcl` **is**
-committed, same role as a lockfile.
+State lives in Azure Storage, not on one laptop. Configured by the `backend "azurerm"` block in
+`versions.tf`; those values are hardcoded because backend blocks can't take variables, and none of
+them are secret.
 
-Move to a remote encrypted backend (e.g. Azure Storage with locking) before a second person or CI needs
-to apply.
+| | |
+|---|---|
+| Resource group | `zmg-tfstate-rg` |
+| Storage account | `zmgtfstate1` |
+| Container / blob | `tfstate` / `zmg.tfstate` |
+
+- **The resource group is separate from `zmg-rg` on purpose** — so a `terraform destroy` can't delete
+  the state file describing what it is destroying.
+- **The blob still holds live secrets in cleartext** — Neon password, R2 secret, GHCR token.
+  `sensitive = true` redacts values from CLI output; it encrypts nothing. What protects it is access
+  control: blob storage is encrypted at rest (SSE, on by default), and **shared key access is disabled
+  on the account**, so no account key exists to leak or to be pasted into a CI variable. The only way
+  in is an Entra identity holding **Storage Blob Data Contributor** on the account. A new machine or a
+  second person needs that role assignment, then `terraform init` — nothing to copy by hand. Role
+  assignments take 2–5 minutes to propagate; a `403 AuthorizationPermissionMismatch` right after
+  granting is propagation, not misconfiguration.
+- **Locking is automatic**, via a native blob lease (no lock table, no cost), and applies to `plan` as
+  well as `apply`. An interrupted run leaves the lease held, and every later command then fails with
+  `Error acquiring the state lock`. Take the `ID` from that error and run `terraform force-unlock <ID>`
+  — only once you're certain no other run is actually live.
+- **Recovery:** blob versioning is enabled, with 30-day soft delete for both blobs and containers. A
+  corrupted state can be rolled back to an earlier version via the portal (Storage account →
+  Containers → `tfstate` → `zmg.tfstate` → Versions) or `az storage blob list --include v`.
+
+Still local and gitignored: `terraform.tfvars` (those are *inputs* — the backend moved state, not
+configuration), `.terraform/`, `generated.tf`. `.terraform.lock.hcl` **is** committed, same role as a
+lockfile.

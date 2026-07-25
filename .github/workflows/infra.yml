@@ -1,0 +1,38 @@
+name: Infra
+
+on:
+  pull_request:
+    paths: ['infra/**']
+  push:
+    branches: [main, dev]
+    paths: ['infra/**']
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  terraform:
+    name: Terraform validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: infra
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: 1.15.8 # pinned: fmt rules can shift between versions
+        
+      - name: Format check
+        run: terraform fmt -check -recursive
+
+      # -backend=false initialises providers only and never contacts Azure, so this
+      # needs no cloud credentials and runs safely on forked PRs.
+      - name: Init (no azure backend)
+        run: terraform init -backend=false
+
+      - name: Validate
+        run: terraform validate

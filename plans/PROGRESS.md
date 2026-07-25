@@ -26,9 +26,10 @@ push to main and deploys via OIDC (M34). Backend **domain 119 / API 156**, SPA *
 pipeline gates on these. **v2.6 (M35–M38) is complete** — a hardening/cleanup pass before the
 multilingual work: startup env-var fail-fast + eager R2 client (M35), hard-delete replacing soft-delete
 (M36), responsive hamburger navbar (M37), and catalog release-counting fixes / field collapse (M38); see
-[build-plan-2.6.md](build-plan-2.6.md). **Next up: v2.7 (M39–M42)** — infra hardening: Terraform state to a
-remote encrypted backend, cold-start work (ACA scale-from-zero is ~17–25s today), and an edge-served SPA;
-see [build-plan-2.7.md](build-plan-2.7.md). **Then v2.8** — multilingual (EN/ES); the M37 language
+[build-plan-2.6.md](build-plan-2.6.md). **v2.7 (M39–M42) is in progress** — infra hardening; **M39 is
+done**: Terraform state now lives in an encrypted, versioned Azure Storage container with blob-lease
+locking instead of a cleartext file on one laptop. Still ahead in v2.7: cold-start work (ACA
+scale-from-zero is ~17–25s today) and an edge-served SPA; see [build-plan-2.7.md](build-plan-2.7.md). **Then v2.8** — multilingual (EN/ES); the M37 language
 selector was deliberately deferred there. **Phase 2** (DSP stats, real-Postgres tests) follows and starts
 a new `build-plan-3.0.md`.
 
@@ -120,6 +121,22 @@ codified in **Terraform** across `azurerm` + `neon` + `cloudflare`, **imported**
 so prod never moved (M32); and a **GitHub Actions pipeline** that builds a SHA-tagged image on every
 green push to main and deploys to ACA via **OIDC**, with a `workflow_dispatch` rollback to any prior tag
 (M34).
+
+**v2.7 (M39) — Terraform state to Azure Storage.** State moved off one laptop into
+`zmg-tfstate-rg` / `zmgtfstate1` / `tfstate/zmg.tfstate` — encrypted at rest, versioned, 30-day soft
+delete on blobs and containers, and **blob-lease locking** (native, free, and it fires on `plan` as
+well as `apply` — verified by racing two plans). Three choices are load-bearing: the state's resource
+group is **separate from `zmg-rg`** so a `terraform destroy` can't delete the file describing what it
+destroys; **shared key access is disabled on the account**, so no account key exists to leak and the
+only way in is an Entra identity with **Storage Blob Data Contributor** (hence `use_azuread_auth` in
+the backend block); and the backend was created **by hand with `az`**, since Terraform can't create the
+account its own state lives in. Migration was gated on `terraform plan` → *No changes* plus a
+`state list` matching all 9 pre-migration resources, after which the local `terraform.tfstate` +
+`.backup` were deleted — that's the real win, since they held the Neon connection string, GHCR token
+and both R2 keys in cleartext in the working tree. A new `.github/workflows/infra.yml` runs
+`fmt -check` + `init -backend=false` + `validate` gated on `paths: ['infra/**']` (separate from
+`ci.yml`, which `paths-ignore`s `infra/**`); `-backend=false` is deliberate — CI validates syntax and
+never gets access to state, i.e. never gets the secrets. ~$0/mo. No test run: infra + docs only.
 
 ---
 
@@ -277,11 +294,11 @@ infra                    Terraform: azurerm + neon + cloudflare in one root modu
 - **Shipped — v2.6 (M35–M38):** hardening/cleanup — startup env-var fail-fast + eager R2 client
   (M35), hard-delete replacing soft-delete app-wide (M36), responsive hamburger navbar (M37), and
   catalog release-counting fixes / field collapse (M38). See [build-plan-2.6.md](build-plan-2.6.md).
-- **Next: v2.7 — infra hardening · remote state · cold start (M39–M42).** See
-  [build-plan-2.7.md](build-plan-2.7.md). **M39** moves Terraform state off one laptop into an encrypted,
-  versioned Azure Storage container with blob-lease locking (~$0/mo; state holds the Neon connection
-  string, GHCR token and both R2 keys today), and lands the `terraform fmt -check` + `validate` job as a
-  separate `infra.yml`. **M40** measures the cold-start baseline before anything is tuned. **M41** cuts
+- **In progress — v2.7 — infra hardening · remote state · cold start (M39–M42).** See
+  [build-plan-2.7.md](build-plan-2.7.md). **M39 is done** — Terraform state now lives in an encrypted,
+  versioned Azure Storage container with blob-lease locking (~$0/mo), shared-key access disabled, and
+  the local cleartext state deleted; `infra.yml` runs `fmt -check` + `validate`. **M40 is next** and
+  measures the cold-start baseline before anything is tuned. **M41** cuts
   the boot path — migrations move to a deploy-time EF bundle, plain `chiseled` base image, dev-only
   Swagger, lazy S3 client. **M42** serves the SPA from a Cloudflare Worker with a same-origin `/api/*`
   proxy, so the UI paints immediately instead of waiting out the container. The plan is written as a
