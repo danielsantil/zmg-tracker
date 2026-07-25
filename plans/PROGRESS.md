@@ -138,6 +138,44 @@ and both R2 keys in cleartext in the working tree. A new `.github/workflows/infr
 `ci.yml`, which `paths-ignore`s `infra/**`); `-backend=false` is deliberate — CI validates syntax and
 never gets access to state, i.e. never gets the secrets. ~$0/mo. No test run: infra + docs only.
 
+**v2.7 (M40) — cold-start baseline.** Permanent `[boot]` timing logs in `Program.cs` (deltas from
+Program entry, logged after `builder.Build()`, after the migration step, and on `ApplicationStarted`),
+then four measured scale-from-zero starts on **revision `zmg-app--0000008`, image tag `9657702`**:
+
+| Phase | A (post-deploy) | B1 | B2 | B3 |
+|---|---|---|---|---|
+| `curl` total, client-side | — | 19.72s | 28.09s | 17.71s |
+| KEDA activate → pull start | 2.1s | 2.8s | 2.7s | 1.1s |
+| image pull | 3.47s | 4.05s | 4.15s | 3.16s |
+| pull done → container created | 11.14s | 5.85s | 10.87s | 2.54s |
+| container start → listening (app) | 2.02s | 2.03s | 2.11s | 2.05s |
+| **scheduled → listening** | **18.94s** | **15.21s** | **20.07s** | **9.04s** |
+
+App internals barely vary: `built` 132–144ms, `DB ready` 1.92–2.01s, `listening` 1.98–2.06s.
+
+**Two of the plan's assumptions were wrong.** (1) **There is no image-cached case** — all three B runs
+re-pulled the *same* tag on a fresh node within 20 minutes, because the Consumption profile gives no
+node affinity. The A-vs-B comparison M40 was designed around doesn't exist; image size costs on *every*
+cold start. (2) **The image is ~91MB** (95,420,416 bytes as reported by ACA), not the 216MB the plan
+assumed — which lowers the ceiling on the chiseled work.
+
+**The split: app boot is 2.0s; everything else is platform.** Of that 2.0s, **1.8s is the DB step**
+(Neon wake + a migration check that logged "No migrations were applied" every run). The remaining
+14–26s is Azure-side and has no knob: **pull done → container created alone is 2.5–11.1s**, varying 4×
+run to run, plus 4.5–8.7s of ingress/activation before KEDA even records the scale event (the gap
+between the client `curl` total and the internal timeline).
+
+**Consequences for M41**, since deciding them was the point of M40: items **1–2 (migrations out of
+startup) are confirmed** — ~1.8s, i.e. 90% of all app time — with the caveat that this *relocates* the
+Neon wake to the first query rather than removing it, so time-to-*listening* drops ~1.8s while
+time-to-first-*data* barely moves. Item **3 stays as cleanup, not perf** (it targets the 135ms `built`
+phase; worth ~50ms). Item **4 (chiseled) stays, ~1.5s** — weaker than planned on size, stronger in that
+nothing is ever cached so it pays out every start. Item **5 (ReadyToRun) is dropped**: only ~200ms of
+JIT-sensitive window exists outside the DB step, and +10–15MB on an always-pulled image costs ~0.5s.
+**Net M41 ≈ 3.3s off a 17.7–28.1s cold start** — the plan's "→ 10–16s" is not reachable, because there
+was only ever 2s of app time to win. Cold start is essentially all platform latency, which makes **M42
+(edge-served SPA) the only milestone that fixes what the user experiences.**
+
 ---
 
 ## Cross-cutting decisions (not in any single plan)
@@ -297,8 +335,13 @@ infra                    Terraform: azurerm + neon + cloudflare in one root modu
 - **In progress — v2.7 — infra hardening · remote state · cold start (M39–M42).** See
   [build-plan-2.7.md](build-plan-2.7.md). **M39 is done** — Terraform state now lives in an encrypted,
   versioned Azure Storage container with blob-lease locking (~$0/mo), shared-key access disabled, and
-  the local cleartext state deleted; `infra.yml` runs `fmt -check` + `validate`. **M40 is next** and
-  measures the cold-start baseline before anything is tuned. **M41** cuts
+  the local cleartext state deleted; `infra.yml` runs `fmt -check` + `validate`. **M40 is done** — the
+  cold-start baseline is measured and recorded in the journal above; it found app boot is only **2.0s**
+  (1.8s of it the Neon wake + migration check) against 14–26s of untouchable Azure platform latency, and
+  that **the image is re-pulled on every cold start** (no node affinity on Consumption). **M41 is next**,
+  with scope revised by those numbers: items 1–2 confirmed (~1.8s), item 3 kept as cleanup, item 4
+  (chiseled) kept (~1.5s), **item 5 (ReadyToRun) dropped** as net-negative on an always-pulled image —
+  ~3.3s total, so **M42 is where the real win is**. **M41** cuts
   the boot path — migrations move to a deploy-time EF bundle, plain `chiseled` base image, dev-only
   Swagger, lazy S3 client. **M42** serves the SPA from a Cloudflare Worker with a same-origin `/api/*`
   proxy, so the UI paints immediately instead of waiting out the container. The plan is written as a

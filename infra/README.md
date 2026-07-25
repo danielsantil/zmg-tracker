@@ -81,6 +81,40 @@ The GitHub side pairs with it: a repo **Environment** named `production` and thr
 `AZURE_CLIENT_ID` (`terraform output deploy_client_id`), `AZURE_TENANT_ID`
 (`terraform output deploy_tenant_id`), and `AZURE_SUBSCRIPTION_ID`.
 
+## Migrations and rollback
+
+As of M41 the app **does not migrate on startup in prod** — `Database__MigrateOnStartup=false` is set on
+the container app, and `deploy.yml` applies migrations instead, via an EF bundle built from source and
+run **before** the image is swapped. Two consequences worth knowing: a failed migration aborts the deploy
+while the old image is still serving, and the container no longer waits on a Neon wake before it listens.
+
+Locally and in tests the setting is absent, so the default (`true` in `appsettings.json`) applies and
+`Program.cs` migrates as before — `dotnet run` still gives a ready database, and the API integration
+tests still get their SQLite schema from it.
+
+The bundle is built with `actions/checkout` at **`ref: <image_tag>`**, not at `main`. The tag is a commit
+SHA, so a `workflow_dispatch` rollback builds the migrations belonging to *that* image.
+
+**Rolling back the image does not roll back the schema.** EF migrations are forward-only; a bundle built
+at an older tag finds all of its own migrations already applied, ignores the newer rows in
+`__EFMigrationsHistory` it doesn't recognise, and exits without doing anything. The `ref` pin exists to
+stop the opposite failure — checking out `main` during a rollback and applying migrations *newer* than
+the image being deployed.
+
+So the database stays ahead, and the older image runs against a newer schema. Whether that survives
+depends on the migration:
+
+- **Additive** (new table, new nullable column) — old code ignores it; rollback is clean.
+- **Destructive** (dropped or renamed column, a new NOT NULL) — old code breaks.
+  `20260723201616_DropSoftDelete` is exactly this: rolling back to a pre-M36 image would query columns
+  that no longer exist.
+
+**Rollback is safe to any tag sharing the current schema, and across additive-only migrations. It is not
+safe across a destructive one** — that needs a deliberate manual schema revert first. To keep rollback a
+real safety net rather than a best-effort one, use expand/contract: ship the additive migration plus code
+that tolerates both shapes, deploy, and drop the old column in a *later* migration once you'd never roll
+back that far.
+
 ## Wiring
 
 - `local.neon_connection_string` is composed from the `neon_project` attributes — Npgsql wants

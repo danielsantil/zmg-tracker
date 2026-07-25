@@ -31,9 +31,13 @@ var app = builder.Build();
 
 app.Logger.LogInformation("[boot] built {Ms} ms", Environment.TickCount64 - bootStart);
 
-// Apply migrations at startup so `dotnet run` gives a ready database with seeded templates.
-using (var scope = app.Services.CreateScope())
+// Migrate at startup by default: `dotnet run` gets a ready database with seeded templates, and the
+// integration tests rely on this call for their SQLite schema (see ZmgApiFactory). Prod sets
+// Database__MigrateOnStartup=false and applies migrations from the deploy.yml pipeline instead,
+// improving startup boot time. If key not found, migration is still applied on startup.
+if (builder.Configuration.GetValue("Database:MigrateOnStartup", true))
 {
+    using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<ZmgDbContext>();
     db.Database.Migrate();
 }

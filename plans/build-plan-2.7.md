@@ -20,7 +20,7 @@ them.** They're not deep in infra/CI/performance tuning, so explain what a comma
 result looks like before they run it. This file is your reference, not their reading material.
 
 - **Terminal (you)** = the user runs it. **Code change** = you edit the repo.
-- **Order matters: M40 before M41** — its numbers decide whether M41 items 4 and 5 are worth keeping.
+- **Order matters: M40 before M41** — its numbers decided M41's scope (they kept item 4 and cut ReadyToRun).
 - Milestones are independently shippable; stopping after any one leaves the project in a good state.
 - Checklists are the resume markers.
 
@@ -151,11 +151,11 @@ outside `zmg-rg`, that it holds live secrets, recovery via blob versions, `force
 ## M40 — Cold-start baseline (measure before optimizing)
 
 ```
-[ ] 1. [boot] timing logs               ← Code change
-[ ] 2. Measure post-deploy (image pull guaranteed)
-[ ] 3. Measure post-idle (image likely cached)
-[ ] 4. Read the platform/app split
-[ ] 5. Record baseline in PROGRESS.md   ← Code change
+[x] 1. [boot] timing logs               ← Code change
+[x] 2. Measure post-deploy (image pull guaranteed)
+[x] 3. Measure post-idle              → no cached case exists; pulls every start
+[x] 4. Read the platform/app split    → app 2.0s (1.8s = DB step); rest is platform
+[x] 5. Record baseline in PROGRESS.md   ← Code change
 ```
 
 **Why this exists:** at zero replicas no container exists, and whether the **image must be downloaded**
@@ -167,8 +167,9 @@ cases; this milestone decides which half to keep.
 post-`builder.Build()`, post-DB-step, and `IHostApplicationLifetime.ApplicationStarted`. Permanent.
 
 **Steps 2–3 — Terminal (you).** Measure immediately after a deploy (guaranteed download), then after
->5 min idle (cooldown = 300s, likely cached). **The gap between the two is the image download cost** —
-that number alone decides M41 items 4 and 5.
+>5 min idle (cooldown = 300s, likely cached). **The gap between the two is the image download cost.**
+**Outcome: there is no cached case** — Consumption gives no node affinity, so every cold start re-pulls
+(3.2–4.2s for a 91MB image). Results and the resulting scope changes are in `plans/PROGRESS.md`.
 
 ```bash
 fqdn=$(az containerapp show -n zmg-app -g zmg-rg --query properties.configuration.ingress.fqdn -o tsv)
@@ -200,12 +201,16 @@ request, for both cases. M41 re-runs the identical measurement and reports the d
 [ ] 1. Design-time DbContext factory     ← Code change  (prerequisite for #2)
 [ ] 2. Migrations out of startup         ← Code change + GitHub secret
 [ ] 3. Swagger dev-only + lazy S3        ← Code change
-[ ] 4. Chiseled base image               ← Code change  (only if M40 justifies)
-[ ] 5. ReadyToRun                        ← Code change  (drop first if pull-dominated)
-[ ] 6. Re-measure vs M40
+[ ] 4. Chiseled base image               ← Code change
+[ ] 5. Re-measure vs M40
 ```
 
-Ordered by confidence. Items 1–3 are worth doing regardless; 4–5 depend on M40. Each independently revertible.
+Ordered by confidence, each independently revertible. **M40 revised this scope:** items 1–2 are worth
+~1.8s (90% of all app boot time), item 3 is cleanup worth ~50ms rather than a perf item, and item 4 is
+worth ~1.5s — weaker than planned on size (the image is 91MB, not 216MB) but stronger in payout, since
+M40 found the image is re-pulled on **every** cold start. A sixth item, **ReadyToRun, was cut outright**
+— see "Not doing". Realistic total ≈ **3.3s off a 17.7–28.1s cold start**; the rest is Azure platform
+latency with no knob, which is why M42 is the milestone that actually changes what users feel.
 
 ### 1–2. Migrations out of the boot path (~2–4s, highest confidence)
 
@@ -264,7 +269,7 @@ schema/code can't diverge.
   guarantee is `StartupValidationExtensions`, which validates **configuration**, not a built client.
   Update the now-wrong comments at `ServiceRegistrationExtensions.cs:24-30`.
 
-### 4. Chiseled base image (~216MB → ~112MB — value depends on M40)
+### 4. Chiseled base image (~1.5s — M40 confirmed the image is pulled on every cold start)
 
 `mcr.microsoft.com/dotnet/aspnet:8.0-noble-chiseled` + `<InvariantGlobalization>true</InvariantGlobalization>`
 in `Zmg.Api.csproj` (.NET 8 refuses to start without ICU unless invariant mode is explicit). Safety
@@ -281,16 +286,6 @@ DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1 dotnet test
 stateless, and env vars/secrets stay readable via `az containerapp show` / `az containerapp secret show`.
 Non-root is fine: binds :8080 (>1024), writes nothing to disk.
 
-**Skip if M40 showed cold starts aren't download-dominated.**
-
-### 5. ReadyToRun (~0.3–0.8s, +10–15MB — drop first)
-
-Publish with `-r linux-x64 --self-contained false -p:PublishReadyToRun=true`.
-
-Cuts against item 4, but favorably: it precompiles only the ~12–13MB of app output (the framework in the
-base image is already R2R-compiled), so ~+8%. **The size cost is paid only when the image downloads; the
-startup saving is paid on every cold start.** If M40 showed downloads dominate, revert this first.
-
 ### Not doing
 
 | Option | Why not |
@@ -299,12 +294,13 @@ startup saving is paid on every cold start.** If M40 showed downloads dominate, 
 | `min_replicas = 1` / keep-warm ping | ~$5–15/mo. 24/7 at 0.5 vCPU / 1 GiB ≈ 1.3M vCPU-s vs. a 180,000 vCPU-s free monthly grant |
 | Native AOT | Incompatible with EF Core, Swashbuckle, ImageSharp |
 | Assembly trimming | EF Core reflection makes it unsafe |
-| EF compiled model | Now possible (M36 removed the query filters), but EF's guidance is "hundreds of entity types"; this has 8. Revisit only if M40 shows model build >~300ms |
+| EF compiled model | Now possible (M36 removed the query filters), but EF's guidance is "hundreds of entity types"; this has 8. M40 measured the whole `built` phase at 135ms, so there is nothing here to win |
+| **ReadyToRun** (`-p:PublishReadyToRun=true`) | **Cut after M40.** Precompiling app output would trade +10–15MB for ~0.3–0.8s of JIT — but M40 found only ~200ms of JIT-sensitive window outside the DB step, and that the image is re-pulled on *every* cold start, so the size cost (~0.5s of pull) is paid every time while the saving isn't. Net negative on this workload |
 
 One free option offered but not adopted: a **single** scheduled wake (GH Actions cron, e.g. 13:00 UTC
 weekdays) ≈180 vCPU-s per ping against the 180,000 grant. Only helps if usage clusters predictably.
 
-**Step 6 — Terminal (you).** Re-run M40's exact measurement, both cases. Confirm the migration step runs
+**Step 5 — Terminal (you).** Re-run M40's exact measurement. Confirm the migration step runs
 and that a deliberately broken migration aborts the deploy before the image swaps. Confirm `docker run`
 still serves the SPA standalone.
 

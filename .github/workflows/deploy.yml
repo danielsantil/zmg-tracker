@@ -44,6 +44,31 @@ jobs:
             --query properties.configuration.ingress.fqdn -o tsv)
           echo "url=https://$fqdn" >> $GITHUB_OUTPUT
 
+      - name: Check out the deployed commit # required for bundled migration
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.image_tag }}
+
+      - name: Setup .NET for migration
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+
+      - name: Build the migration bundle
+        run: |
+          dotnet tool install --global dotnet-ef --version 8.*
+          export PATH="$PATH:$HOME/.dotnet/tools"
+          dotnet ef migrations bundle \
+            --project src/Zmg.Infra \
+            --startup-project src/Zmg.Api \
+            --self-contained -r linux-x64 \
+            -o ./migrate
+
+      - name: Apply migrations
+        env:
+          NEON_CONNECTION_STRING: ${{ secrets.NEON_CONNECTION_STRING }}
+        run: ./migrate --connection "$NEON_CONNECTION_STRING"
+
       - name: Update container app with the new image
         run: |
           az containerapp update \
