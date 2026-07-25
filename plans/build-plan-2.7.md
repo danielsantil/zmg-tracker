@@ -202,7 +202,7 @@ request, for both cases. M41 re-runs the identical measurement and reports the d
 [x] 2. Migrations out of startup       → app boot 2.0s → 0.18s; DB step 1.8s → 4ms
 [x] 3. Swagger dev-only + lazy S3        ← Code change (CORS policy for dev also moved inside block)
                                        → lazy S3 dropped: the singleton is already lazy
-[x] 4. Chiseled base image             → 340MB → 181MB uncompressed; Npgsql verified invariant
+[x] 4. Chiseled base image             → 95.5MB → 54.4MB pulled; Npgsql verified invariant
 [ ] 5. Re-measure vs M40                 (needs a deploy of the chiseled image)
 ```
 

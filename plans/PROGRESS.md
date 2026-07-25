@@ -211,8 +211,13 @@ moved inside `builder.Environment.IsDevelopment()`. The planned lazy `IAmazonS3`
 injected into the per-request `CoverUploadService`, and there's no `ValidateOnBuild` — so the S3 client
 was never built at boot and `Lazy<T>` would have saved nothing while making M35's comments less accurate.
 
-**Item 4 — chiseled + `InvariantGlobalization`.** `aspnet:8.0` → `aspnet:8.0-noble-chiseled`,
-**340MB → 181MB uncompressed (47%)**. Plain chiseled ships no ICU, so .NET 8 needs invariant mode
+**Item 4 — chiseled + `InvariantGlobalization`.** `aspnet:8.0` → `aspnet:8.0-noble-chiseled`:
+**340MB → 181MB on disk, and 95.5MB → 54.4MB transferred (−43%)** — the transferred figure is the one
+that matters, and Docker's "content size" for the live `31c16e4` image (95.5MB) matches ACA's reported
+`95,420,416 bytes` exactly, confirming the two measurements are the same thing. Scaling M40's pulls
+(3.16–4.15s for 95.4MB) puts the new pull near **1.8–2.4s**, i.e. ~1.3–1.8s saved on every cold start,
+since nothing is ever cached. Only the final stage ships — the `node:24-alpine` and `dotnet/sdk:8.0`
+build stages are discarded by buildx and never reach GHCR or ACA. Plain chiseled ships no ICU, so .NET 8 needs invariant mode
 declared explicitly or it refuses to start. Re-audited before switching: every `string.Equals` is
 `OrdinalIgnoreCase`, `CoverImage.cs:55` uses `ToLowerInvariant`, the `.ToLower()` calls in
 `SongService`/`ReleaseService` are inside EF expression trees (Postgres `lower()`), and
