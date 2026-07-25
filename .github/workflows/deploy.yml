@@ -60,8 +60,7 @@ jobs:
 
       - name: Build the migration bundle
         run: |
-          dotnet tool install --global dotnet-ef --version 8.*
-          export PATH="$PATH:$HOME/.dotnet/tools"
+          dotnet tool restore
           dotnet ef migrations bundle \
             --project src/Zmg.Infra \
             --startup-project src/Zmg.Api \
