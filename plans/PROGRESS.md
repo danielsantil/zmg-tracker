@@ -180,9 +180,9 @@ JIT-sensitive window exists outside the DB step, and +10–15MB on an always-pul
 was only ever 2s of app time to win. Cold start is essentially all platform latency, which makes **M42
 (edge-served SPA) the only milestone that fixes what the user experiences.**
 
-**v2.7 (M41) — API boot path.** Items 1–4 shipped; the re-measure (step 5) is pending a deploy of the
-chiseled image. **App boot went 2.0s → 0.18s** (`built` 120–136ms, `DB ready` 124–140ms, `listening`
-164–192ms), and the DB step went 1.8s → 4ms because it no longer touches the database at all.
+**v2.7 (M41) — API boot path.** All five items shipped. **App boot went 2.0s → 0.15s** (`built`
+108–136ms, `DB ready` 112–140ms, `listening` 152–192ms), and the DB step went 1.8s → 4ms because it no
+longer touches the database at all.
 
 **Migrations moved to the deploy pipeline.** `Program.cs` gates `Migrate()` on
 `Database:MigrateOnStartup`, **defaulting to `true`** — load-bearing, because `ZmgApiFactory` documents
@@ -230,6 +230,29 @@ gets attributed to EF Core is really `Microsoft.Data.SqlClient`; Npgsql has no s
 hatch if one ever surfaces: `<PredefinedCulturesOnly>false</PredefinedCulturesOnly>`, left at the
 default deliberately so anything unexpected fails loudly. Trade-off accepted: no shell in the image, so
 `az containerapp exec` loses bash.
+
+**Step 5 — re-measure (revision `zmg-app--0000012`, image `4477a2c`, 53,477,376 bytes vs 95,420,416):**
+
+| Phase | M40 baseline | M41 deploy | M41 cold start |
+|---|---|---|---|
+| scheduled → pull start | 1.1–2.8s | 2.4s | 1.9s |
+| image pull | 3.16–4.15s | 4.06s | 2.45s |
+| pull done → container created | 2.5–11.1s | 11.01s | 11.82s |
+| container start → listening | 2.02–2.11s | **0.26s** | **0.22s** |
+| **scheduled → listening** | 9.04–20.07s | 18.0s | **16.7s** |
+| `curl` total | 17.71–28.09s | — | **22.45s** |
+
+**App boot is the clean, repeatable win: ~1.85s.** **The chiseled size saving did not translate**, and
+the projection that it would (~1.5s) was wrong: the 51MB image pulled in **4.06s** at deploy time —
+indistinguishable from a 91MB pull — and 2.45s on the cold start. At this scale **pull time is
+latency-bound, not bandwidth-bound**; registry handshake and layer setup dominate, so halving the bytes
+doesn't halve the time. Keep chiseled anyway (best-case pull did improve, and the only cost is losing
+the shell), but don't count on image size as a cold-start lever here.
+
+**The dominant cost is now starker:** `pull done → container created` was **11.01s and 11.82s** —
+roughly two-thirds of the whole cold start, pure Azure sandbox provisioning, with no knob. End-to-end
+still lands at 16.7–22.5s, inside M40's noise band. M41 did exactly what the revised scope predicted and
+that changes nothing about the user's experience — **which is the entire case for M42.**
 
 ---
 
@@ -396,10 +419,12 @@ infra                    Terraform: azurerm + neon + cloudflare in one root modu
   that **the image is re-pulled on every cold start** (no node affinity on Consumption). **M41 items 1–4
   are done** — app boot 2.0s → 0.18s, migrations moved to the deploy pipeline behind
   `Database__MigrateOnStartup=false`, Swagger/CORS gated to dev, and the chiseled base image at 340MB →
-  181MB uncompressed. **ReadyToRun was cut from the plan outright** as net-negative on an always-pulled
-  image. **Next: M41 step 5** — deploy the chiseled image and re-run M40's exact measurement to report
-  the end-to-end delta; expect ~3.3s off a 17.7–28.1s cold start, which is why **M42 is where the real
-  win is**. **M41** cuts
+  181MB on disk / 95.5MB → 53.5MB pulled. **ReadyToRun was cut from the plan outright** as net-negative
+  on an always-pulled image. **M41 step 5 re-measured it:** app boot −1.85s is real and repeatable, but
+  the image-size cut did **not** shorten the pull (latency-bound, not bandwidth-bound), and
+  `pull → container created` alone is 11–12s of Azure provisioning with no knob. Cold start still lands
+  at **16.7–22.5s**. **Next: M42** — the edge-served SPA, the only remaining change that alters what a
+  user actually experiences. **M41** cuts
   the boot path — migrations move to a deploy-time EF bundle, plain `chiseled` base image, dev-only
   Swagger, lazy S3 client. **M42** serves the SPA from a Cloudflare Worker with a same-origin `/api/*`
   proxy, so the UI paints immediately instead of waiting out the container. The plan is written as a

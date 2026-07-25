@@ -203,7 +203,7 @@ request, for both cases. M41 re-runs the identical measurement and reports the d
 [x] 3. Swagger dev-only + lazy S3        ← Code change (CORS policy for dev also moved inside block)
                                        → lazy S3 dropped: the singleton is already lazy
 [x] 4. Chiseled base image             → 95.5MB → 54.4MB pulled; Npgsql verified invariant
-[ ] 5. Re-measure vs M40                 (needs a deploy of the chiseled image)
+[x] 5. Re-measure vs M40               → app boot −1.85s; pull latency-bound, not size-bound
 ```
 
 Ordered by confidence, each independently revertible. **M40 revised this scope:** items 1–2 are worth
