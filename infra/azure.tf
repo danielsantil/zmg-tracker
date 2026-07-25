@@ -111,6 +111,11 @@ resource "azurerm_container_app" "zmg" {
         name  = "R2__PublicBaseUrl"
         value = var.r2_public_base_url
       }
+
+      env {
+        name  = "Database__MigrateOnStartup"
+        value = false
+      }
     }
   }
 

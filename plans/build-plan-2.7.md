@@ -198,9 +198,9 @@ request, for both cases. M41 re-runs the identical measurement and reports the d
 ## M41 — API boot path
 
 ```
-[ ] 1. Design-time DbContext factory     ← Code change  (prerequisite for #2)
-[ ] 2. Migrations out of startup         ← Code change + GitHub secret
-[ ] 3. Swagger dev-only + lazy S3        ← Code change
+[x] 1. Design-time DbContext factory     ← Code change  (prerequisite for #2)
+[x] 2. Migrations out of startup       → app boot 2.0s → 0.18s; DB step 1.8s → 4ms
+[x] 3. Swagger dev-only + lazy S3        ← Code change (CORS policy for dev also moved inside block)
 [ ] 4. Chiseled base image               ← Code change
 [ ] 5. Re-measure vs M40
 ```

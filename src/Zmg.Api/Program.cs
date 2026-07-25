@@ -18,14 +18,17 @@ builder.Services.AddDbContext<ZmgDbContext>(options => options.UseNpgsql(connect
 
 builder.Services.RegisterServices(builder.Configuration);
 
-builder.Services.AddCors(options =>
-    options.AddPolicy("dev", p => p
-        .WithOrigins("http://localhost:5173")
-        .AllowAnyHeader()
-        .AllowAnyMethod()));
-
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.AddEndpointsApiExplorer();
+    builder.Services.AddSwaggerGen();
+    
+    builder.Services.AddCors(options =>
+        options.AddPolicy("dev", p => p
+            .WithOrigins("http://localhost:5173")
+            .AllowAnyHeader()
+            .AllowAnyMethod()));
+}
 
 var app = builder.Build();
 
@@ -40,6 +43,7 @@ if (builder.Configuration.GetValue("Database:MigrateOnStartup", true))
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<ZmgDbContext>();
     db.Database.Migrate();
+    app.Logger.LogInformation("[boot] Database migrated on startup.");
 }
 
 app.Logger.LogInformation("[boot] DB ready {Ms} ms", Environment.TickCount64 - bootStart);
