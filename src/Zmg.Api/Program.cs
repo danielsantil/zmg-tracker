@@ -3,6 +3,9 @@ using Zmg.Api.Endpoints;
 using Zmg.Api.Extensions;
 using Zmg.Infra.Data;
 
+// Start logging startup boot time
+var bootStart = Environment.TickCount64;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Fail fast on any missing required setting (connection string + all R2:* keys), naming every offender
@@ -26,12 +29,16 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
+app.Logger.LogInformation("[boot] built {Ms} ms", Environment.TickCount64 - bootStart);
+
 // Apply migrations at startup so `dotnet run` gives a ready database with seeded templates.
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ZmgDbContext>();
     db.Database.Migrate();
 }
+
+app.Logger.LogInformation("[boot] DB ready {Ms} ms", Environment.TickCount64 - bootStart);
 
 if (app.Environment.IsDevelopment())
 {
@@ -54,6 +61,9 @@ app.MapUploadEndpoints();
 app.UseDefaultFiles();
 app.UseStaticFiles();
 app.MapFallbackToFile("index.html");
+
+app.Lifetime.ApplicationStarted.Register(() => 
+    app.Logger.LogInformation("[boot] Application started - listening {Ms} ms", Environment.TickCount64 - bootStart));
 
 app.Run();
 

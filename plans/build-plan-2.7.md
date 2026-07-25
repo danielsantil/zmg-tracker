@@ -56,7 +56,7 @@ Dockerfile + pipeline → full `dotnet test` **and** a real deploy. M42 SPA-only
 [x] 6. Back up local state, migrate
 [x] 7. Verify, delete local state       plan: No changes; 9/9 resources
 [x] 8. Test locking                     second plan refused on blob lease
-[ ] 9. infra.yml + README               ← Code change  (README done; infra.yml pending)
+[x] 9. infra.yml + README               ← Code change
 ```
 
 **Cost ~$0/mo:** ~32KB blob, fractions of a cent in storage and transactions; SSE encryption free by
