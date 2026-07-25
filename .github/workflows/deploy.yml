@@ -5,7 +5,7 @@ on:
   workflow_call:
     inputs:
       image_tag:
-        description: Image tag to deploy - a commit SHA, for example 31c16e4
+        description: Image tag to deploy - a commit short SHA, for example 31c16e4
         type: string
         required: true
 
@@ -13,7 +13,7 @@ on:
   workflow_dispatch:
     inputs:
       image_tag:
-        description: Image tag to deploy - a commit SHA, for example 31c16e4
+        description: Image tag to deploy - a commit short SHA, for example 31c16e4
         type: string
         required: true
 
@@ -47,7 +47,11 @@ jobs:
       - name: Check out the deployed commit # required for bundled migration
         uses: actions/checkout@v5
         with:
-          ref: ${{ inputs.image_tag }}
+          fetch-depth: 0 # fetches full repo history
+          filter: blob:none # don't fetch blob objects, only commits and trees
+
+      - name: Pin source to the deployed image's commit
+        run: git checkout ${{ inputs.image_tag }} # gets exact content for this short SHA
 
       - name: Setup .NET for migration
         uses: actions/setup-dotnet@v5
