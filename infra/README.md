@@ -64,6 +64,12 @@ the config is wrong — fix the config. Two replacements would be unrecoverable:
 - **The state backend itself** (`zmg-tfstate-rg` + the `zmgtfstate1` storage account) is created by
   hand with `az` — Terraform can't create the account its own state lives in. Setup steps are in
   [plans/build-plan-2.7.md](../plans/build-plan-2.7.md) (M39).
+- **The Cloudflare Worker** (`zmg-tracker`) is created by `wrangler`, not Terraform. Managing it with
+  `cloudflare_workers_script` would require adding **Workers Scripts · Edit** to the Cloudflare token in
+  `terraform.tfvars`, which is deliberately R2-only — one credential that can both replace deployed code
+  and reach the covers bucket is a wider blast radius than this earns. The Worker deploys from
+  [`.github/workflows/web.yml`](../.github/workflows/web.yml) with its own token instead. Revisit if the
+  Worker ever needs to be created in lockstep with other infrastructure.
 
 ## Deploy identity (OIDC)
 
@@ -80,6 +86,33 @@ The GitHub side pairs with it: a repo **Environment** named `production` and thr
 (not Secrets — these are identifiers, and masking them only makes OIDC failures harder to debug):
 `AZURE_CLIENT_ID` (`terraform output deploy_client_id`), `AZURE_TENANT_ID`
 (`terraform output deploy_tenant_id`), and `AZURE_SUBSCRIPTION_ID`.
+
+## Edge SPA (Cloudflare Worker)
+
+The SPA is served from Cloudflare's edge at **https://zmg-tracker.zmg-app.workers.dev**, configured by
+[`src/Zmg.Web/wrangler.jsonc`](../src/Zmg.Web/wrangler.jsonc) and deployed by
+[`.github/workflows/web.yml`](../.github/workflows/web.yml) after each successful ACA deploy.
+
+**Why it exists:** ACA scales to zero, and a cold start is ~17–22s — dominated by Azure sandbox
+provisioning that no code change can touch (see `plans/PROGRESS.md`, M40/M41). Previously the browser
+couldn't fetch `index.html` until the container was up, so the whole cold start was a blank page. Now
+the shell arrives in ~150ms and only the data waits.
+
+- **`run_worker_first: ["/api/*"]`** means the Worker runs *only* for API paths; every static asset is
+  served straight from the edge without executing any code. `worker.ts` forwards those requests to
+  `API_ORIGIN` (the ACA FQDN, a plain `var` — not a secret).
+- **Same origin is the point.** Because `/api/*` lives on the Worker's hostname, there is no prod CORS
+  policy, no `VITE_API_BASE_URL`, and `src/api/client.ts` needed no changes. Serving the SPA from a
+  separate origin would have required all three.
+- **`not_found_handling: "single-page-application"`** makes deep links like `/catalog/<id>` return
+  `index.html` instead of 404.
+- **The Worker is an accelerator, never a dependency.** The container keeps building and serving the SPA
+  from `wwwroot`, so the ACA URL stays a complete, working app and a valid rollback target. Don't remove
+  the SPA from the image.
+- **`pnpm build`** → `../Zmg.Api/wwwroot` (for the container). **`pnpm build:edge`** → `./dist` (for the
+  Worker). Both must keep working.
+- Worker types are generated: `pnpm exec wrangler types` writes `worker-configuration.d.ts` (committed),
+  which is where the `Env` type for `API_ORIGIN` comes from. Re-run it after changing `vars` or bindings.
 
 ## Migrations and rollback
 

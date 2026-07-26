@@ -321,9 +321,9 @@ still serves the SPA standalone.
 [x] 3. build:edge script                ← Code change  (+ tsconfig.worker.json, wrangler types)
 [x] 4. Manual deploy, verify          → https://zmg-tracker.zmg-app.workers.dev
                                         shell 0.145s on a cold container; 3 API calls 200, no CORS
-[ ] 5. Early wake + loading hint        ← Code change
-[ ] 6. web.yml + secrets                ← Code change
-[ ] 7. Document in infra/README.md      ← Code change
+[x] 5. Loading hint                     ← Code change  (early wake DROPPED — measured 160ms)
+[x] 6. web.yml + secrets                ← Code change  (workflow_call from ci.yml, after deploy)
+[x] 7. Document in infra/README.md      ← Code change  (+ root README.md)
 ```
 
 **Why this is the milestone that matters:** today the browser can't fetch `index.html` until the

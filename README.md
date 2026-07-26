@@ -15,12 +15,13 @@ are in [plans/build-plan-*.md](plans/). Working conventions are in [CLAUDE.md](C
 |---|---|
 | Backend | ASP.NET Core (.NET 8) minimal API + EF Core |
 | Domain | pure C# (no I/O) — template-copy, progress, derived status, warnings, validation |
-| Frontend | React 19 + Vite + Tailwind SPA (served from the API's `wwwroot` in prod) |
+| Frontend | React 19 + Vite + Tailwind SPA (served from a **Cloudflare Worker** at the edge, and from the API's `wwwroot` as a fallback) |
 | Database | **Neon Postgres** (prod + dev); **SQLite in-memory** for tests |
 | Image storage | **Cloudflare R2** (release covers, normalized to a 1000px WebP on ingest) |
 | Hosting | **Azure Container Apps** (Consumption, scale-to-zero) |
+| Edge | **Cloudflare Worker** — serves the SPA, proxies `/api/*` to ACA on the same origin |
 | Infra as code | **Terraform** — `azurerm` + `neon` + `cloudflare` ([infra/](infra/README.md)) |
-| CI/CD | **GitHub Actions** — test → build+push image → deploy to ACA via OIDC |
+| CI/CD | **GitHub Actions** — test → build+push image → deploy to ACA via OIDC → deploy SPA to Cloudflare |
 
 ### Architecture
 
@@ -127,7 +128,25 @@ Pushing to `main` runs [`.github/workflows/ci.yml`](.github/workflows/ci.yml): i
 [`deploy.yml`](.github/workflows/deploy.yml), which rolls Azure Container Apps to that tag over **OIDC**
 (no stored Azure secret) and smoke-tests `/api/health`.
 
+Migrations are applied by the pipeline (an EF bundle) **before** the image swaps, so a failed migration
+aborts the deploy while the old image is still serving. After ACA is live, `ci.yml` calls
+[`web.yml`](.github/workflows/web.yml), which builds the SPA and deploys it to the Cloudflare Worker —
+API first, SPA second, so the UI never calls an endpoint that isn't deployed yet.
+
+**Two URLs serve the app:**
+
+| URL | Serves |
+|---|---|
+| https://zmg-tracker.zmg-app.workers.dev | Normal use. SPA from the edge (~150ms), `/api/*` proxied to ACA |
+| https://zmg-app.mangohill-c8bd3207.eastus.azurecontainerapps.io | The container serving everything itself — the fallback and rollback target |
+
+The Worker is an **accelerator, never a dependency**. The container still builds and serves the SPA from
+`wwwroot`, so `docker run -e ConnectionStrings__Zmg=… ghcr.io/danielsantil/zmg-tracker:<tag>` always
+produces a complete working app. Because ACA scales to zero, a cold start is ~17–22s — the edge means
+the UI paints immediately and only the data waits.
+
 - **Rollback / redeploy any build:** Actions tab → **Deploy** → **Run workflow** → enter a prior commit
-  SHA. It re-points ACA at that existing image — no rebuild.
+  SHA. It re-points ACA at that existing image — no rebuild. Note the schema does **not** roll back;
+  see [infra/README.md](infra/README.md) → "Migrations and rollback" for when that's safe.
 - **Infrastructure changes** go through Terraform in [infra/](infra/README.md), never the pipeline. The
   pipeline owns the image tag; Terraform owns everything else and ignores the tag by design.

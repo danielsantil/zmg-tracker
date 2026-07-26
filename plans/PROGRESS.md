@@ -15,31 +15,25 @@ for where the project stands and the rules that span plans.
 - [build-plan-2.4.md](build-plan-2.4.md) — UI polish · dark/light (M26–M28). Shipped.
 - [build-plan-2.5.md](build-plan-2.5.md) — deployment · ACA/Neon/R2/Terraform/CI-CD (M29–M34). Shipped.
 - [build-plan-2.6.md](build-plan-2.6.md) — hardening · hard-delete · navbar · catalog fixes (M35–M38). Shipped.
+- [build-plan-2.7.md](build-plan-2.7.md) — infra hardening · remote state · cold start (M39–M42). Shipped.
 
 Newer plan versions go in new `build-plan-N.N.md` files; older ones stay frozen.
 
-**Current state:** feature-complete through **v2.4** and **fully deployed** — **v2.5 (M29–M34) is
-complete**. Live on **Azure Container Apps** over **Neon Postgres**, covers in **Cloudflare R2**
-(normalized to a 1000px WebP on ingest), the whole stack codified in Terraform under
-[`infra/`](../infra/README.md), and a **GitHub Actions pipeline** that builds + pushes on every green
-push to main and deploys via OIDC (M34). Backend **domain 119 / API 158**, SPA **32 Vitest** — the
-pipeline gates on these. **v2.6 (M35–M38) is complete** — a hardening/cleanup pass before the
-multilingual work: startup env-var fail-fast + eager R2 client (M35), hard-delete replacing soft-delete
-(M36), responsive hamburger navbar (M37), and catalog release-counting fixes / field collapse (M38); see
-[build-plan-2.6.md](build-plan-2.6.md). **v2.7 (M39–M42) is in progress** — infra hardening; **M39 is
-done**: Terraform state now lives in an encrypted, versioned Azure Storage container with blob-lease
-locking instead of a cleartext file on one laptop. **M40 measured the cold-start baseline** and **M41
-items 1–4 cut app boot 2.0s → 0.18s** (migrations moved to the deploy pipeline, chiseled base image);
-its re-measure and **M42's edge-served SPA** are what remain — cold start is dominated by Azure platform
-latency, so M42 is the milestone that changes what users feel. See
-[build-plan-2.7.md](build-plan-2.7.md). **Then v2.8** — multilingual (EN/ES); the M37 language
-selector was deliberately deferred there. **Phase 2** (DSP stats, real-Postgres tests) follows and starts
-a new `build-plan-3.0.md`.
+**Current state:** feature-complete through **v2.4** and **fully deployed**, shipped through **v2.7
+(M39–M42)**. The SPA serves from a **Cloudflare Worker** at the edge with `/api/*` proxied same-origin
+to **Azure Container Apps** over **Neon Postgres**; covers live in **Cloudflare R2**; the hosted stack is
+codified in Terraform under [`infra/`](../infra/README.md), with remote state in Azure Storage. A
+**GitHub Actions pipeline** tests, builds a SHA-tagged image, applies migrations, deploys to ACA over
+OIDC, then ships the SPA to Cloudflare. Backend **domain 119 / API 158**, SPA **32 Vitest** — the
+pipeline gates on these. **Next: v2.8 — multilingual (EN/ES);** the M37 language selector was
+deliberately deferred there. **Phase 2** (DSP stats, real-Postgres tests) follows and starts a new
+`build-plan-3.0.md`.
 
 > ⚠️ **DB is Postgres (Neon) as of v2.5/M30.** Dev + prod both use `ConnectionStrings__Zmg` — **dev** via
-> `dotnet user-secrets` in `src/Zmg.Api` (never commit it), **prod** as an ACA secret. Startup applies
-> migrations + seeds. Reset local data by resetting the Neon branch or
-> `dotnet ef database drop` + `database update`. Tests run **SQLite in-memory**. Keep EF tooling on **EF 8** to match the runtime.
+> `dotnet user-secrets` in `src/Zmg.Api` (never commit it), **prod** as an ACA secret. **Dev and tests
+> migrate at startup; prod does not** — the deploy pipeline applies migrations. Reset local data by
+> resetting the Neon branch or `dotnet ef database drop` + `database update`. Tests run **SQLite
+> in-memory**. Keep EF tooling on **EF 8** to match the runtime.
 
 ---
 
@@ -90,32 +84,6 @@ hardcoded neutrals were routed through CSS-variable tokens as a deliberate visua
 the **dark/light toggle** cashed in immediately after (M28) — OS-following until explicitly toggled,
 persisted, and applied pre-paint. **+5 Vitest → 32** web tests.
 
-**v2.6 (M35–M38) — hardening.** M35: startup env-var **fail-fast** — a new
-`StartupValidationExtensions.Validate(IConfiguration)` gathers *every* missing/blank required key
-(`ConnectionStrings__Zmg` + all five `R2__*`) and throws one message naming them all, called right after
-`CreateBuilder` (folding in the old connection-string throw). R2 is now **required at startup**, so
-`R2StorageService` drops its `Lazy<IAmazonS3>` for a client built eagerly in the constructor. Validation
-runs in **every environment including tests** — `ZmgApiFactory` supplies dummy `R2:*` values via
-`UseSetting` so the suite boots the same validated path as prod (never dereferenced; `UploadApiFactory`
-swaps in the fake storage). M36: **hard-delete replaces soft-delete** — dropped `DeletedAt`, the three
-query filters, and the soft-delete model; DELETE now `Remove()`s the row (Release cascades to tasks +
-track links; Song `RemoveRange`s its links first past the Restrict FK). `DropSoftDelete` migration ships
-the `DROP COLUMN`. Archive (`ArchivedAt`) untouched. Backend **domain 119 / API 158** unchanged. M37:
-the inline `Nav`/`ThemeToggle` came out of `App.tsx` into a new `components/NavBar.tsx`. Desktop (≥sm)
-keeps the horizontal row; below sm the five links collapse into a `☰` dropdown **sheet** while brand +
-theme toggle stay visible. The sheet is a plain `absolute` child of the sticky (untransformed, no
-`overflow-hidden`) `z-10` header — no body-portal needed, unlike RowMenu — with a solid `bg-panel` so
-links stay readable, closing on route change (`useLocation`) and outside click (a ref check, no overlay).
-Verified at 375px + desktop, light + dark, no page-level horizontal scroll. M38: the catalog's
-release-counting is now **one source of truth**. Every link-derived value in `ListAsync` excludes
-archived links (`releaseCount` too, was counting all — Bug A), and `SongListItemDto` **drops
-`isOrphan`/`canArchive`**: the client derives both the three-state **Released** column
-(No / Yes / Upcoming) and the Archive action from `ReleaseDate` alone — `null` ⟺ archivable. The
-`ArchiveAsync` guard was reduced to its active-release check so the equivalence holds (the old
-"already-released" guard 409'd archived-past-release songs the UI offered Archive). Catalog now offers
-**Archive only** (Delete moved to Archived Songs); `WithDetailIncludes` includes archived links so the
-detail page badges them. Verified in-browser across orphan / upcoming / released rows.
-
 **v2.5 (M29–M34) — deployment.** First hosting: the container image on **Azure Container Apps**
 (Consumption, scale-to-zero) (M29); prod off ephemeral SQLite onto **Neon Postgres** via EF Npgsql
 (M30); release covers into **Cloudflare R2** through an upload/paste-URL tile that re-stores remote URLs
@@ -125,134 +93,21 @@ so prod never moved (M32); and a **GitHub Actions pipeline** that builds a SHA-t
 green push to main and deploys to ACA via **OIDC**, with a `workflow_dispatch` rollback to any prior tag
 (M34).
 
-**v2.7 (M39) — Terraform state to Azure Storage.** State moved off one laptop into
-`zmg-tfstate-rg` / `zmgtfstate1` / `tfstate/zmg.tfstate` — encrypted at rest, versioned, 30-day soft
-delete on blobs and containers, and **blob-lease locking** (native, free, and it fires on `plan` as
-well as `apply` — verified by racing two plans). Three choices are load-bearing: the state's resource
-group is **separate from `zmg-rg`** so a `terraform destroy` can't delete the file describing what it
-destroys; **shared key access is disabled on the account**, so no account key exists to leak and the
-only way in is an Entra identity with **Storage Blob Data Contributor** (hence `use_azuread_auth` in
-the backend block); and the backend was created **by hand with `az`**, since Terraform can't create the
-account its own state lives in. Migration was gated on `terraform plan` → *No changes* plus a
-`state list` matching all 9 pre-migration resources, after which the local `terraform.tfstate` +
-`.backup` were deleted — that's the real win, since they held the Neon connection string, GHCR token
-and both R2 keys in cleartext in the working tree. A new `.github/workflows/infra.yml` runs
-`fmt -check` + `init -backend=false` + `validate` gated on `paths: ['infra/**']` (separate from
-`ci.yml`, which `paths-ignore`s `infra/**`); `-backend=false` is deliberate — CI validates syntax and
-never gets access to state, i.e. never gets the secrets. ~$0/mo. No test run: infra + docs only.
+**v2.6 (M35–M38) — hardening.** Startup env-var **fail-fast** naming every missing key at once, with R2
+now required at boot (M35); **hard-delete replacing soft-delete** app-wide, dropping `DeletedAt` and the
+three query filters (M36); the nav extracted into a responsive `NavBar` that collapses below `sm` (M37);
+and the catalog's release-counting reduced to one source of truth, excluding archived links everywhere
+and dropping `isOrphan`/`canArchive` in favour of client-derived state (M38).
 
-**v2.7 (M40) — cold-start baseline.** Permanent `[boot]` timing logs in `Program.cs` (deltas from
-Program entry, logged after `builder.Build()`, after the migration step, and on `ApplicationStarted`),
-then four measured scale-from-zero starts on **revision `zmg-app--0000008`, image tag `9657702`**:
-
-| Phase | A (post-deploy) | B1 | B2 | B3 |
-|---|---|---|---|---|
-| `curl` total, client-side | — | 19.72s | 28.09s | 17.71s |
-| KEDA activate → pull start | 2.1s | 2.8s | 2.7s | 1.1s |
-| image pull | 3.47s | 4.05s | 4.15s | 3.16s |
-| pull done → container created | 11.14s | 5.85s | 10.87s | 2.54s |
-| container start → listening (app) | 2.02s | 2.03s | 2.11s | 2.05s |
-| **scheduled → listening** | **18.94s** | **15.21s** | **20.07s** | **9.04s** |
-
-App internals barely vary: `built` 132–144ms, `DB ready` 1.92–2.01s, `listening` 1.98–2.06s.
-
-**Two of the plan's assumptions were wrong.** (1) **There is no image-cached case** — all three B runs
-re-pulled the *same* tag on a fresh node within 20 minutes, because the Consumption profile gives no
-node affinity. The A-vs-B comparison M40 was designed around doesn't exist; image size costs on *every*
-cold start. (2) **The image is ~91MB compressed** (95,420,416 bytes as reported by ACA; 340MB
-uncompressed locally), not the 216MB the plan
-assumed — which lowers the ceiling on the chiseled work.
-
-**The split: app boot is 2.0s; everything else is platform.** Of that 2.0s, **1.8s is the DB step**
-(Neon wake + a migration check that logged "No migrations were applied" every run). The remaining
-14–26s is Azure-side and has no knob: **pull done → container created alone is 2.5–11.1s**, varying 4×
-run to run, plus 4.5–8.7s of ingress/activation before KEDA even records the scale event (the gap
-between the client `curl` total and the internal timeline).
-
-**Consequences for M41**, since deciding them was the point of M40: items **1–2 (migrations out of
-startup) are confirmed** — ~1.8s, i.e. 90% of all app time — with the caveat that this *relocates* the
-Neon wake to the first query rather than removing it, so time-to-*listening* drops ~1.8s while
-time-to-first-*data* barely moves. Item **3 stays as cleanup, not perf** (it targets the 135ms `built`
-phase; worth ~50ms). Item **4 (chiseled) stays, ~1.5s** — weaker than planned on size, stronger in that
-nothing is ever cached so it pays out every start. Item **5 (ReadyToRun) is dropped**: only ~200ms of
-JIT-sensitive window exists outside the DB step, and +10–15MB on an always-pulled image costs ~0.5s.
-**Net M41 ≈ 3.3s off a 17.7–28.1s cold start** — the plan's "→ 10–16s" is not reachable, because there
-was only ever 2s of app time to win. Cold start is essentially all platform latency, which makes **M42
-(edge-served SPA) the only milestone that fixes what the user experiences.**
-
-**v2.7 (M41) — API boot path.** All five items shipped. **App boot went 2.0s → 0.15s** (`built`
-108–136ms, `DB ready` 112–140ms, `listening` 152–192ms), and the DB step went 1.8s → 4ms because it no
-longer touches the database at all.
-
-**Migrations moved to the deploy pipeline.** `Program.cs` gates `Migrate()` on
-`Database:MigrateOnStartup`, **defaulting to `true`** — load-bearing, because `ZmgApiFactory` documents
-that the API integration tests get their SQLite schema from that call, and local `dotnet run` relies on
-it too. Only prod opts out, via `Database__MigrateOnStartup=false` in `infra/azure.tf`. `deploy.yml`
-builds an EF bundle and applies it **before** `az containerapp update`, so a failed migration aborts the
-deploy while the old image is still serving. A new `src/Zmg.Infra/Data/ZmgDbContextFactory.cs`
-(`IDesignTimeDbContextFactory`) is the prerequisite: without it `dotnet ef` boots `Program.cs`, hits
-M35's `Configuration.Validate()`, and demands R2 settings CI has no reason to hold. Referencing
-`IDesignTimeDbContextFactory` also required adding `compile` to the EF Design package's `IncludeAssets`
-in `Zmg.Infra.csproj` — the NuGet default omits it, so the interface isn't referenceable otherwise.
-
-**Three pipeline gotchas, all now fixed:** image tags are *short* SHAs
-([ci.yml](../.github/workflows/ci.yml) uses `type=sha,format=short`), and `actions/checkout` only treats
-`ref` as a commit when it's a full 40-char SHA — abbreviated SHAs can't be fetched server-side either, so
-the job checks out with `fetch-depth: 0` + `filter: blob:none` (commit graph and trees, no file contents)
-and resolves the abbreviation locally with `git checkout`. The repo already pins `dotnet-ef` 8.0.11 in
-`.config/dotnet-tools.json`, and that local manifest takes precedence over a global install, so the step
-uses `dotnet tool restore`. And **secrets are not passed to reusable workflows automatically** — unlike
-`vars`, which is why OIDC worked while `NEON_CONNECTION_STRING` arrived empty; `ci.yml` now calls
-`deploy.yml` with `secrets: inherit`.
-
-**Item 3 shrank.** Swagger's `AddEndpointsApiExplorer`/`AddSwaggerGen` (and the dev-only CORS policy)
-moved inside `builder.Environment.IsDevelopment()`. The planned lazy `IAmazonS3` was **dropped**:
-`R2StorageService` is a singleton, .NET creates singletons on first resolution, `IStorageService` is only
-injected into the per-request `CoverUploadService`, and there's no `ValidateOnBuild` — so the S3 client
-was never built at boot and `Lazy<T>` would have saved nothing while making M35's comments less accurate.
-
-**Item 4 — chiseled + `InvariantGlobalization`.** `aspnet:8.0` → `aspnet:8.0-noble-chiseled`:
-**340MB → 181MB on disk, and 95.5MB → 54.4MB transferred (−43%)** — the transferred figure is the one
-that matters, and Docker's "content size" for the live `31c16e4` image (95.5MB) matches ACA's reported
-`95,420,416 bytes` exactly, confirming the two measurements are the same thing. Scaling M40's pulls
-(3.16–4.15s for 95.4MB) puts the new pull near **1.8–2.4s**, i.e. ~1.3–1.8s saved on every cold start,
-since nothing is ever cached. Only the final stage ships — the `node:24-alpine` and `dotnet/sdk:8.0`
-build stages are discarded by buildx and never reach GHCR or ACA. Plain chiseled ships no ICU, so .NET 8 needs invariant mode
-declared explicitly or it refuses to start. Re-audited before switching: every `string.Equals` is
-`OrdinalIgnoreCase`, `CoverImage.cs:55` uses `ToLowerInvariant`, the `.ToLower()` calls in
-`SongService`/`ReleaseService` are inside EF expression trees (Postgres `lower()`), and
-`PendingActions.cs:108` passes `StringComparer.OrdinalIgnoreCase` explicitly. **Verification gap worth
-remembering:** `InvariantGlobalization` lands in the *executable's* runtimeconfig, which the test host
-doesn't inherit, and the tests run **SQLite** — so `DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1 dotnet test`
-never exercises Npgsql. Proven instead with `docker run` against real Neon, hitting `/api/artists` (not
-`/api/health`, which touches no database) plus loading the SPA. The `CultureNotFoundException` risk that
-gets attributed to EF Core is really `Microsoft.Data.SqlClient`; Npgsql has no such dependency. Escape
-hatch if one ever surfaces: `<PredefinedCulturesOnly>false</PredefinedCulturesOnly>`, left at the
-default deliberately so anything unexpected fails loudly. Trade-off accepted: no shell in the image, so
-`az containerapp exec` loses bash.
-
-**Step 5 — re-measure (revision `zmg-app--0000012`, image `4477a2c`, 53,477,376 bytes vs 95,420,416):**
-
-| Phase | M40 baseline | M41 deploy | M41 cold start |
-|---|---|---|---|
-| scheduled → pull start | 1.1–2.8s | 2.4s | 1.9s |
-| image pull | 3.16–4.15s | 4.06s | 2.45s |
-| pull done → container created | 2.5–11.1s | 11.01s | 11.82s |
-| container start → listening | 2.02–2.11s | **0.26s** | **0.22s** |
-| **scheduled → listening** | 9.04–20.07s | 18.0s | **16.7s** |
-| `curl` total | 17.71–28.09s | — | **22.45s** |
-
-**App boot is the clean, repeatable win: ~1.85s.** **The chiseled size saving did not translate**, and
-the projection that it would (~1.5s) was wrong: the 51MB image pulled in **4.06s** at deploy time —
-indistinguishable from a 91MB pull — and 2.45s on the cold start. At this scale **pull time is
-latency-bound, not bandwidth-bound**; registry handshake and layer setup dominate, so halving the bytes
-doesn't halve the time. Keep chiseled anyway (best-case pull did improve, and the only cost is losing
-the shell), but don't count on image size as a cold-start lever here.
-
-**The dominant cost is now starker:** `pull done → container created` was **11.01s and 11.82s** —
-roughly two-thirds of the whole cold start, pure Azure sandbox provisioning, with no knob. End-to-end
-still lands at 16.7–22.5s, inside M40's noise band. M41 did exactly what the revised scope predicted and
-that changes nothing about the user's experience — **which is the entire case for M42.**
+**v2.7 (M39–M42) — infra hardening · cold start.** Terraform state moved off one laptop into an
+encrypted, versioned Azure Storage container with blob-lease locking (M39); `[boot]` timing logs
+established a cold-start baseline (M40); the API boot path went **2.0s → 0.15s** by moving migrations
+into the deploy pipeline and switching to a chiseled base image (M41); and the SPA moved to a
+**Cloudflare Worker** serving it from the edge with `/api/*` proxied to ACA on the same origin (M42).
+The measurement was the point: cold start is dominated by ~11–12s of Azure sandbox provisioning that no
+code change touches, so M41's 1.85s was invisible end-to-end and only M42 — shell in **0.145s** instead
+of a blank page for the full ~17–22s — changed what a user actually experiences. ReadyToRun and an
+early `/api/health` wake were both measured and cut. See [build-plan-2.7.md](build-plan-2.7.md).
 
 ---
 
@@ -354,9 +209,8 @@ that changes nothing about the user's experience — **which is the entire case 
   explicit.
 - **macOS is case-insensitive — `Foo.tsx` and `foo.tsx` are one file.** Use `git mv` for case-only
   renames; writing the "new" file just overwrites the old one.
-- **EF tooling must match the runtime (EF 8).** Nothing is pinned in-repo, but a 10.x-generated migration
-  builds fine and then **silently fails at runtime** (`no such table: __EFMigrationsHistory`). Install
-  matching tooling before regenerating one.
+- **EF tooling must match the runtime (EF 8).** Pinned in `.config/dotnet-tools.json`; a 10.x-generated
+  migration builds fine and then **silently fails at runtime** (`no such table: __EFMigrationsHistory`).
 - **User-supplied images are accepted on their bytes, and remote fetches are guarded (M31).** Cover
   ingest trusts the **magic number**, never the declared content-type, and caps size by a capped read
   rather than `Content-Length`. Any future server-side fetch of a user-supplied URL must reuse
@@ -372,18 +226,69 @@ that changes nothing about the user's experience — **which is the entire case 
   state access; `var.container_image` is a bootstrap default, not the live tag. The config was
   **imported**, so it must match reality — any `forces replacement` is a config bug, and on
   `neon_project` / `cloudflare_r2_bucket` it means destroying the production database / every cover.
+- **State is remote, locked, and holds live secrets (M39).** It lives in Azure Storage in a resource group
+  **separate from `zmg-rg`**, so a `terraform destroy` can't delete the file describing what it destroys.
+  Shared-key access is **disabled** — there is no account key, so access requires an Entra identity with
+  **Storage Blob Data Contributor** (hence `use_azuread_auth`), and a fresh role assignment takes 2–5 min
+  to propagate (a 403 straight after granting is propagation, not misconfiguration). Locking is a blob
+  lease and fires on `plan` too; an interrupted run leaves it held → `terraform force-unlock <ID>`.
+  **Two things are hand-created, deliberately:** the state backend (Terraform can't create the account its
+  own state lives in) and the Cloudflare Worker (managing it would need Workers Scripts · Edit added to
+  the deliberately R2-only Cloudflare token).
 - **Deploy is a GitHub Actions pipeline over an immutable SHA-tagged image.** `ci.yml` tests → builds +
-  pushes `ghcr.io/…:{short-sha}` → calls reusable `deploy.yml` on green pushes to main; `deploy.yml`'s
-  `workflow_dispatch` re-points ACA at any existing tag (rollback, never rebuilds) — **build once,
-  deploy separately**. Azure auth is **OIDC**, no stored secret: the token subject
+  pushes `ghcr.io/…:{short-sha}` → calls reusable `deploy.yml`, then `web.yml` (SPA to Cloudflare) on
+  green pushes to main; `deploy.yml`'s `workflow_dispatch` re-points ACA at any existing tag (rollback,
+  never rebuilds) — **build once, deploy separately**. API deploys before the SPA so the UI never calls an
+  endpoint that isn't live. Azure auth is **OIDC**, no stored secret: the token subject
   `repo:…:environment:production` must equal the GitHub Environment name exactly (else `AADSTS70021`).
-  Traps: `cache-to: type=gha` needs a `setup-buildx-action` step; `GITHUB_TOKEN` pushes only to a GHCR
-  package the repo is linked to with Write; `id-token: write` must be on the **calling** job; pin the
-  `docker/*` + `azure/login` majors from the live registry (Node-24 releases), not memory.
+  Traps: **secrets are not passed to reusable workflows** (`vars` are) — every `uses:` call needs
+  `secrets: inherit`, and the symptom is an empty value, not an error; image tags are **short SHAs**,
+  which `actions/checkout` won't accept as `ref` (fetch full history with `filter: blob:none`, then
+  `git checkout` locally); a `.config/dotnet-tools.json` manifest **takes precedence over a global tool
+  install**, so use `dotnet tool restore`; `cache-to: type=gha` needs a `setup-buildx-action` step;
+  `GITHUB_TOKEN` pushes only to a GHCR package the repo is linked to with Write; `id-token: write` must be
+  on the **calling** job; pin the `docker/*` + `azure/login` majors from the live registry, not memory.
+- **Migrations are applied by the pipeline, not at startup (M41).** `Program.cs` gates `Migrate()` on
+  `Database:MigrateOnStartup`, **defaulting to `true`** — load-bearing, because the API integration tests
+  get their SQLite schema from that call and local `dotnet run` relies on it. Only prod opts out
+  (`Database__MigrateOnStartup=false`). CI builds an EF bundle **from the deployed commit** and runs it
+  *before* the image swaps, so a failed migration aborts the deploy with the old image still serving.
+  Two prerequisites: `ZmgDbContextFactory` (`IDesignTimeDbContextFactory`), or `dotnet ef` boots
+  `Program.cs` and demands R2 settings CI has no reason to hold; and `compile` in the EF Design package's
+  `IncludeAssets`, which the NuGet default omits so the interface isn't otherwise referenceable.
+- **Rolling back the image does not roll back the schema.** EF migrations are forward-only: a bundle built
+  at an older tag finds its own migrations already applied and does nothing. Rollback is therefore safe
+  only to a tag sharing the current schema, or across **additive-only** migrations — never across a
+  destructive one (`DropSoftDelete` is the live example: old code would query dropped columns). Use
+  expand/contract if rollback must stay a real safety net.
+- **The server stays culture-free — `InvariantGlobalization=true` on plain `chiseled` (M41).** The image
+  ships no ICU, so .NET 8 refuses to start without the flag. Safe only because every comparison is
+  `Ordinal`/`Invariant` and all string ordering is SQL-side (Postgres collation); **v2.8's i18n must keep
+  it that way** — any server-side `.resx`/`CurrentUICulture` or date/number *formatting* means switching
+  to `chiseled-extra` in the same change. **Verification gap:** the flag lands in the *executable's*
+  runtimeconfig, which the test host doesn't inherit, and tests run SQLite — so `dotnet test` never
+  exercises Npgsql under invariant mode. Prove it with `docker run` against real Neon on a DB-touching
+  endpoint. Escape hatch if a `CultureNotFoundException` ever appears:
+  `<PredefinedCulturesOnly>false</PredefinedCulturesOnly>`. Also: no shell in the image, so
+  `az containerapp exec` loses bash.
+- **Cold start is platform-bound — don't chase it in code (M40/M41).** App boot is ~0.15s; the cold start
+  is 16–22s, of which **11–12s is Azure sandbox provisioning** with no knob, plus ingress/KEDA activation.
+  The image is re-pulled on **every** cold start (Consumption gives no node affinity), but pull time is
+  **latency-bound, not bandwidth-bound** — a 44% smaller image did not shorten it. ReadyToRun (+size on an
+  always-pulled image) and an early `fetch('/api/health')` in `index.html` (measured: 160ms of ~20,000ms)
+  were both evaluated and cut. Don't re-propose either; the only thing that moved the needle was M42.
+- **The Cloudflare Worker is an accelerator, never a dependency (M42).** The container must keep building
+  and serving the SPA from `wwwroot` so `docker run` yields a complete app and the ACA URL stays a working
+  rollback target — never drop the web stage from the Dockerfile. `run_worker_first: ["/api/*"]` keeps the
+  API on the **same origin**, which is why there is no prod CORS policy, no `VITE_API_BASE_URL`, and
+  `src/api/client.ts` is untouched. Two build outputs must both keep working: `pnpm build` →
+  `../Zmg.Api/wwwroot`, `pnpm build:edge` → `./dist`.
 - **Prod runs Postgres (Neon); integration tests run SQLite in-memory (v2.5/M30).** Migrations are
   Postgres-specific. Keep query code **provider-agnostic** — e.g.
   title search lowercases both sides of `Like` rather than using Npgsql `ILike` — so SQLite tests stay
-  representative. Real-Postgres tests (Testcontainers + CI service container) are deferred to Phase 2.
+  representative. Note Postgres' `lower()` is Unicode-aware while SQLite's is ASCII-only, so accented
+  titles may match in prod but not in tests — this starts mattering with v2.8's Spanish content.
+  Real-Postgres tests (Testcontainers + CI service container) are deferred to Phase 2.
 
 ---
 
@@ -394,7 +299,8 @@ src/Zmg.Domain   entities/enums, template-copy, progress, status, validation, se
                  release-warnings, song-archival, pending-actions  (pure, no I/O)
 src/Zmg.Api      minimal API: endpoints, service layer (+ interfaces), DTO contracts, extensions
 src/Zmg.Infra    EF Core + Npgsql/Postgres: ZmgDbContext (seeding) + migrations
-src/Zmg.Web      React + Vite + Tailwind SPA, organized by feature folder
+src/Zmg.Web      React + Vite + Tailwind SPA, organized by feature folder; worker.ts + wrangler.jsonc
+                 deploy the edge Worker
 tests/Zmg.Domain.Tests   xUnit unit tests
 tests/Zmg.Api.Tests      integration tests (WebApplicationFactory + in-memory SQLite)
 infra                    Terraform: azurerm + neon + cloudflare in one root module (see infra/README.md)
@@ -407,33 +313,13 @@ infra                    Terraform: azurerm + neon + cloudflare in one root modu
 - **Shipped — v2.4 (M26–M28):** UI polish · semantic color tokens · dark/light toggle.
 - **Shipped — v2.5 (M29–M34):** ACA deploy · Neon Postgres · R2 covers · cover normalization · Terraform ·
   CI/CD image pipeline.
-- **Shipped — v2.6 (M35–M38):** hardening/cleanup — startup env-var fail-fast + eager R2 client
-  (M35), hard-delete replacing soft-delete app-wide (M36), responsive hamburger navbar (M37), and
-  catalog release-counting fixes / field collapse (M38). See [build-plan-2.6.md](build-plan-2.6.md).
-- **In progress — v2.7 — infra hardening · remote state · cold start (M39–M42).** See
-  [build-plan-2.7.md](build-plan-2.7.md). **M39 is done** — Terraform state now lives in an encrypted,
-  versioned Azure Storage container with blob-lease locking (~$0/mo), shared-key access disabled, and
-  the local cleartext state deleted; `infra.yml` runs `fmt -check` + `validate`. **M40 is done** — the
-  cold-start baseline is measured and recorded in the journal above; it found app boot is only **2.0s**
-  (1.8s of it the Neon wake + migration check) against 14–26s of untouchable Azure platform latency, and
-  that **the image is re-pulled on every cold start** (no node affinity on Consumption). **M41 items 1–4
-  are done** — app boot 2.0s → 0.18s, migrations moved to the deploy pipeline behind
-  `Database__MigrateOnStartup=false`, Swagger/CORS gated to dev, and the chiseled base image at 340MB →
-  181MB on disk / 95.5MB → 53.5MB pulled. **ReadyToRun was cut from the plan outright** as net-negative
-  on an always-pulled image. **M41 step 5 re-measured it:** app boot −1.85s is real and repeatable, but
-  the image-size cut did **not** shorten the pull (latency-bound, not bandwidth-bound), and
-  `pull → container created` alone is 11–12s of Azure provisioning with no knob. Cold start still lands
-  at **16.7–22.5s**. **Next: M42** — the edge-served SPA, the only remaining change that alters what a
-  user actually experiences. **M41** cuts
-  the boot path — migrations move to a deploy-time EF bundle, plain `chiseled` base image, dev-only
-  Swagger, lazy S3 client. **M42** serves the SPA from a Cloudflare Worker with a same-origin `/api/*`
-  proxy, so the UI paints immediately instead of waiting out the container. The plan is written as a
-  step-by-step runbook — it's being executed by hand.
-- **Then: v2.8 — multilingual (EN/ES).** Layered i18n (react-i18next UI chrome · DB-authored checklist
+- **Shipped — v2.6 (M35–M38):** startup fail-fast · hard-delete · responsive navbar · catalog counting.
+- **Shipped — v2.7 (M39–M42):** remote Terraform state · cold-start baseline · API boot path ·
+  edge-served SPA.
+- **Next: v2.8 — multilingual (EN/ES).** Layered i18n (react-i18next UI chrome · DB-authored checklist
   translations · API message codes); the language selector deferred from M37 lands here. Outline lives at
-  the end of `build-plan-2.7.md`; write `build-plan-2.8.md` when it starts. **Keep the server
-  culture-free** — M41 ships `InvariantGlobalization=true`, which is safe only because all three i18n
-  layers translate in the browser or the DB.
+  the end of `build-plan-2.7.md`; write `build-plan-2.8.md` when it starts. **Spanish checklist content is
+  the gating input.** Keep the server culture-free — see Cross-cutting decisions.
 - **Then: Phase 2 — DSP stats** (the reason this exists over Notion/Trello): hang streaming/revenue data
   off the stable Artist / Release / **Song** / Track ids and the UPC/ISRC columns; the v2.0 Song ids are
   its foundation. Also real-Postgres tests. No build plan yet — write `build-plan-3.0.md` when it starts.
@@ -441,8 +327,8 @@ infra                    Terraform: azurerm + neon + cloudflare in one root modu
   conversions). The suite is green without it.
 - **Per-track task fan-out** on albums: registrations that repeat per track are single "per track" tasks
   today. Decide after the first real album.
-- Deferred: un-archive/restore (archives are terminal by rule); auth for hosted
-  deploys; absolute per-task due dates (v1.1 only added timeframe *ranges*). Also carried forward from
-  the M24 audit: the **seed-data 3-way drift hazard** (`SeedData.cs` → `InitialCreate` → snapshot, with
-  `DeterministicTaskId` renumbering every later GUID on a mid-list insert) — left as-is per CLAUDE.md's
-  hard-reset rule, noted here so Phase 2 doesn't rediscover it.
+- Deferred: un-archive/restore (archives are terminal by rule); auth for hosted deploys; absolute
+  per-task due dates (v1.1 only added timeframe *ranges*); a custom domain in front of the Worker. Also
+  carried forward from the M24 audit: the **seed-data 3-way drift hazard** (`SeedData.cs` →
+  `InitialCreate` → snapshot, with `DeterministicTaskId` renumbering every later GUID on a mid-list
+  insert) — left as-is per CLAUDE.md's hard-reset rule, noted here so Phase 2 doesn't rediscover it.
