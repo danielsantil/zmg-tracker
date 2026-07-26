@@ -7,7 +7,7 @@ import tseslint from 'typescript-eslint';
 // Flat config for the SPA (replaces oxlint). Mirrors the previous ruleset — rules-of-hooks as an
 // error, Fast-Refresh component-export hygiene as a warning — on top of the JS + TS recommended sets.
 export default tseslint.config(
-  { ignores: ['dist', 'node_modules'] },
+  { ignores: ['dist', 'node_modules', 'worker-configuration.d.ts'] },
   {
     files: ['**/*.{ts,tsx}'],
     extends: [js.configs.recommended, ...tseslint.configs.recommended],

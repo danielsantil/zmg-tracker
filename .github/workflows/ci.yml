@@ -127,3 +127,8 @@ jobs:
     secrets: inherit
     with:
       image_tag: ${{ needs.build.outputs.image_tag }}
+
+  deploy-web:
+    needs: deploy
+    uses: ./.github/workflows/web.yml
+    secrets: inherit

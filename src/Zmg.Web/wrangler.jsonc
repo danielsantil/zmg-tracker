@@ -1,0 +1,18 @@
+{
+  "name": "zmg-tracker",
+  "main": "worker.ts",
+  "compatibility_date": "2026-07-25",
+  "assets": {
+    // Built by `pnpm build:edge`. The regular `pnpm build` still targets
+    // ../Zmg.Api/wwwroot, because the container must keep serving the SPA standalone.
+    "directory": "./dist",
+    // Deep links like /catalog/<id> are client-side routes; serve index.html instead of 404.
+    "not_found_handling": "single-page-application",
+    // The Worker is invoked ONLY for these paths. Everything else is served from the edge without
+    // running any code — that's what keeps the UI fast while the container is still cold.
+    "run_worker_first": ["/api/*"]
+  },
+  "vars": {
+    "API_ORIGIN": "https://zmg-app.mangohill-c8bd3207.eastus.azurecontainerapps.io"
+  }
+}

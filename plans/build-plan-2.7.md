@@ -316,10 +316,11 @@ still serves the SPA standalone.
 ## M42 — Edge-served SPA (Cloudflare Worker + same-origin `/api` proxy)
 
 ```
-[ ] 1. Cloudflare API token (Workers Scripts · Edit)
-[ ] 2. wrangler.toml + worker.ts        ← Code change
-[ ] 3. build:edge script                ← Code change
-[ ] 4. Manual deploy, verify
+[x] 1. Cloudflare API token             "Edit Cloudflare Workers" template, R2 row removed
+[x] 2. wrangler.jsonc + worker.ts       ← Code change  (jsonc, not toml — Cloudflare's current rec)
+[x] 3. build:edge script                ← Code change  (+ tsconfig.worker.json, wrangler types)
+[x] 4. Manual deploy, verify          → https://zmg-tracker.zmg-app.workers.dev
+                                        shell 0.145s on a cold container; 3 API calls 200, no CORS
 [ ] 5. Early wake + loading hint        ← Code change
 [ ] 6. web.yml + secrets                ← Code change
 [ ] 7. Document in infra/README.md      ← Code change
