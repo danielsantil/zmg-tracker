@@ -76,14 +76,14 @@ export function ReleaseCalendar({
         <div className="flex items-center gap-1">
           <button
             onClick={() => setYm(addMonths(ym, -1))}
-            aria-label="Previous month"
+            aria-label={t('calendar.prevMonth')}
             className="rounded-lg px-2 py-1 text-muted hover:bg-edge hover:text-strong"
           >
             ‹
           </button>
           <button
             onClick={() => setYm(addMonths(ym, 1))}
-            aria-label="Next month"
+            aria-label={t('calendar.nextMonth')}
             className="rounded-lg px-2 py-1 text-muted hover:bg-edge hover:text-strong"
           >
             ›
@@ -94,14 +94,14 @@ export function ReleaseCalendar({
           onClick={() => setYm(monthOf(today))}
           className="rounded-lg bg-edge px-2.5 py-1 text-xs font-medium text-body hover:bg-edge/70"
         >
-          Today
+          {t('calendar.today')}
         </button>
         {next && (
           <button
             onClick={() => setYm(monthOf(next.releaseDate))}
             className="ml-auto truncate rounded-full bg-accent/15 px-2.5 py-1 text-xs font-medium text-accent ring-1 ring-accent/30 hover:bg-accent/25"
           >
-            Next release · {format.releaseDate(next.releaseDate)}
+            {t('calendar.nextRelease', { date: format.releaseDate(next.releaseDate) })}
           </button>
         )}
       </div>
@@ -160,7 +160,7 @@ export function ReleaseCalendar({
                     onClick={() => setSelected(iso)}
                     className="px-1.5 text-left text-[11px] text-muted hover:text-strong"
                   >
-                    +{day.length - 2} more
+                    {t('calendar.moreCount', { count: day.length - 2 })}
                   </button>
                 )}
               </div>
@@ -169,7 +169,7 @@ export function ReleaseCalendar({
               {day.length > 0 && (
                 <button
                   onClick={() => setSelected(iso)}
-                  aria-label={`${day.length} release${day.length > 1 ? 's' : ''} on ${iso}`}
+                  aria-label={t('calendar.dayAria', { count: day.length, date: iso })}
                   className="flex w-full flex-wrap justify-center gap-1 py-0.5 sm:hidden"
                 >
                   {day.slice(0, 3).map((r) => (

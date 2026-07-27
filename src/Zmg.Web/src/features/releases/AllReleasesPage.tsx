@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { api } from '@/api';
 import { useReleases, useArtists, queryKeys } from '@/api/queries';
 import type { ReleaseListItem } from '@/types';
@@ -36,6 +37,7 @@ const isView = (v: unknown): v is View => VIEWS.includes(v as View);
 
 export default function AllReleasesPage() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { toast, toastVariant, showToast } = useToast();
 
   // Sticky so the calendar doesn't silently revert to the table on every visit.
@@ -61,7 +63,7 @@ export default function AllReleasesPage() {
     confirm: (r) => archiveReleaseConfirm(r.id, r.title),
     mutate: (r) => api.releases.archive(r.id),
     invalidate: [queryKeys.releases(), queryKeys.pending, queryKeys.songs(), queryKeys.artists],
-    errorFallback: 'Failed to archive.',
+    errorFallback: t('releases.archiveFailed'),
     showToast,
   });
 
@@ -69,10 +71,10 @@ export default function AllReleasesPage() {
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold text-strong">Releases</h1>
-          <p className="text-sm text-muted">Every release, newest first.</p>
+          <h1 className="text-2xl font-semibold text-strong">{t('releases.title')}</h1>
+          <p className="text-sm text-muted">{t('releases.subtitle')}</p>
         </div>
-        <Button onClick={() => navigate('/releases/new')}>+ New release</Button>
+        <Button onClick={() => navigate('/releases/new')}>{t('releases.newRelease')}</Button>
       </div>
 
       <FilterBar onClear={hasFilters ? () => { setArtistId(''); setType(''); setStatus(''); setQ(''); } : undefined}>
@@ -90,20 +92,20 @@ export default function AllReleasesPage() {
               key={v}
               onClick={() => setView(v)}
               aria-pressed={view === v}
-              className={`rounded-md px-3 py-1 text-sm font-medium capitalize transition ${
+              className={`rounded-md px-3 py-1 text-sm font-medium transition ${
                 view === v ? 'bg-edge text-strong' : 'text-muted hover:text-body'
               }`}
             >
-              {v}
+              {t(`releases.view.${v}`)}
             </button>
           ))}
         </div>
         <Link to="/releases/archived" className="text-sm text-muted hover:text-accent">
-          Archived Releases →
+          {t('releases.archivedLink')}
         </Link>
       </div>
 
-      <ErrorBanner error={error ? 'Failed to load releases.' : null} />
+      <ErrorBanner error={error ? t('releases.loadFailed') : null} />
 
       {isLoading ? (
         <Loading />
@@ -111,14 +113,14 @@ export default function AllReleasesPage() {
         /* The calendar reuses the fetched, already-filtered list — an empty month speaks for itself. */
         <ReleaseCalendar releases={releases} onArchive={archive} />
       ) : releases.length === 0 ? (
-        <EmptyState>{hasFilters ? 'No releases match these filters.' : 'No releases yet.'}</EmptyState>
+        <EmptyState>{hasFilters ? t('releases.emptyFiltered') : t('releases.empty')}</EmptyState>
       ) : (
         <DataTable
           headers={[
-            { label: 'Name' },
-            { label: 'Type', className: 'hidden sm:table-cell' },
-            { label: 'Released Date' },
-            { label: 'Status', className: 'hidden sm:table-cell' },
+            { label: t('releases.table.name') },
+            { label: t('releases.table.type'), className: 'hidden sm:table-cell' },
+            { label: t('releases.table.releasedDate') },
+            { label: t('releases.table.status'), className: 'hidden sm:table-cell' },
             { label: '', className: 'text-right' },
           ]}
         >
@@ -151,16 +153,16 @@ export default function AllReleasesPage() {
               </td>
               <td className="px-4 py-3 text-right">
                 <div onClick={(e) => e.stopPropagation()} className="flex justify-end">
-                  <RowMenu label="Release actions">
+                  <RowMenu label={t('releases.rowActions')}>
                     {(close) => (
                       <>
                         <MenuItem onClick={() => { close(); void navigate(`/releases/${r.id}/edit`); }}>
-                          Edit
+                          {t('common.edit')}
                         </MenuItem>
                         {/* Archive affordance follows the server's canArchive (upcoming & not archived). */}
                         {r.canArchive && (
                           <MenuItem tone="archive" onClick={() => { close(); void archive(r); }}>
-                            Archive
+                            {t('common.archive')}
                           </MenuItem>
                         )}
                       </>

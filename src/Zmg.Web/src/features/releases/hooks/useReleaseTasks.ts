@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { api, errorMessage } from '@/api';
 import { queryKeys } from '@/api/queries';
 import type { Phase, ReleaseTaskDto } from '@/types';
@@ -19,6 +20,7 @@ export function useReleaseTasks(
   initial: ReleaseTaskDto[],
   showToast: (msg: string) => void,
 ) {
+  const { t } = useTranslation();
   const confirm = useConfirm();
   const queryClient = useQueryClient();
   const [tasks, setTasks] = useState<ReleaseTaskDto[]>(initial);
@@ -44,7 +46,7 @@ export function useReleaseTasks(
       refreshPending();
     } catch (e) {
       setTasks((ts) => ts.map((t) => (t.id === task.id ? task : t)));
-      showToast(errorMessage(e, 'Could not save — reverted.'));
+      showToast(errorMessage(e, t('tasks.errors.saveReverted')));
     }
   }
 
@@ -53,7 +55,7 @@ export function useReleaseTasks(
       const created = await api.tasks.add(id, { title, phase });
       setTasks((ts) => [...ts, created]);
     } catch (e) {
-      showToast(errorMessage(e, 'Could not add task.'));
+      showToast(errorMessage(e, t('tasks.errors.add')));
     }
   }
 
@@ -70,7 +72,7 @@ export function useReleaseTasks(
       });
       setTasks((ts) => ts.map((t) => (t.id === saved.id ? saved : t)));
     } catch (e) {
-      showToast(errorMessage(e, 'Could not save task.'));
+      showToast(errorMessage(e, t('tasks.errors.save')));
     }
   }
 
@@ -89,7 +91,7 @@ export function useReleaseTasks(
       await api.tasks.delete(task.id);
     } catch (e) {
       setTasks(prev);
-      showToast(errorMessage(e, 'Could not delete task.'));
+      showToast(errorMessage(e, t('tasks.errors.delete')));
     }
   }
 
@@ -108,7 +110,7 @@ export function useReleaseTasks(
       await api.tasks.reorder(id, { phase: task.phase, orderedTaskIds: list.map((t) => t.id) });
     } catch (e) {
       setTasks(prev);
-      showToast(errorMessage(e, 'Could not reorder.'));
+      showToast(errorMessage(e, t('tasks.errors.reorder')));
     }
   }
 

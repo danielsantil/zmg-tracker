@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import type { PendingAction } from '@/types';
 import { PendingKind } from '@/types';
 
@@ -8,10 +9,11 @@ import { PendingKind } from '@/types';
  * rows for the release's songs link into the catalog. Other data items (missing UPC, empty album) don't.
  */
 export function NeedsAttention({ actions }: { actions: PendingAction[] }) {
+  const { t } = useTranslation();
   return (
     <div className="mb-6 overflow-hidden rounded-xl border border-warn/25 bg-warn/[0.06]">
       <div className="border-b border-warn/20 px-4 py-2.5 text-sm font-semibold text-warnFg">
-        Needs attention
+        {t('releases.detail.needsAttention')}
       </div>
       <ul className="px-4 py-2">
         {actions.map((a, i) => (
@@ -26,7 +28,10 @@ export function NeedsAttention({ actions }: { actions: PendingAction[] }) {
             )}
             {a.kind === PendingKind.TaskDue && a.daysToRelease != null && (
               <span className="text-xs text-accent">
-                — {a.daysToRelease === 0 ? 'releases today' : `${a.daysToRelease} days to release`}
+                —{' '}
+                {a.daysToRelease === 0
+                  ? t('pending.inline.releasesToday')
+                  : t('pending.inline.daysToRelease', { count: a.daysToRelease })}
               </span>
             )}
           </li>

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Phase } from '@/types';
 import { MenuItem, ReorderArrows, RowMenu, inputClass } from '@/components';
 import { useFormatters } from '@/hooks/useFormatters';
@@ -49,6 +50,7 @@ export function TaskRow<T extends ChecklistTask>({
   onDelete: (t: T) => void;
   onMove: (t: T, dir: -1 | 1) => void;
 }) {
+  const { t } = useTranslation();
   const [editing, setEditing] = useState<'title' | 'notes' | 'timeframe' | null>(null);
   const [draft, setDraft] = useState('');
 
@@ -118,7 +120,7 @@ export function TaskRow<T extends ChecklistTask>({
               <span className="ml-2 whitespace-nowrap text-xs text-accent/80">· {timeframe}</span>
             )}
             {supportsNotes && notes && (
-              <span className="ml-1.5 text-xs text-subtle" title="Has notes" aria-label="Has notes">
+              <span className="ml-1.5 text-xs text-subtle" title={t('tasks.hasNotes')} aria-label={t('tasks.hasNotes')}>
                 ✎
               </span>
             )}
@@ -132,20 +134,20 @@ export function TaskRow<T extends ChecklistTask>({
               <RowMenu>
                 {(close) => (
                   <>
-                    <MenuItem onClick={() => { close(); startEdit('title'); }}>Rename</MenuItem>
+                    <MenuItem onClick={() => { close(); startEdit('title'); }}>{t('common.rename')}</MenuItem>
                     {supportsNotes && (
                       <MenuItem onClick={() => { close(); startEdit('notes'); }}>
-                        {notes ? 'Edit notes' : 'Add notes'}
+                        {notes ? t('tasks.editNotes') : t('tasks.addNotes')}
                       </MenuItem>
                     )}
                     {task.phase === Phase.Pre && (
                       <MenuItem onClick={() => { close(); setEditing('timeframe'); }}>
-                        {timeframe ? 'Edit timeframe' : 'Set timeframe'}
+                        {timeframe ? t('tasks.editTimeframe') : t('tasks.setTimeframe')}
                       </MenuItem>
                     )}
                     <MovePhaseItems task={task} onUpdate={onUpdate} close={close} />
                     <MenuItem tone="danger" onClick={() => { close(); onDelete(task); }}>
-                      Delete
+                      {t('common.delete')}
                     </MenuItem>
                   </>
                 )}
@@ -161,7 +163,7 @@ export function TaskRow<T extends ChecklistTask>({
             autoFocus
             rows={2}
             className={inputClass}
-            placeholder="Notes"
+            placeholder={t('tasks.notesPlaceholder')}
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onBlur={saveEdit}

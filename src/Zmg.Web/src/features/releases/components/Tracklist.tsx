@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import type { Artist, SongArtistInput, SongListItem } from '@/types';
 import { InlineAddForm, ReorderArrows } from '@/components';
 import { SongPickerModal } from '@/features/catalog/components/SongPickerModal';
@@ -47,8 +48,8 @@ export function Tracklist({
   onRemove,
   onAddNew,
   onAddExisting,
-  heading = 'Tracklist',
-  emptyText = 'No tracks yet.',
+  heading,
+  emptyText,
 }: {
   rows: TracklistRow[];
   readOnly?: boolean;
@@ -65,18 +66,19 @@ export function Tracklist({
   heading?: string;
   emptyText?: string;
 }) {
+  const { t } = useTranslation();
   const [pickerOpen, setPickerOpen] = useState(false);
   const editable = !readOnly;
 
   return (
     <section className="overflow-hidden rounded-xl border border-edge bg-panel">
       <div className="px-4 py-3 font-semibold text-strong">
-        {heading} <span className="text-sm font-normal text-muted">({rows.length})</span>
+        {heading ?? t('tracks.heading')} <span className="text-sm font-normal text-muted">({rows.length})</span>
       </div>
 
       <div className="border-t border-edge">
         {rows.length === 0 ? (
-          <p className="px-4 py-3 text-sm text-subtle">{emptyText}</p>
+          <p className="px-4 py-3 text-sm text-subtle">{emptyText ?? t('tracks.empty')}</p>
         ) : (
           <ul>
             {rows.map((row, i) => (
@@ -89,7 +91,7 @@ export function Tracklist({
                   {onToggleFocus && (
                     <button
                       type="button"
-                      aria-label={row.isFocusTrack ? 'Unset focus track' : 'Set focus track'}
+                      aria-label={row.isFocusTrack ? t('tracks.unsetFocus') : t('tracks.setFocus')}
                       aria-pressed={row.isFocusTrack}
                       disabled={!editable}
                       onClick={() => onToggleFocus(row)}
@@ -109,8 +111,8 @@ export function Tracklist({
                     ) : (
                       <span className="text-strong">{row.title}</span>
                     )}
-                    {row.isFocusTrack && <span className="ml-2 text-xs text-warnFg/80">focus</span>}
-                    {row.isSongArchived && <span className="ml-2 text-xs text-subtle">archived</span>}
+                    {row.isFocusTrack && <span className="ml-2 text-xs text-warnFg/80">{t('tracks.focus')}</span>}
+                    {row.isSongArchived && <span className="ml-2 text-xs text-subtle">{t('tracks.archived')}</span>}
                     {row.isrc && <span className="ml-2 text-xs text-subtle">{row.isrc}</span>}
                   </span>
 
@@ -123,7 +125,7 @@ export function Tracklist({
                       />
                       <button
                         type="button"
-                        aria-label="Remove track"
+                        aria-label={t('tracks.removeTrack')}
                         onClick={() => onRemove(row)}
                         className="ml-3 px-1.5 text-dangerFg/70 hover:text-dangerFg"
                       >
@@ -145,8 +147,8 @@ export function Tracklist({
               <NewTrackForm artists={artists} mainArtistId={mainArtistId} onAdd={onAddNew} />
             ) : (
               <InlineAddForm
-                addLabel="+ Add track"
-                placeholder="New track title"
+                addLabel={t('tracks.addTrack')}
+                placeholder={t('tracks.newTrackTitle')}
                 onAdd={(title) => onAddNew({ title, isrc: null, artists: [] })}
               />
             )}
@@ -157,10 +159,10 @@ export function Tracklist({
                 onClick={() => setPickerOpen(true)}
                 className="rounded-lg px-2 py-1.5 text-sm text-muted hover:text-accent disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:text-muted"
               >
-                + Add existing song
+                {t('tracks.addExisting')}
               </button>
               {!mainArtistId && (
-                <span className="ml-2 text-xs text-subtle">Pick a main artist first</span>
+                <span className="ml-2 text-xs text-subtle">{t('tracks.pickArtistFirst')}</span>
               )}
             </div>
           </>

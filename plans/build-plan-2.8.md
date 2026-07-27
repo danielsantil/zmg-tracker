@@ -65,13 +65,13 @@ M48 is seed data + one SPA screen → full `dotnet test`.
 ## M43 — i18n foundation + language selector
 
 ```
-[ ] 1. Add i18next + react-i18next            ← pnpm add
-[ ] 2. src/i18n/ — init, resources, guard      ← Code change
-[ ] 3. useLanguage + pre-paint <html lang>     ← Code change
-[ ] 4. LanguageToggle in the navbar            ← Code change  (the M37 deferral)
-[ ] 5. Locale-aware dates + counted phrases    ← Code change  (lib/format.ts)
-[ ] 6. Enum/status/phase label maps → t()      ← Code change
-[ ] 7. Key-parity test                         ← Code change
+[x] 1. Add i18next + react-i18next             i18next 26.3.6 / react-i18next 17.0.11
+[x] 2. src/i18n/ — init, resources, guard      ← Code change  (+ typed t() off en.json)
+[x] 3. useLanguage + pre-paint <html lang>     ← Code change  (folded into the theme IIFE)
+[x] 4. LanguageToggle in the navbar            ← Code change  (the M37 deferral)
+[x] 5. Locale-aware dates + counted phrases    ← Code change  (+ useFormatters, lib/calendar too)
+[x] 6. Enum/status/phase label maps → t()      ← Code change
+[x] 7. Key-parity test                         ← Code change  (web 32 → 50 tests)
 ```
 
 Everything the later string sweeps depend on, plus enough real translation that the toggle visibly does
@@ -156,11 +156,17 @@ desktop, confirm the choice survives a reload and that `<html lang>` flips. No `
 ## M44 — SPA strings: home + releases
 
 ```
-[ ] 1. features/home + PendingSection
-[ ] 2. features/releases pages (list, archived, form, detail)
-[ ] 3. features/releases/components (13 files)
-[ ] 4. Toast/confirm/error copy on those paths
+[x] 1. features/home + PendingSection
+[x] 2. features/releases pages (list, archived, form, detail)
+[x] 3. features/releases/components (13 files)
+[x] 4. Toast/confirm/error copy on those paths
+[x] 5. Shared components/** those pages render   ← scope pulled forward from M45
 ```
+
+**Scope note (landed).** Step 5 was M45's in the original split, but Home and Releases render
+`FilterBar` / `Loading` / `ConfirmDialog` / `RowMenu` / `ReorderArrows` / `ProgressBar` directly — leaving
+them English would have left exactly the half-translated section this milestone exists to avoid. They're
+~30 strings, so they moved here and **M45 is now catalog + artists + templates only**.
 
 The big slice: ~130 of the ~250 strings, and every hard case (pluralization, interpolated titles,
 confirm dialogs, `aria-label`s). **This is the one milestone that is not independently shippable

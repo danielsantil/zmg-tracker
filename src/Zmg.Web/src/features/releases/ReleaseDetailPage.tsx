@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
+import { Trans, useTranslation } from 'react-i18next';
 import { api, errorMessage } from '@/api';
 import { useRelease, usePendingByRelease, useArtists, queryKeys } from '@/api/queries';
 import type { ReleaseDetail } from '@/types';
@@ -21,10 +22,11 @@ import { useReleaseTracks } from './hooks/useReleaseTracks';
 
 export default function ReleaseDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const { t } = useTranslation();
   const { data: release, isLoading, error } = useRelease(id);
 
   if (isLoading) return <Loading />;
-  if (error) return <ErrorBanner error="Failed to load release." />;
+  if (error) return <ErrorBanner error={t('releases.detail.loadFailed')} />;
   if (!release) return null;
 
   // Inner view receives a guaranteed release, so id and the loaded data are never null below.
@@ -33,6 +35,7 @@ export default function ReleaseDetailPage() {
 
 function ReleaseDetailView({ release }: { release: ReleaseDetail }) {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const goBack = useBackNavigation();
   const confirm = useConfirm();
   const queryClient = useQueryClient();
@@ -74,7 +77,7 @@ function ReleaseDetailView({ release }: { release: ReleaseDetail }) {
       void queryClient.invalidateQueries({ queryKey: queryKeys.pending });
       void queryClient.invalidateQueries({ queryKey: queryKeys.songs() });
     } catch (e) {
-      showToast(errorMessage(e, 'Could not archive.'));
+      showToast(errorMessage(e, t('releases.detail.archiveFailed')));
     }
   }
 
@@ -87,18 +90,18 @@ function ReleaseDetailView({ release }: { release: ReleaseDetail }) {
     <div>
       <div className="mb-4 flex items-center justify-between">
         <button onClick={goBack} className="text-sm text-muted hover:text-body">
-          ‹ Releases
+          {t('releases.detail.back')}
         </button>
         {readOnly ? (
-          <span className="text-sm text-subtle">Archived — read only</span>
+          <span className="text-sm text-subtle">{t('releases.detail.readOnly')}</span>
         ) : (
           <div className="flex items-center gap-2">
             <Button variant="ghost" onClick={() => navigate(`/releases/${release.id}/edit`)}>
-              Edit
+              {t('common.edit')}
             </Button>
             {canArchive && (
               <Button variant="archive" onClick={archive}>
-                Archive
+                {t('common.archive')}
               </Button>
             )}
           </div>
@@ -154,15 +157,18 @@ function ReleaseDetailView({ release }: { release: ReleaseDetail }) {
         ))}
       </div>
 
-      <Modal open={!!dupPrompt} onClose={() => setDupPrompt(null)} title="Song already exists">
+      <Modal open={!!dupPrompt} onClose={() => setDupPrompt(null)} title={t('releases.detail.dupSong.title')}>
         {dupPrompt && (
           <div className="space-y-4">
             <p className="text-sm text-body">
-              A song titled <span className="font-medium text-strong">“{dupPrompt.title}”</span> already
-              exists for {release.mainArtistName}.{' '}
+              <Trans
+                i18nKey="releases.detail.dupSong.body"
+                values={{ title: dupPrompt.title, artist: release.mainArtistName }}
+                components={{ songTitle: <span className="font-medium text-strong" /> }}
+              />{' '}
               {dupPrompt.onRelease
-                ? "It's already on this release — change the name to add a different song."
-                : 'Add the existing song to this release, or change the name.'}
+                ? t('releases.detail.dupSong.onRelease')
+                : t('releases.detail.dupSong.elsewhere')}
             </p>
             <div className="flex gap-2">
               {dupPrompt.existing && !dupPrompt.onRelease && (
@@ -174,11 +180,11 @@ function ReleaseDetailView({ release }: { release: ReleaseDetail }) {
                     await addExistingTrack(song.id);
                   }}
                 >
-                  Add existing song
+                  {t('releases.detail.dupSong.addExisting')}
                 </Button>
               )}
               <Button variant="ghost" onClick={() => setDupPrompt(null)}>
-                Change the name
+                {t('releases.detail.dupSong.rename')}
               </Button>
             </div>
           </div>

@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button } from './Button';
 import { Modal } from './Modal';
 
@@ -24,6 +25,7 @@ export function ConfirmDialog({
   options: ConfirmOptions | null;
   onResolve: (confirmed: boolean) => void;
 }) {
+  const { t } = useTranslation();
   const open = options !== null;
 
   useEffect(() => {
@@ -41,11 +43,11 @@ export function ConfirmDialog({
       <div className="mt-5 flex justify-end gap-2">
         {!options?.hideCancel && (
           <Button variant="ghost" onClick={() => onResolve(false)}>
-            {options?.cancelLabel ?? 'Cancel'}
+            {options?.cancelLabel ?? t('common.cancel')}
           </Button>
         )}
         <Button variant={options?.confirmVariant ?? 'primary'} onClick={() => onResolve(true)}>
-          {options?.confirmLabel ?? 'Confirm'}
+          {options?.confirmLabel ?? t('common.confirm')}
         </Button>
       </div>
     </Modal>

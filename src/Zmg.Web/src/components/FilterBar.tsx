@@ -1,7 +1,9 @@
 import type { ReactNode } from 'react';
-import type { Artist } from '@/types';
+import { useTranslation } from 'react-i18next';
+import type { Artist, ReleaseStatus } from '@/types';
 import { Button } from './Button';
 import { inputClass } from './Field';
+import { statusLabelKeys } from '@/lib/status';
 
 /**
  * The filter row shared by Home / All Releases / Catalog: a wrapping flex of controls, an optional
@@ -18,12 +20,13 @@ export function FilterBar({
   onClear?: () => void;
   trailing?: ReactNode;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="mb-5 flex flex-wrap items-center gap-3">
       {children}
       {onClear && (
         <Button variant="ghost" onClick={onClear}>
-          Clear
+          {t('common.clear')}
         </Button>
       )}
       {trailing}
@@ -41,9 +44,10 @@ export function ArtistSelect({
   value: string;
   onChange: (id: string) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <select className={`${inputClass} max-w-[12rem]`} value={value} onChange={(e) => onChange(e.target.value)}>
-      <option value="">All artists</option>
+      <option value="">{t('filters.allArtists')}</option>
       {artists.map((a) => (
         <option key={a.id} value={a.id}>
           {a.name}
@@ -55,16 +59,17 @@ export function ArtistSelect({
 
 /** Single/Album type filter. Value is the enum as a string ('' = all), matching the query param. */
 export function TypeSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const { t } = useTranslation();
   return (
     <select className={`${inputClass} max-w-[10rem]`} value={value} onChange={(e) => onChange(e.target.value)}>
-      <option value="">All types</option>
-      <option value="0">Single</option>
-      <option value="1">Album</option>
+      <option value="">{t('filters.allTypes')}</option>
+      <option value="0">{t('releaseType.single')}</option>
+      <option value="1">{t('releaseType.album')}</option>
     </select>
   );
 }
 
-/** Status filter; the available statuses differ per page, so callers pass them. */
+/** Status filter; the available statuses differ per page, so callers pass them (as server codes). */
 export function StatusSelect({
   value,
   onChange,
@@ -72,14 +77,15 @@ export function StatusSelect({
 }: {
   value: string;
   onChange: (v: string) => void;
-  options: string[];
+  options: ReleaseStatus[];
 }) {
+  const { t } = useTranslation();
   return (
     <select className={`${inputClass} max-w-[10rem]`} value={value} onChange={(e) => onChange(e.target.value)}>
-      <option value="">All statuses</option>
+      <option value="">{t('filters.allStatuses')}</option>
       {options.map((s) => (
         <option key={s} value={s}>
-          {s}
+          {t(statusLabelKeys[s])}
         </option>
       ))}
     </select>
@@ -90,16 +96,17 @@ export function StatusSelect({
 export function SearchInput({
   value,
   onChange,
-  placeholder = 'Search by title…',
+  placeholder,
 }: {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
 }) {
+  const { t } = useTranslation();
   return (
     <input
       className={`${inputClass} max-w-[16rem]`}
-      placeholder={placeholder}
+      placeholder={placeholder ?? t('filters.searchByTitle')}
       value={value}
       onChange={(e) => onChange(e.target.value)}
     />

@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import type { ReleaseListItem } from '@/types';
 import { MenuItem, ProgressBar, RowMenu, SoftWarning, StatusBadge, TypeBadge } from '@/components';
 import { useFormatters } from '@/hooks/useFormatters';
@@ -22,6 +23,7 @@ export function ReleaseCard({
   showCover?: boolean;
   showOpenLink?: boolean;
 }) {
+  const { t } = useTranslation();
   const format = useFormatters();
   const countdown = format.countdown(r.releaseDate);
 
@@ -47,7 +49,7 @@ export function ReleaseCard({
             <div className="flex shrink-0 items-center gap-1.5">
               <SoftWarning warnings={r.warnings} />
               <StatusBadge status={r.status} />
-              <RowMenu label="Release actions">
+              <RowMenu label={t('releases.rowActions')}>
                 {(close) => (
                   <>
                     <MenuItem
@@ -87,12 +89,12 @@ export function ReleaseCard({
             done={r.doneTasks}
             total={r.totalTasks}
             slim
-            label={`${r.doneTasks} / ${r.totalTasks} tasks`}
+            label={t('progress.tasks', { done: r.doneTasks, total: r.totalTasks })}
           />
         </div>
         {showOpenLink && (
           <button onClick={onOpen} className="w-fit text-left text-sm text-accent hover:underline">
-            Open release →
+            {t('releases.openRelease')}
           </button>
         )}
       </div>

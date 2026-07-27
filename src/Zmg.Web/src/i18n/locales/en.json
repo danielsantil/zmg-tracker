@@ -1,4 +1,28 @@
 {
+  "common": {
+    "add": "Add",
+    "adding": "Adding…",
+    "archive": "Archive",
+    "cancel": "Cancel",
+    "cannotBeUndone": "This can't be undone.",
+    "change": "Change",
+    "clear": "Clear",
+    "confirm": "Confirm",
+    "delete": "Delete",
+    "edit": "Edit",
+    "goBack": "Go back",
+    "loading": "Loading...",
+    "moveDown": "Move down",
+    "moveUp": "Move up",
+    "optional": "Optional",
+    "or": "or",
+    "rename": "Rename",
+    "save": "Save",
+    "saveChanges": "Save changes",
+    "saving": "Saving…",
+    "stillLoading": "Still loading...",
+    "taskActions": "Task actions"
+  },
   "nav": {
     "home": "Home",
     "releases": "Releases",
@@ -31,8 +55,11 @@
     "release": "Release",
     "post": "Post"
   },
-  "tasks": {
-    "moveToPhase": "Move to {{phase}}"
+  "filters": {
+    "allArtists": "All artists",
+    "allTypes": "All types",
+    "allStatuses": "All statuses",
+    "searchByTitle": "Search by title…"
   },
   "countdown": {
     "today": "Releasing today",
@@ -53,6 +80,201 @@
       "thu": "Thu",
       "fri": "Fri",
       "sat": "Sat"
+    },
+    "prevMonth": "Previous month",
+    "nextMonth": "Next month",
+    "today": "Today",
+    "nextRelease": "Next release · {{date}}",
+    "moreCount_one": "+{{count}} more",
+    "moreCount_other": "+{{count}} more",
+    "dayAria_one": "{{count}} release on {{date}}",
+    "dayAria_other": "{{count}} releases on {{date}}"
+  },
+  "home": {
+    "title": "Home",
+    "subtitle": "Upcoming releases and what needs your attention.",
+    "loadFailed": "Failed to load home.",
+    "empty": {
+      "title": "No upcoming releases.",
+      "createHint": "Create one from the <newRelease>New release</newRelease> form, or browse <all>All Releases</all>.",
+      "artistHint": "Start by adding an artist on the <artists>Artists</artists> page."
     }
+  },
+  "pending": {
+    "title": "Pending Tasks",
+    "data": "Data",
+    "releasesToday": "Releases today",
+    "daysToRelease_one": "{{count}} day to release",
+    "daysToRelease_other": "{{count}} days to release",
+    "inline": {
+      "releasesToday": "releases today",
+      "daysToRelease_one": "{{count}} day to release",
+      "daysToRelease_other": "{{count}} days to release"
+    }
+  },
+  "releases": {
+    "title": "Releases",
+    "subtitle": "Every release, newest first.",
+    "newRelease": "+ New release",
+    "loadFailed": "Failed to load releases.",
+    "archiveFailed": "Failed to archive.",
+    "deleteFailed": "Failed to delete.",
+    "empty": "No releases yet.",
+    "emptyFiltered": "No releases match these filters.",
+    "archivedLink": "Archived Releases →",
+    "rowActions": "Release actions",
+    "view": {
+      "table": "Table",
+      "calendar": "Calendar"
+    },
+    "table": {
+      "name": "Name",
+      "type": "Type",
+      "releasedDate": "Released Date",
+      "status": "Status"
+    },
+    "deleteConfirm": {
+      "title": "Delete \"{{title}}\"?"
+    },
+    "archiveConfirm": {
+      "title": "Archive \"{{title}}\"?",
+      "cascade": "These new songs will be archived too (they haven't been released elsewhere):"
+    },
+    "archived": {
+      "back": "‹ All Releases",
+      "title": "Archived Releases",
+      "subtitle": "Archived releases are read-only and can't be restored.",
+      "loadFailed": "Failed to load archived releases.",
+      "empty": "No archived releases."
+    },
+    "detail": {
+      "back": "‹ Releases",
+      "loadFailed": "Failed to load release.",
+      "archiveFailed": "Could not archive.",
+      "readOnly": "Archived — read only",
+      "needsAttention": "Needs attention",
+      "song": "Song",
+      "isrcValue": "ISRC {{isrc}}",
+      "noIsrc": "No ISRC",
+      "dupSong": {
+        "title": "Song already exists",
+        "body": "A song titled <songTitle>“{{title}}”</songTitle> already exists for {{artist}}.",
+        "onRelease": "It's already on this release — change the name to add a different song.",
+        "elsewhere": "Add the existing song to this release, or change the name.",
+        "addExisting": "Add existing song",
+        "rename": "Change the name"
+      }
+    },
+    "form": {
+      "createTitle": "New release",
+      "editTitle": "Edit release",
+      "createRelease": "Create release",
+      "keepEditing": "Keep editing",
+      "savedWithWarnings": "Saved with warnings:",
+      "saveFailed": "Failed to save release.",
+      "needArtist": "You need at least one artist before creating a release.",
+      "goToArtists": "Go to Artists",
+      "templateHint_one": "Checklist will start from the {{template}} template ({{count}} task).",
+      "templateHint_other": "Checklist will start from the {{template}} template ({{count}} tasks).",
+      "fields": {
+        "title": "Title",
+        "mainArtist": "Main artist",
+        "releaseType": "Release type",
+        "releaseDate": "Release date",
+        "upc": "UPC",
+        "notes": "Notes"
+      },
+      "hints": {
+        "upc": "Optional — blank until DSP distribution"
+      },
+      "placeholders": {
+        "title": "e.g. Luz",
+        "upc": "e.g. 0123456789012"
+      },
+      "errors": {
+        "titleRequired": "Release title is required.",
+        "dateRequired": "Release date is required.",
+        "singleOneTrack": "A single must have exactly one track.",
+        "trackNeedsTitle": "Every new track needs a title (or pick an existing song)."
+      }
+    },
+    "openRelease": "Open release →"
+  },
+  "tasks": {
+    "addTask": "+ Add task",
+    "newTaskTitle": "New task title",
+    "emptyPhase": "No tasks in this phase.",
+    "hasNotes": "Has notes",
+    "addNotes": "Add notes",
+    "editNotes": "Edit notes",
+    "notesPlaceholder": "Notes",
+    "setTimeframe": "Set timeframe",
+    "editTimeframe": "Edit timeframe",
+    "moveToPhase": "Move to {{phase}}",
+    "timeframeEditor": {
+      "label": "Days before release:",
+      "min": "min",
+      "max": "max"
+    },
+    "errors": {
+      "add": "Could not add task.",
+      "save": "Could not save task.",
+      "saveReverted": "Could not save — reverted.",
+      "delete": "Could not delete task.",
+      "reorder": "Could not reorder."
+    }
+  },
+  "tracks": {
+    "heading": "Tracklist",
+    "empty": "No tracks yet.",
+    "track": "Track",
+    "tracks": "Tracks",
+    "singleHint": "A single has exactly one song",
+    "albumHint": "Add the songs on this album",
+    "albumEmpty": "No tracks yet — an album can be created empty and filled in later.",
+    "addTrack": "+ Add track",
+    "newTrackTitle": "New track title",
+    "songTitle": "Song title",
+    "untitled": "Untitled song",
+    "isrcOptional": "ISRC (optional)",
+    "detailsOptional": "Details (optional)",
+    "addExisting": "+ Add existing song",
+    "addExistingShort": "Add existing song",
+    "fromCatalog": "from catalog",
+    "pickArtistFirst": "Pick a main artist first",
+    "setFocus": "Set focus track",
+    "unsetFocus": "Unset focus track",
+    "focus": "focus",
+    "archived": "archived",
+    "removeTrack": "Remove track",
+    "removeConfirm": {
+      "title": "Remove \"{{title}}\" from this release?",
+      "body": "The song stays in the catalog.",
+      "confirm": "Remove"
+    },
+    "errors": {
+      "addTrack": "Could not add track.",
+      "addSong": "Could not add song.",
+      "saveReverted": "Could not save — reverted.",
+      "removeTrack": "Could not remove track.",
+      "reorder": "Could not reorder."
+    }
+  },
+  "cover": {
+    "label": "Cover",
+    "replace": "Replace",
+    "remove": "Remove",
+    "use": "Use",
+    "replaceAria": "Replace cover image",
+    "uploadAria": "Upload cover image",
+    "hint": "PNG, JPEG or WebP, up to 5 MB — or <pasteUrl>paste an image URL</pasteUrl>.",
+    "badType": "Cover must be a PNG, JPEG or WebP image.",
+    "tooLarge": "Cover image must be 5 MB or smaller.",
+    "uploadFailed": "Could not upload that image."
+  },
+  "progress": {
+    "done": "{{done}}/{{total}} done",
+    "donePercent": "{{done}}/{{total}} done · {{pct}}%",
+    "tasks": "{{done}} / {{total}} tasks"
   }
 }

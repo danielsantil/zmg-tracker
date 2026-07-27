@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import type { ReleaseDetail } from '@/types';
 import { ProgressBar, SoftWarning, StatusBadge, TypeBadge } from '@/components';
 import { useFormatters } from '@/hooks/useFormatters';
@@ -11,6 +12,7 @@ export function ReleaseHeader({
   done: number;
   total: number;
 }) {
+  const { t } = useTranslation();
   const format = useFormatters();
   const countdown = format.countdown(release.releaseDate);
 
@@ -38,7 +40,7 @@ export function ReleaseHeader({
         <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
           <TypeBadge type={release.type} />
           <span className="whitespace-nowrap">{release.releaseDate}</span>
-          <span className="whitespace-nowrap">· {done}/{total} done</span>
+          <span className="whitespace-nowrap">· {t('progress.done', { done, total })}</span>
           {countdown && <span className="whitespace-nowrap text-accent">· {countdown}</span>}
         </div>
         <div className="mt-3">

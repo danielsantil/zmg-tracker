@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { api, ApiError, errorMessage, DUPLICATE_SONG_TITLE_MESSAGE } from '@/api';
 import { queryKeys } from '@/api/queries';
 import type { ReleaseDetail, SongListItem, TrackDto } from '@/types';
@@ -17,6 +18,7 @@ export function useReleaseTracks(
   initial: TrackDto[],
   showToast: (msg: string) => void,
 ) {
+  const { t } = useTranslation();
   const confirm = useConfirm();
   const queryClient = useQueryClient();
   const id = release.id;
@@ -76,7 +78,7 @@ export function useReleaseTracks(
         await promptDuplicate(draft.title);
         return false;
       }
-      showToast(errorMessage(e, 'Could not add track.'));
+      showToast(errorMessage(e, t('tracks.errors.addTrack')));
       return false;
     }
   }
@@ -103,7 +105,7 @@ export function useReleaseTracks(
       setTracks((ts) => [...ts, created]);
       refreshData();
     } catch (e) {
-      showToast(errorMessage(e, 'Could not add song.'));
+      showToast(errorMessage(e, t('tracks.errors.addSong')));
     }
   }
 
@@ -115,16 +117,16 @@ export function useReleaseTracks(
       setTracks((ts) => ts.map((t) => (t.songId === saved.songId ? saved : t)));
     } catch (e) {
       setTracks((ts) => ts.map((t) => (t.songId === target.songId ? target : t)));
-      showToast(errorMessage(e, 'Could not save — reverted.'));
+      showToast(errorMessage(e, t('tracks.errors.saveReverted')));
     }
   }
 
   async function removeTrack(target: TrackDto) {
     if (
       !(await confirm({
-        title: `Remove "${target.title}" from this release?`,
-        body: <p>The song stays in the catalog.</p>,
-        confirmLabel: 'Remove',
+        title: t('tracks.removeConfirm.title', { title: target.title }),
+        body: <p>{t('tracks.removeConfirm.body')}</p>,
+        confirmLabel: t('tracks.removeConfirm.confirm'),
         confirmVariant: 'danger',
       }))
     )
@@ -142,7 +144,7 @@ export function useReleaseTracks(
       refreshData();
     } catch (e) {
       setTracks(prev);
-      showToast(errorMessage(e, 'Could not remove track.'));
+      showToast(errorMessage(e, t('tracks.errors.removeTrack')));
     }
   }
 
@@ -161,7 +163,7 @@ export function useReleaseTracks(
       await api.tracks.reorder(id, { orderedSongIds: list.map((t) => t.songId) });
     } catch (e) {
       setTracks(prev);
-      showToast(errorMessage(e, 'Could not reorder.'));
+      showToast(errorMessage(e, t('tracks.errors.reorder')));
     }
   }
 

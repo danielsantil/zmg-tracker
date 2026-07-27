@@ -1,4 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { api } from '@/api';
 import { useReleases, queryKeys } from '@/api/queries';
 import type { ReleaseListItem } from '@/types';
@@ -14,19 +15,20 @@ import { useConfirmDelete } from '@/hooks/useConfirmDelete';
  */
 export default function ArchivedReleasesPage() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { toast, toastVariant, showToast } = useToast();
   const { data: releases = [], isLoading, error } = useReleases({ scope: 'archived' });
 
   const remove = useConfirmDelete<ReleaseListItem>({
     confirm: (r) => ({
-      title: `Delete "${r.title}"?`,
-      body: <p>This can't be undone.</p>,
-      confirmLabel: 'Delete',
+      title: t('releases.deleteConfirm.title', { title: r.title }),
+      body: <p>{t('common.cannotBeUndone')}</p>,
+      confirmLabel: t('common.delete'),
       confirmVariant: 'danger',
     }),
     mutate: (r) => api.releases.delete(r.id),
     invalidate: [queryKeys.releases()],
-    errorFallback: 'Failed to delete.',
+    errorFallback: t('releases.deleteFailed'),
     showToast,
   });
 
@@ -34,24 +36,24 @@ export default function ArchivedReleasesPage() {
     <div>
       <div className="mb-6">
         <Link to="/releases" className="text-sm text-muted hover:text-body">
-          ‹ All Releases
+          {t('releases.archived.back')}
         </Link>
-        <h1 className="mt-2 text-2xl font-semibold text-strong">Archived Releases</h1>
-        <p className="text-sm text-muted">Archived releases are read-only and can't be restored.</p>
+        <h1 className="mt-2 text-2xl font-semibold text-strong">{t('releases.archived.title')}</h1>
+        <p className="text-sm text-muted">{t('releases.archived.subtitle')}</p>
       </div>
 
-      <ErrorBanner error={error ? 'Failed to load archived releases.' : null} />
+      <ErrorBanner error={error ? t('releases.archived.loadFailed') : null} />
 
       {isLoading ? (
         <Loading />
       ) : releases.length === 0 ? (
-        <EmptyState>No archived releases.</EmptyState>
+        <EmptyState>{t('releases.archived.empty')}</EmptyState>
       ) : (
         <DataTable
           headers={[
-            { label: 'Name' },
-            { label: 'Type', className: 'hidden sm:table-cell' },
-            { label: 'Released Date' },
+            { label: t('releases.table.name') },
+            { label: t('releases.table.type'), className: 'hidden sm:table-cell' },
+            { label: t('releases.table.releasedDate') },
             { label: '', className: 'text-right' },
           ]}
         >
@@ -86,7 +88,7 @@ export default function ArchivedReleasesPage() {
                     void remove(r);
                   }}
                 >
-                  Delete
+                  {t('common.delete')}
                 </Button>
               </td>
             </tr>

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button, inputClass } from '@/components';
 
 /**
@@ -21,6 +22,7 @@ export function TimeframeEditor({
   onSave: (min: number | null, max: number | null) => void;
   onCancel: () => void;
 }) {
+  const { t } = useTranslation();
   const [min, setMin] = useState(initialMin?.toString() ?? '');
   const [max, setMax] = useState(initialMax?.toString() ?? '');
 
@@ -31,13 +33,13 @@ export function TimeframeEditor({
 
   return (
     <div className={`flex flex-wrap items-center gap-2 px-4 pb-3 text-sm text-body ${indent ? 'pl-12' : ''}`}>
-      <span className="text-xs text-subtle">Days before release:</span>
+      <span className="text-xs text-subtle">{t('tasks.timeframeEditor.label')}</span>
       <input
         autoFocus
         type="number"
         min={0}
         className={`${inputClass} w-20`}
-        placeholder="min"
+        placeholder={t('tasks.timeframeEditor.min')}
         value={min}
         onChange={(e) => setMin(e.target.value)}
       />
@@ -46,13 +48,13 @@ export function TimeframeEditor({
         type="number"
         min={0}
         className={`${inputClass} w-20`}
-        placeholder="max"
+        placeholder={t('tasks.timeframeEditor.max')}
         value={max}
         onChange={(e) => setMax(e.target.value)}
       />
-      <Button onClick={() => onSave(parse(min), parse(max))}>Save</Button>
-      <Button variant="ghost" onClick={() => onSave(null, null)}>Clear</Button>
-      <Button variant="ghost" onClick={onCancel}>Cancel</Button>
+      <Button onClick={() => onSave(parse(min), parse(max))}>{t('common.save')}</Button>
+      <Button variant="ghost" onClick={() => onSave(null, null)}>{t('common.clear')}</Button>
+      <Button variant="ghost" onClick={onCancel}>{t('common.cancel')}</Button>
     </div>
   );
 }

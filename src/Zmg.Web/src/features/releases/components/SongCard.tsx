@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import type { TrackDto } from '@/types';
 
 /**
@@ -6,9 +7,10 @@ import type { TrackDto } from '@/types';
  * links into the catalog where the song is edited; main artist + an ISRC indicator are read-only here.
  */
 export function SongCard({ track, mainArtistName }: { track: TrackDto; mainArtistName: string }) {
+  const { t } = useTranslation();
   return (
     <section className="overflow-hidden rounded-xl border border-edge bg-panel">
-      <div className="px-4 py-3 font-semibold text-strong">Song</div>
+      <div className="px-4 py-3 font-semibold text-strong">{t('releases.detail.song')}</div>
       <div className="flex items-center justify-between gap-3 border-t border-edge px-4 py-3">
         <div className="min-w-0">
           <Link to={`/catalog/${track.songId}`} className="text-sm font-medium text-strong hover:text-accent">
@@ -17,7 +19,7 @@ export function SongCard({ track, mainArtistName }: { track: TrackDto; mainArtis
           <p className="text-xs text-muted">{mainArtistName}</p>
         </div>
         <span className="shrink-0 text-xs text-subtle">
-          {track.isrc ? `ISRC ${track.isrc}` : 'No ISRC'}
+          {track.isrc ? t('releases.detail.isrcValue', { isrc: track.isrc }) : t('releases.detail.noIsrc')}
         </span>
       </div>
     </section>

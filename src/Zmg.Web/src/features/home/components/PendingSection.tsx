@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import type { PendingAction } from '@/types';
 import { PendingKind } from '@/types';
 
@@ -20,6 +21,7 @@ function nextPage(p: PendingAction) {
  * then the data kinds by subject. Collapsible header (PhaseSection-style); the list scrolls past ~4 rows.
  */
 export function PendingSection({ pending }: { pending: PendingAction[] }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(true);
 
   if (pending.length === 0) return null;
@@ -30,7 +32,7 @@ export function PendingSection({ pending }: { pending: PendingAction[] }) {
         onClick={() => setOpen((o) => !o)}
       >
         <span className="text-warnFg/60">{open ? '▾' : '▸'}</span>
-        Pending Tasks <span className="text-sm font-normal text-warnFg/70">({pending.length})</span>
+        {t('pending.title')} <span className="text-sm font-normal text-warnFg/70">({pending.length})</span>
       </button>
       {open && (
         <ul className="max-h-[11rem] overflow-y-auto border-t border-warn/20">
@@ -49,10 +51,12 @@ export function PendingSection({ pending }: { pending: PendingAction[] }) {
                 <span className="shrink-0 text-xs">
                   {p.kind === PendingKind.TaskDue && p.daysToRelease != null ? (
                     <span className="whitespace-nowrap text-accent">
-                      {p.daysToRelease === 0 ? 'Releases today' : `${p.daysToRelease} days to release`}
+                      {p.daysToRelease === 0
+                        ? t('pending.releasesToday')
+                        : t('pending.daysToRelease', { count: p.daysToRelease })}
                     </span>
                   ) : (
-                    <span className="whitespace-nowrap text-warnFg">Data</span>
+                    <span className="whitespace-nowrap text-warnFg">{t('pending.data')}</span>
                   )}
                 </span>
               </Link>

@@ -1,6 +1,7 @@
 import { cva } from 'class-variance-authority';
 import { useTranslation } from 'react-i18next';
 import type { ReleaseStatus } from '@/types';
+import { statusLabelKeys } from '@/lib/status';
 
 const badge = cva('rounded-full px-2 py-0.5 text-xs font-medium ring-1', {
   variants: {
@@ -14,16 +15,7 @@ const badge = cva('rounded-full px-2 py-0.5 text-xs font-medium ring-1', {
   defaultVariants: { status: 'Archived' },
 });
 
-// The server's status values are culture-invariant codes (ReleaseStatus.cs) — they stay the `cva`
-// variant key, and only the *label* is translated. Static map, so a renamed key won't compile (M43).
-const labelKeys = {
-  Upcoming: 'status.upcoming',
-  Released: 'status.released',
-  Complete: 'status.complete',
-  Archived: 'status.archived',
-} as const satisfies Record<ReleaseStatus, string>;
-
 export function StatusBadge({ status }: { status: ReleaseStatus }) {
   const { t } = useTranslation();
-  return <span className={badge({ status })}>{t(labelKeys[status])}</span>;
+  return <span className={badge({ status })}>{t(statusLabelKeys[status])}</span>;
 }

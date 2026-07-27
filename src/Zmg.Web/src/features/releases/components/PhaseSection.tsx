@@ -70,7 +70,7 @@ export function PhaseSection<T extends ChecklistTask>({
       {open && (
         <div className="border-t border-edge">
           {tasks.length === 0 ? (
-            <p className="px-4 py-3 text-sm text-subtle">No tasks in this phase.</p>
+            <p className="px-4 py-3 text-sm text-subtle">{t('tasks.emptyPhase')}</p>
           ) : (
             <ul>
               {tasks.map((t, i) => (
@@ -92,7 +92,7 @@ export function PhaseSection<T extends ChecklistTask>({
             </ul>
           )}
 
-          {!readOnly && <InlineAddForm addLabel="+ Add task" placeholder="New task title" onAdd={onAdd} />}
+          {!readOnly && <InlineAddForm addLabel={t('tasks.addTask')} placeholder={t('tasks.newTaskTitle')} onAdd={onAdd} />}
         </div>
       )}
     </section>

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Artist, SongArtistInput } from '@/types';
 import { Button, inputClass } from '@/components';
 import { SongArtistsEditor } from '@/features/catalog/components/SongArtistsEditor';
@@ -20,6 +21,7 @@ export function NewTrackForm({
   /** Resolve `false` to keep the form open with its values (e.g. a rejected duplicate title). */
   onAdd: (draft: NewTrackDraft) => void | boolean | Promise<void | boolean>;
 }) {
+  const { t } = useTranslation();
   const [adding, setAdding] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [title, setTitle] = useState('');
@@ -54,7 +56,7 @@ export function NewTrackForm({
           className="rounded-lg px-2 py-1.5 text-sm text-muted hover:text-accent"
           onClick={() => setAdding(true)}
         >
-          + Add track
+          {t('tracks.addTrack')}
         </button>
       </div>
     );
@@ -65,7 +67,7 @@ export function NewTrackForm({
       <input
         autoFocus
         className={inputClass}
-        placeholder="New track title"
+        placeholder={t('tracks.newTrackTitle')}
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         onKeyDown={(e) => {
@@ -75,12 +77,12 @@ export function NewTrackForm({
       />
       <details className="text-sm">
         <summary className="cursor-pointer text-xs text-subtle hover:text-body">
-          Details (optional)
+          {t('tracks.detailsOptional')}
         </summary>
         <div className="mt-2 space-y-2">
           <input
             className={`${inputClass} max-w-[16rem]`}
-            placeholder="ISRC (optional)"
+            placeholder={t('tracks.isrcOptional')}
             value={isrc}
             onChange={(e) => setIsrc(e.target.value)}
           />
@@ -94,10 +96,10 @@ export function NewTrackForm({
       </details>
       <div className="flex gap-2">
         <Button type="button" onClick={submit} disabled={submitting}>
-          {submitting ? 'Adding…' : 'Add'}
+          {submitting ? t('common.adding') : t('common.add')}
         </Button>
         <Button type="button" variant="ghost" onClick={reset}>
-          Cancel
+          {t('common.cancel')}
         </Button>
       </div>
     </div>
