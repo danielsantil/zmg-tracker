@@ -310,6 +310,14 @@ See [build-plan-2.8.md](build-plan-2.8.md).
     placeholder parity, no blanks, complete plural families — because types can't see it.
   - **Non-component modules translate off the i18n instance, not a hook.** In `ArtistFormPage`'s load
     effect that's also deliberate: taking `t` as a dep would re-fetch on every language switch.
+  - **`useLanguage` holds no state of its own** — it reads `i18n.language`, which `useTranslation`
+    already re-renders on. It has several call sites, and the mirrored `useState` it used to carry gave
+    each one a private copy: whichever effect ran last wrote its **stale** value back, so toggling on a
+    page that also called the hook persisted the new language and instantly reverted the app. Unlike
+    `useTheme`, which is safe only because it has exactly one caller.
+  - **`LanguageToggle` shows the language you're *reading*** (state), while `ThemeToggle` shows what
+    you'd switch **to** (action). Deliberate divergence — a language switcher reads as an indicator; the
+    `aria-label` carries the action.
   - `eslint-plugin-i18next` was evaluated and **not** adopted — it false-positives on Tailwind class
     strings, and the parity test already catches the failure it would.
 - **The API ships codes; the SPA owns every user-facing sentence (M46).** `Message(Code, Args?)`, where
@@ -337,6 +345,12 @@ See [build-plan-2.8.md](build-plan-2.8.md).
     a child table, not `jsonb`, because tests run SQLite. English *is* the `Title` column, so `en` has no
     rows and every miss (null code, unknown locale, absent row, blank text) falls back to it via pure
     `TaskText.Resolve`. It must never render a raw slug.
+  - **The snapshot rule holds in *every* language: a release owns its text, so it gets its own
+    `ReleaseTaskTranslation` rows**, copied down by `TemplateCopy` at create. Resolving a release task
+    from the *template's* rows (by shared code) is the trap — it made a template's Spanish edit rewrite
+    the Spanish of every existing release while their English, snapshotted in `Title`, stayed put.
+    English is snapshotted, so everything else must be too; a release task must never read template
+    text. Renaming a release task drops its rows along with its code — custom means one text everywhere.
   - **A title edit lands in the locale being read, measured against what the user was *shown*.** The SPA
     round-trips the whole editable row, so a phase move sends back the *translated* title; comparing to
     the stored column would overwrite English with Spanish and orphan the code. Template edits fan out to

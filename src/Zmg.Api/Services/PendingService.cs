@@ -11,7 +11,7 @@ namespace Zmg.Api.Services;
 /// then the data kinds by subject). The pure engine lives in <see cref="PendingActions"/>; this just loads
 /// the graph it needs, precomputes the per-song distributed flag, and applies the ordering.
 /// </summary>
-public sealed class PendingService(ZmgDbContext db, ITaskTranslationService translations) : IPendingService
+public sealed class PendingService(ZmgDbContext db, ILocaleAccessor locale) : IPendingService
 {
     public async Task<IReadOnlyList<PendingAction>> ListAsync(CancellationToken ct = default)
     {
@@ -23,11 +23,10 @@ public sealed class PendingService(ZmgDbContext db, ITaskTranslationService tran
         var releases = await db.Releases.AsNoTracking()
             .Where(r => r.ArchivedAt == null) // archived releases are read-only; no actions
             .Include(r => r.MainArtist)
-            .Include(r => r.Tasks)
+            .Include(r => r.Tasks).ThenInclude(t => t.Translations)
             .Include(r => r.Tracks)
             .ToListAsync(ct);
-        var taskText = await translations.ForRequestLocaleAsync(ct);
-        var releaseActions = releases.SelectMany(r => PendingActions.Compute(r, today, taskText));
+        var releaseActions = releases.SelectMany(r => PendingActions.Compute(r, today, locale.Locale));
 
         // Song-owned actions (missing-ISRC). A song is "distributed" when any linked, non-archived
         // release has its Distribute-to-DSPs task checked; deleted links are already hidden by the filter.
@@ -48,7 +47,7 @@ public sealed class PendingService(ZmgDbContext db, ITaskTranslationService tran
         // plain AsNoTracking rejects. Read-only aggregation, so no change tracking is wanted.
         var release = await db.Releases.AsNoTrackingWithIdentityResolution()
             .Include(r => r.MainArtist)
-            .Include(r => r.Tasks)
+            .Include(r => r.Tasks).ThenInclude(t => t.Translations)
             .Include(r => r.Tracks).ThenInclude(t => t.Song).ThenInclude(s => s!.MainArtist)
             .Include(r => r.Tracks).ThenInclude(t => t.Song).ThenInclude(s => s!.ReleaseLinks)
                 .ThenInclude(t => t.Release).ThenInclude(r => r!.Tasks)
@@ -58,8 +57,7 @@ public sealed class PendingService(ZmgDbContext db, ITaskTranslationService tran
         if (release is null || release.IsArchived) return [];
 
         // The release's own actions plus a rolled-up "tracks missing ISRC" view for its songs.
-        var taskText = await translations.ForRequestLocaleAsync(ct);
-        var actions = PendingActions.Compute(release, today, taskText).ToList();
+        var actions = PendingActions.Compute(release, today, locale.Locale).ToList();
         foreach (var song in release.Tracks.Select(t => t.Song).Where(s => s is not null))
             actions.AddRange(PendingActions.ComputeForSong(song!, IsDistributed(song!)));
 

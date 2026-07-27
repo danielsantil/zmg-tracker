@@ -11,7 +11,11 @@ public class TemplateCopyTests
         Type = ReleaseType.Single,
         Tasks =
         {
-            new TemplateTask { Id = Guid.NewGuid(), Code = TaskCodes.MixMaster, Title = "Mix/master", Phase = Phase.Pre, SortOrder = 0 },
+            new TemplateTask
+            {
+                Id = Guid.NewGuid(), Code = TaskCodes.MixMaster, Title = "Mix/master", Phase = Phase.Pre, SortOrder = 0,
+                Translations = { new TemplateTaskTranslation { Locale = "es", Text = "Mezcla/master" } },
+            },
             new TemplateTask { Id = Guid.NewGuid(), Title = "Design cover", Phase = Phase.Pre, SortOrder = 1 },
             new TemplateTask { Id = Guid.NewGuid(), Code = TaskCodes.DistributeToDsps, Title = "Distribute to DSPs", Phase = Phase.Pre, SortOrder = 2, MinDaysBefore = 7, MaxDaysBefore = 14 },
             new TemplateTask { Id = Guid.NewGuid(), Title = "Smart link", Phase = Phase.Release, SortOrder = 0 },
@@ -108,5 +112,22 @@ public class TemplateCopyTests
         Assert.Equal(TaskCodes.DistributeToDsps, tasks.Single(t => t.Title == "Distribute to DSPs").SourceCode);
         // A template task with no code (one the user added in the editor) copies as user content.
         Assert.Null(tasks.Single(t => t.Title == "Smart link").SourceCode);
+    }
+
+    [Fact]
+    public void CopyToRelease_copies_the_per_locale_text_down_onto_the_release()
+    {
+        // The snapshot rule has to hold in every language, not just English: a release owns its
+        // checklist text, so a later template edit must not be able to reach it.
+        var template = SampleTemplate();
+
+        var tasks = TemplateCopy.CopyToRelease(template, Guid.NewGuid());
+
+        var mix = tasks.Single(t => t.Title == "Mix/master");
+        var es = Assert.Single(mix.Translations);
+        Assert.Equal("es", es.Locale);
+        Assert.Equal("Mezcla/master", es.Text);
+        // A template task with no translation copies none — English is the Title column.
+        Assert.Empty(tasks.Single(t => t.Title == "Smart link").Translations);
     }
 }

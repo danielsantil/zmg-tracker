@@ -34,8 +34,13 @@ public static class TemplateCopy
                 MaxDaysBefore = t.MaxDaysBefore,
                 SourceTemplateTaskId = t.Id,
                 // Stable lineage (M47): the GUID alone doesn't survive a deleted or renumbered
-                // template task, and per-locale text plus IsDistributed both key off this.
-                SourceCode = t.Code
+                // template task, and IsDistributed keys off this.
+                SourceCode = t.Code,
+                // The non-English text is copied down too, not resolved from the template later — the
+                // release owns its checklist in every language, so editing a template can't rewrite it.
+                Translations = t.Translations
+                    .Select(tr => new ReleaseTaskTranslation { Locale = tr.Locale, Text = tr.Text })
+                    .ToList()
             })
             .ToList();
     }

@@ -41,7 +41,7 @@ public static class PendingActions
     /// ordering across owners is applied by <see cref="Order"/>.
     /// </summary>
     public static List<PendingAction> Compute(
-        Release release, DateOnly today, IReadOnlyDictionary<string, string>? taskText = null)
+        Release release, DateOnly today, string locale = TaskText.DefaultLocale)
     {
         var artistName = release.MainArtist?.Name ?? string.Empty;
         var daysToRelease = release.ReleaseDate.DayNumber - today.DayNumber;
@@ -57,9 +57,9 @@ public static class PendingActions
             if (today >= windowOpens && release.ReleaseDate >= today)
             {
                 result.Add(new PendingAction(
-                    // TaskDue's label is the task's own text, so it translates like the checklist does
-                    // (M47) — falling back to the stored English title for edited/user-added tasks.
-                    PendingKind.TaskDue, TaskText.Resolve(t.SourceCode, t.Title, taskText),
+                    // TaskDue's label is the task's own text, so it reads like the checklist does —
+                    // from the release's own snapshot rows, never the template's.
+                    PendingKind.TaskDue, TaskText.Resolve(t.Translations, locale, t.Title),
                     release.Title, artistName, release.Id, null, t.Id, daysToRelease));
             }
         }

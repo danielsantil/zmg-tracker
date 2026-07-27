@@ -15,6 +15,7 @@ public class ZmgDbContext(DbContextOptions<ZmgDbContext> options) : DbContext(op
     public DbSet<ChecklistTemplate> ChecklistTemplates => Set<ChecklistTemplate>();
     public DbSet<TemplateTask> TemplateTasks => Set<TemplateTask>();
     public DbSet<TemplateTaskTranslation> TemplateTaskTranslations => Set<TemplateTaskTranslation>();
+    public DbSet<ReleaseTaskTranslation> ReleaseTaskTranslations => Set<ReleaseTaskTranslation>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -83,6 +84,19 @@ public class ZmgDbContext(DbContextOptions<ZmgDbContext> options) : DbContext(op
                 .WithMany(r => r.Tasks)
                 .HasForeignKey(x => x.ReleaseId)
                 .OnDelete(DeleteBehavior.Cascade);
+            // The release's own per-locale text, copied down at create — never resolved from the
+            // template, so a template edit can't rewrite a live checklist.
+            e.HasMany(x => x.Translations)
+                .WithOne(t => t.ReleaseTask!)
+                .HasForeignKey(t => t.ReleaseTaskId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<ReleaseTaskTranslation>(e =>
+        {
+            e.HasKey(x => new { x.ReleaseTaskId, x.Locale });
+            e.Property(x => x.Locale).IsRequired().HasMaxLength(8);
+            e.Property(x => x.Text).IsRequired();
         });
 
         b.Entity<ChecklistTemplate>(e =>

@@ -58,7 +58,7 @@ export function ReleaseCard({
                         onEdit();
                       }}
                     >
-                      Edit
+                      {t('common.edit')}
                     </MenuItem>
                     {/* Archive affordance follows the server's canArchive (upcoming & not archived). */}
                     {r.canArchive && (
@@ -69,7 +69,7 @@ export function ReleaseCard({
                           onArchive();
                         }}
                       >
-                        Archive
+                        {t('common.archive')}
                       </MenuItem>
                     )}
                   </>

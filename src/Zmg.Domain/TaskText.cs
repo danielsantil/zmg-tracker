@@ -55,4 +55,25 @@ public static class TaskText
             ? text
             : fallbackTitle;
     }
+
+    /// <summary>
+    /// The text to show for a <b>release</b> task: its own snapshot row for the locale, else the stored
+    /// English title. Deliberately does <i>not</i> consult the template — a release's checklist is a
+    /// snapshot, so a later template edit must not reach it (the templates screen says as much).
+    /// </summary>
+    /// <param name="translations">The task's own rows; null/empty means English.</param>
+    public static string Resolve(
+        IEnumerable<Entities.ReleaseTaskTranslation>? translations, string locale, string fallbackTitle)
+    {
+        if (translations is null || string.Equals(locale, DefaultLocale, StringComparison.Ordinal))
+            return fallbackTitle;
+
+        foreach (var row in translations)
+        {
+            if (string.Equals(row.Locale, locale, StringComparison.Ordinal) && !string.IsNullOrWhiteSpace(row.Text))
+                return row.Text;
+        }
+
+        return fallbackTitle;
+    }
 }

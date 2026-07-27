@@ -32,10 +32,18 @@ public class ReleaseTask
     /// <summary>
     /// The <see cref="TaskCodes"/> slug this task was stamped with at copy time (v2.8/M47) — the
     /// lineage that actually survives, unlike <see cref="SourceTemplateTaskId"/>, which the seed-data
-    /// renumbering hazard can invalidate and a deleted template task orphans outright. Drives
-    /// per-locale text resolution and <see cref="Release.IsDistributed"/>.
-    /// <b>Cleared when the user edits the title</b>: they have overridden the standard text, and a
-    /// translation silently reverting their edit on a language switch would be a bug.
+    /// renumbering hazard can invalidate and a deleted template task orphans outright. Identity only:
+    /// it answers "which seeded task is this" for <see cref="Release.IsDistributed"/>, and is
+    /// deliberately **not** what per-locale text resolves through — see <see cref="Translations"/>.
+    /// <b>Cleared when the user edits the title</b>: they have overridden the standard text, so the
+    /// task is theirs from then on.
     /// </summary>
     public string? SourceCode { get; set; }
+
+    /// <summary>
+    /// This task's non-English text, copied down from the template at creation. The release owns it,
+    /// exactly as it owns <see cref="Title"/> — resolving from the template's rows instead would let a
+    /// template edit rewrite live checklists (see <see cref="ReleaseTaskTranslation"/>).
+    /// </summary>
+    public List<ReleaseTaskTranslation> Translations { get; set; } = new();
 }
