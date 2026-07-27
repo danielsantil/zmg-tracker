@@ -117,6 +117,84 @@ pnpm build         # tsc -b && vite build
 domain-only needs `dotnet test tests/Zmg.Domain.Tests`; anything touching a DTO, endpoint, or migration
 needs full `dotnet test`. See [CLAUDE.md](CLAUDE.md) for the rules.
 
+## Adding translated text
+
+The app holds **three separate bodies of text**, each with its own mechanism. Pick the layer first —
+using the wrong one is the common mistake. Full rules in [plans/PROGRESS.md](plans/PROGRESS.md)
+→ Cross-cutting decisions.
+
+| The text is… | Layer | Lives in |
+|---|---|---|
+| UI chrome — labels, buttons, headings, `aria-label`, placeholders, confirm copy | i18next JSON | `src/Zmg.Web/src/i18n/locales/{en,es}.json` |
+| An API error or warning the user sees | a stable **code** the SPA renders | code constant in C# + a key in both locale files |
+| A seeded checklist task title | **data** — a per-locale DB row | `SeedData.cs` + a migration |
+
+### 1. UI chrome — a new i18next key
+
+1. Add the key to **both** `en.json` and `es.json`, nested by feature (`releases.detail.someLabel`).
+   The parity test in `src/i18n/i18n.test.ts` fails if either is missing, blank, or has mismatched
+   `{{placeholders}}`.
+2. Use it as `t('releases.detail.someLabel')`. `t()` is typed off `en.json`, so a typo won't compile.
+3. **Never build a sentence by concatenation** — use interpolation, or `_one`/`_other` plural keys.
+   Pure helpers return *shapes* (`{ days: 3 }`); `hooks/useFormatters` supplies the words.
+
+```bash
+cd src/Zmg.Web && pnpm test && pnpm build
+```
+
+### 2. API errors and warnings — a new code
+
+The API ships **no user-facing prose**. Add a code, then the text the SPA renders for it.
+
+1. Add the constant next to the rule that raises it — `Validation`, `ReleaseWarnings`, `CoverImage`,
+   `ReleaseMutability` — or to `Api/Services/ServiceErrors.cs` if a *service* raises it. Name it
+   `error.<area>.<rule>` or `warning.<name>`; that string **is** the i18next key path.
+2. Raise it: `result.Error(MyCodes.Something)`, or `Message.With(code, ("name", value))` when it
+   interpolates.
+3. Add the matching key under `error.` / `warning.` in **both** locale files.
+4. Codes are **permanent identifiers** — renaming one is a breaking change on both sides at once.
+
+`MessageCodeApiTests` reflects over every code constant and fails if either locale lacks its key.
+
+```bash
+dotnet test && cd src/Zmg.Web && pnpm test
+```
+
+### 3. Checklist task text — a new seeded task or a translation fix
+
+English lives in the `TemplateTask.Title` column; other locales are `TemplateTaskTranslation` rows
+resolved at read time. A task with no row simply falls back to English, which is a valid state.
+
+**To fix existing Spanish copy — no code, no deploy:** open **Templates**, switch the language to
+Español, and edit the task inline. The edit lands in the language you're reading (English stays put),
+and applies to both the single and album templates.
+
+**To add a new seeded task:**
+
+1. Add a slug to `TaskCodes.cs`, then the seed in `SeedData.BaseTasks` / `AlbumExtraTasks` with that
+   code and its English title.
+2. Add the Spanish to `SeedData.SpanishTitles`, keyed by the same code — **or leave it out on purpose**
+   if the title is a proper noun. If you leave it out, add the code to the pinned set in
+   `SeedDataTests.The_untranslated_titles_are_the_three_deliberate_proper_nouns`, so a *forgotten*
+   translation still fails a test.
+3. Generate a migration (`HasData` picks up both the task and its translation rows).
+4. **Never key a rule off a task title** — use the code, as `Release.IsDistributed` does.
+
+Domain jargon stays English by rule: DSP/BMI/MLC/SoundExchange/Musixmatch, "smart link", "pre-save",
+"waterfall", "multitracks", "splits", "focus tracks".
+
+```bash
+dotnet ef migrations add <Name> --project src/Zmg.Infra --startup-project src/Zmg.Api
+dotnet test
+```
+
+### Adding a whole new language
+
+Add `src/i18n/locales/<code>.json`, a name in `src/i18n/language.ts`, and the locale in
+`Zmg.Domain/TaskText.SupportedLocales` — plus translation rows for the checklist. No component code
+changes; the two-language toggle becomes a popover (which must portal to `<body>`, per the standing
+popover rule).
+
 ## Common tasks
 
 ```bash

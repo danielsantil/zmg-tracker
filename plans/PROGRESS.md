@@ -21,13 +21,14 @@ for where the project stands and the rules that span plans.
 Newer plan versions go in new `build-plan-N.N.md` files; older ones stay frozen.
 
 **Current state:** feature-complete through **v2.4**, **fully deployed**, and **bilingual EN/ES** as of
-**v2.8 (M43–M48)**. The SPA serves from a **Cloudflare Worker** at the edge with `/api/*` proxied same-origin
-to **Azure Container Apps** over **Neon Postgres**; covers live in **Cloudflare R2**; the hosted stack is
-codified in Terraform under [`infra/`](../infra/README.md), with remote state in Azure Storage. A
-**GitHub Actions pipeline** tests, builds a SHA-tagged image, applies migrations, deploys to ACA over
-OIDC, then ships the SPA to Cloudflare. Backend **domain 138 / API 216** (119/158 before v2.8), SPA **50
-Vitest** (32 before v2.8) — the pipeline gates on these. **Phase 2** (DSP stats, real-Postgres tests)
-follows v2.8 and starts a new `build-plan-3.0.md`.
+**v2.8 (M43–M48)** — which is complete on `feat/i18n-multilingual` but **not yet merged or deployed**,
+and carries two additive-only migrations the pipeline applies before the image swaps. The SPA serves
+from a **Cloudflare Worker** at the edge with `/api/*` proxied same-origin to **Azure Container Apps**
+over **Neon Postgres**; covers live in **Cloudflare R2**; the hosted stack is codified in Terraform
+under [`infra/`](../infra/README.md), with remote state in Azure Storage. A **GitHub Actions pipeline**
+tests, builds a SHA-tagged image, applies migrations, deploys to ACA over OIDC, then ships the SPA to
+Cloudflare. Backend **domain 138 / API 216**, SPA **50 Vitest** — the pipeline gates on these.
+**Phase 2** (DSP stats, real-Postgres tests) is next and starts a new `build-plan-3.0.md`.
 
 > ⚠️ **DB is Postgres (Neon) as of v2.5/M30.** Dev + prod both use `ConnectionStrings__Zmg` — **dev** via
 > `dotnet user-secrets` in `src/Zmg.Api` (never commit it), **prod** as an ACA secret. **Dev and tests
@@ -48,9 +49,7 @@ filters, empty states, and the multi-stage Dockerfile.
 timeframes (Pre-only, max drives the calc, the range is display-only); the dashboard split into
 **Home** (forward-looking) and **All Releases**; and the **pending-actions** engine (`GET /api/pending`
 + the detail "Needs attention" block). The single template grew 30 → **31** (Distribute inserted as 3rd
-Pre); the album template is the base list plus 10 extras, so **41** (PROGRESS and
-build-plan-2.7 both said 40 — stale since M6 inserted Distribute into the shared base list; corrected
-in M48).
+Pre); the album template is that list plus 10 extras, so **41**.
 
 **v1.2 (M11) — archived lifecycle.** An `Archived` status plus a soft-delete: `ArchivedAt`/`DeletedAt`
 on Release, `POST /api/releases/{id}/archive` (guarded to `releaseDate >= today`), `DELETE` repurposed
@@ -111,29 +110,14 @@ code change touches, so M41's 1.85s was invisible end-to-end and only M42 — sh
 of a blank page for the full ~17–22s — changed what a user actually experiences. ReadyToRun and an
 early `/api/health` wake were both measured and cut. See [build-plan-2.7.md](build-plan-2.7.md).
 
-**v2.8 (M43–M48) — multilingual EN/ES.** Three bodies of text, each needing its own mechanism.
-**UI chrome (M43–M45):** react-i18next with both locales *bundled* (an HTTP backend would undo M42's
-edge first paint), language state mirroring `useTheme` down to its persist-only-on-explicit-choice
-rule, `<html lang>` stamped pre-paint, the language selector deferred from M37 finally in the navbar —
-then ~270 strings migrated feature by feature. **API messages (M46):** every server-minted sentence, 42
-of them, became a culture-invariant `Message` code the SPA renders, which is what lets the container
-keep `InvariantGlobalization=true` while the user reads Spanish. **Checklist text (M47–M48):** a stable
-`TaskCodes` slug per seeded task (`TemplateTask.Code`, stamped onto `ReleaseTask.SourceCode` at copy
-time) resolving a `TemplateTaskTranslation` row at read time, plus 38 Spanish titles seeded through
-`HasData` and correctable in the templates editor without a deploy. Tests **domain 119 → 138, API
-158 → 216, web 32 → 50**.
-
-Four things worth carrying forward, all of them in Cross-cutting decisions: `t()` is **typed off
-`en.json`** so a missing key is a compile error; **nothing is ever built by concatenation** (pure
-helpers return *shapes* like `{ days: 3 }` and the components supply the words, because Spanish word
-order and plural forms differ); **identity is never display text** — the codes are permanent
-identifiers, which is what M47 fixed in `Release.IsDistributed`, where matching the literal English
-`"Distribute to DSPs"` meant one Spanish title would have silently killed the UPC warning, the pending
-engine and the past-date backfill together; and **a title edit lands in the locale being read**,
-measured against what the user was *shown*, since the SPA round-trips the translated title on a phase
-move. Deliberately still English: DSP/BMI/MLC/SoundExchange/Musixmatch/Canvas/Artist Pick and the
-industry terms ZMG uses in English ("smart link", "pre-save", "waterfall", "multitracks", "splits",
-"focus tracks"). See [build-plan-2.8.md](build-plan-2.8.md).
+**v2.8 (M43–M48) — multilingual EN/ES.** Three bodies of text, three mechanisms: UI chrome moved onto
+bundled react-i18next JSON (M43–M45), every server-minted sentence became a culture-invariant code the
+SPA renders (M46), and checklist task text became *data* — a stable code per seeded task resolving a
+per-locale row at read time, with Spanish seeded and correctable in the templates editor (M47–M48). M47
+also fixed the latent bug the rest would have triggered: `Release.IsDistributed` matched an English task
+title, so one Spanish title would have silently stopped the UPC warning, the pending engine and the
+past-date backfill together. Tests **domain 119 → 138, API 158 → 216, web 32 → 50**.
+See [build-plan-2.8.md](build-plan-2.8.md).
 
 ---
 
@@ -289,9 +273,10 @@ industry terms ZMG uses in English ("smart link", "pre-save", "waterfall", "mult
   expand/contract if rollback must stay a real safety net.
 - **The server stays culture-free — `InvariantGlobalization=true` on plain `chiseled` (M41).** The image
   ships no ICU, so .NET 8 refuses to start without the flag. Safe only because every comparison is
-  `Ordinal`/`Invariant` and all string ordering is SQL-side (Postgres collation); **v2.8's i18n must keep
-  it that way** — any server-side `.resx`/`CurrentUICulture` or date/number *formatting* means switching
-  to `chiseled-extra` in the same change. **Verification gap:** the flag lands in the *executable's*
+  `Ordinal`/`Invariant` and all string ordering is SQL-side (Postgres collation); **v2.8's i18n kept it
+  that way** (codes on the wire, translations as data rows) and anything that introduces a server-side
+  `.resx`/`CurrentUICulture` or date/number *format* means switching to `chiseled-extra` in the same
+  change. **Verification gap:** the flag lands in the *executable's*
   runtimeconfig, which the test host doesn't inherit, and tests run SQLite — so `dotnet test` never
   exercises Npgsql under invariant mode. Prove it with `docker run` against real Neon on a DB-touching
   endpoint. Escape hatch if a `CultureNotFoundException` ever appears:
@@ -309,97 +294,71 @@ industry terms ZMG uses in English ("smart link", "pre-save", "waterfall", "mult
   API on the **same origin**, which is why there is no prod CORS policy, no `VITE_API_BASE_URL`, and
   `src/api/client.ts` is untouched. Two build outputs must both keep working: `pnpm build` →
   `../Zmg.Api/wwwroot`, `pnpm build:edge` → `./dist`.
-- **Every user-facing SPA string is an i18next key, and `t()` is typed off `en.json` (v2.8/M43–M45).**
-  One namespace, nested keys under `src/i18n/locales/{en,es}.json`, both **bundled** into the JS. Adding
-  a language = adding a JSON file plus a name in `i18n/language.ts` — never touching component code.
-  Four rules that aren't obvious from the code:
-  - **Never concatenate a sentence.** `t('x', { count })` with `_one`/`_other`, or interpolation — Spanish
-    word order differs often enough that concatenation is a correctness bug, not a style one. Pure
-    helpers (`lib/format`, `lib/calendar`) therefore return **shapes** (`{ days: 3 }`,
-    `{ kind: 'range', … }`) and `hooks/useFormatters` supplies the words; `Intl` owns date wording via a
-    `locale` argument.
-  - **A missing key is a compile error** (`i18n/i18next.d.ts` merges `typeof en` into `CustomTypeOptions`).
-    Keys passed around as data need the `ParseKeys` type, not `string` — see `ReleaseFormPage`'s
-    `validateForm`, which returns keys so it stays pure.
-  - **`es.json` is guarded by `i18n/i18n.test.ts`**, not by types: key parity, placeholder parity, no
-    blanks, complete plural families. It is the thing that catches a key added to `en` and forgotten in
-    `es`. Vitest is `environment: 'node'` over `*.test.ts` only — no Testing Library, so i18n tests stay
-    pure-module.
-  - **Non-component modules translate off the i18n instance** (`import i18n from '@/i18n'`), not a hook —
-    `releases/archiveConfirm.tsx` and `ArtistFormPage`'s load effect. In the effect's case that's also
-    deliberate: taking `t` as a dep would re-fetch the artist on every language switch.
-  `aria-label`/`title`/`placeholder` translate; `KeyboardEvent` keys, `cva` variant keys, and the four
-  `ReleaseStatus` wire codes do not. `eslint-plugin-i18next` was evaluated and **not** adopted — it
-  false-positives on Tailwind class strings, and the parity test catches the failure it would.
-- **The API ships codes; the SPA owns every user-facing sentence (v2.8/M46).** No server-minted prose
-  reaches a user. `Zmg.Domain.Message(Code, Args?)` is the unit — `Code` is an i18next key path 1:1, so
-  rendering is `t(code, args)` with no translation table, and `args` values are already-formatted
-  strings so no culture is needed to produce them. The wire is `{"errors":[{"code","args"}]}` with
-  **no `message` field**: a parallel prose channel is exactly what drifts (same reason there are only
-  two warning channels). A raw `curl` gets a code instead of a sentence — acceptable with one consumer,
-  and better in logs. Five things that aren't obvious:
-  - **Codes are permanent identifiers.** Renaming one breaks both sides at once, same rule as the
-    integer enums. They live next to the rule that raises them (`Validation.*`,
-    `ReleaseWarnings.*`, `ReleaseMutability.ArchivedReadOnlyCode`, `CoverImage.*Code`) — except the
-    service-minted ones, which need the DB to detect and share one home in `Api/Services/ServiceErrors.cs`
-    because several fire from more than one service.
-  - **`Results.Problem` (500) keeps its prose.** It's developer-facing, rides in `Message.Code` by
-    convention, and is the one string on the wire M46 deliberately doesn't code.
-  - **`PendingActionDto.Label` is two things, switched on `Kind`** — a task *title* for `TaskDue` (user
-    content, verbatim) and a warning *code* for the three data kinds. No DTO change; the SPA branches.
-  - **`i18n/serverText.ts` is the only place `ParseKeys` typing gives way**, because a code is data at
-    runtime. `i18n.exists()` replaces the lost type safety and degrades to showing the raw code rather
-    than a blank if the API ever deploys ahead of the SPA. It has two entry points on purpose:
-    `translateMessage` off the module instance for `api/client.ts` (which builds `ApiError` outside any
-    React tree, translating at construction so `errorMessage(e, fallback)` is unchanged everywhere),
-    and a `useServerText()` hook bound to `useTranslation`'s `t` for components — codes arriving as
-    *data* must re-render on a language switch, and the module instance wouldn't.
-  - **`MessageCodeApiTests` is the guard that matters**: it reflects over every code constant in both
-    projects and asserts each has a key in `en.json` *and* `es.json`. A code with no key renders as its
-    own key path, in both languages, with every other test green — nothing else catches that.
-- **A checklist task's identity is its `Code`, never its title (v2.8/M47).** `TaskCodes` holds a stable
-  slug per seeded task; `TemplateTask.Code` carries it, `TemplateCopy` stamps it onto
-  `ReleaseTask.SourceCode`, and both are **null for user-added tasks** — which is correct, since those
-  are user content and are never translated. Codes are permanent identifiers: renaming one orphans
-  every translation row and every already-stamped release task. Consequences that bit, or would have:
-  - **`Release.IsDistributed` keys off `SourceCode`**, not `Title` (plus the two `ReleaseService`
-    comparisons). Matching English prose meant one Spanish title would have taken the UPC warning, the
-    pending engine and the past-date backfill down together, **silently**. Any future "is this the X
-    task?" rule keys off the code — never the title.
-  - **Translation is lookup, never a rewrite.** `TemplateTaskTranslation(TemplateTaskId, Locale, Text)`
-    — a child table, not `jsonb`, because tests run SQLite. **English is the `Title` column**, so `en`
-    has no rows and every miss (null code, unknown locale, absent row, blank text) falls back to it via
-    pure `TaskText.Resolve`. It must never render a raw slug.
-  - **A title "edit" is measured against the text the user was *shown*.** The SPA round-trips the whole
-    editable row, so a phase move sends back the *translated* title; comparing it to the stored English
-    column would read that as an edit, overwrite the column with Spanish and orphan the code, for every
-    moved task. Both update paths compare against `TaskText.Resolve(...)`, and a real edit stores the
-    new text and nulls the code.
-  - **Mutation responses resolve too, and a language switch invalidates the query cache.** The task
-    hooks replace their local row with the server's DTO, so an English echo would flip a title mid-list
-    on every toggle; and cached payloads are in the *previous* language after a switch, so
-    `useLanguage` calls `queryClient.invalidateQueries()`.
-  - **Locale comes from `X-Lang`** (set by `client.ts` on both the JSON and FormData branches), then
-    `Accept-Language`, then `en`. Resolution is `Ordinal` string matching over a dictionary — no
-    `CultureInfo` anywhere, so `InvariantGlobalization=true` still holds.
-  - **A template-task title edit lands in the locale being read (M48), and is code-scoped.** Editing a
-    seeded task in Spanish rewrites its `es` row and leaves the English standard *and* the code alone;
-    editing in English rewrites the standard. This is what makes the copy correctable in the app rather
-    than by migration, and it supersedes M47's "clear the `Code` on edit" **for template tasks only** —
-    release tasks keep it, since a release owns a snapshot with no per-locale text of its own. The write
-    fans out to **every template task sharing the code**, because the lookup map is keyed by code and
-    the base checklist is seeded into both templates: writing one row would leave the other feeding the
-    old text back, so the edit would appear to do nothing. Text equal to the English title **deletes**
-    the row rather than storing a duplicate of its own fallback.
-  - **Untranslated is a valid state, and it's pinned.** Three seeded titles (Spotify Canvas / Artist
-    Pick / Discovery Mode) are proper nouns end to end and get no row at all. `SeedDataTests` asserts
-    that exact set, so a *forgotten* translation fails a test instead of sitting quietly as English text
-    in a Spanish checklist.
+- **Three text layers, three mechanisms (v2.8) — pick the layer before writing the string.** UI chrome is
+  i18next JSON bundled into the SPA; API errors/warnings are culture-invariant **codes** the SPA renders;
+  checklist task text is **data** (a stable code resolving a per-locale row). README has the per-layer
+  steps; the three bullets below are the rules each layer earns.
+- **Every user-facing SPA string is an i18next key, and `t()` is typed off `en.json` (M43–M45).** Adding
+  a language is a JSON file plus a name in `i18n/language.ts` — never component code.
+  `aria-label`/`title`/`placeholder` translate; `KeyboardEvent` keys, `cva` variants and the four
+  `ReleaseStatus` wire codes do not.
+  - **Never concatenate a sentence** — interpolation, or `_one`/`_other`. Spanish word order differs
+    often enough that concatenation is a correctness bug, so pure helpers return **shapes**
+    (`{ days: 3 }`) and `hooks/useFormatters` supplies the words.
+  - **A missing key is a compile error** (`i18next.d.ts` merges `typeof en`); keys passed around as
+    *data* need `ParseKeys`, not `string`. `es.json` is guarded by `i18n/i18n.test.ts` instead — key and
+    placeholder parity, no blanks, complete plural families — because types can't see it.
+  - **Non-component modules translate off the i18n instance, not a hook.** In `ArtistFormPage`'s load
+    effect that's also deliberate: taking `t` as a dep would re-fetch on every language switch.
+  - `eslint-plugin-i18next` was evaluated and **not** adopted — it false-positives on Tailwind class
+    strings, and the parity test already catches the failure it would.
+- **The API ships codes; the SPA owns every user-facing sentence (M46).** `Message(Code, Args?)`, where
+  `Code` is an i18next key path 1:1 so rendering is `t(code, args)` with no translation table. The wire is
+  `{"errors":[{"code","args"}]}` with **no `message` field** — a parallel prose channel is exactly what
+  drifts. `Results.Problem` (500) keeps developer-facing prose; it's the one uncoded string.
+  - **Codes are permanent identifiers**, same rule as the integer enums. They live next to the rule that
+    raises them (`Validation`, `ReleaseWarnings`, `CoverImage`, `ReleaseMutability`); service-minted ones
+    share `Api/Services/ServiceErrors.cs`, since several fire from more than one service.
+  - **`PendingAction.Label` is two things, switched on `Kind`** — a task title for `TaskDue` (user
+    content, verbatim), a warning code otherwise.
+  - **`i18n/serverText.ts` is the only place `ParseKeys` typing gives way** (a code is data at runtime);
+    `i18n.exists()` replaces the lost safety and degrades to the raw code rather than a blank. Two entry
+    points on purpose: the module instance for `api/client.ts` (which builds `ApiError` outside any React
+    tree), a `useServerText()` hook for components — codes arriving as data must re-render on a switch.
+  - **`MessageCodeApiTests` is the guard that matters**: every code constant must have a key in *both*
+    locales. A code with no key renders as its own key path, in both languages, with everything green.
+- **A checklist task's identity is its `Code`, never its title (M47–M48).** `TemplateTask.Code`, stamped
+  onto `ReleaseTask.SourceCode` by `TemplateCopy`; **null for user-added tasks**, which are never
+  translated. Renaming a code orphans every translation row and every already-stamped release task.
+  - **Never key a rule off a title.** `Release.IsDistributed` uses the code — matching the English
+    `"Distribute to DSPs"` meant one Spanish title would take the UPC warning, the pending engine and the
+    past-date backfill down together, **silently**.
+  - **Translation is lookup, never a rewrite.** `TemplateTaskTranslation(TemplateTaskId, Locale, Text)` —
+    a child table, not `jsonb`, because tests run SQLite. English *is* the `Title` column, so `en` has no
+    rows and every miss (null code, unknown locale, absent row, blank text) falls back to it via pure
+    `TaskText.Resolve`. It must never render a raw slug.
+  - **A title edit lands in the locale being read, measured against what the user was *shown*.** The SPA
+    round-trips the whole editable row, so a phase move sends back the *translated* title; comparing to
+    the stored column would overwrite English with Spanish and orphan the code. Template edits fan out to
+    **every task sharing the code** (the map is code-keyed and the base list is seeded into both
+    templates, so a single-row write appears to do nothing), and text equal to the English title
+    **deletes** the row. Release-task edits still null the code — a release owns a snapshot with no
+    per-locale text of its own.
+  - **Mutation responses resolve too, and a language switch invalidates the query cache** *after*
+    `i18n.changeLanguage` — invalidating first refetches the old locale, so the chrome flips and the
+    checklist doesn't.
+  - **Locale is `X-Lang` → `Accept-Language` → `en`**, resolved by `Ordinal` dictionary lookup, so
+    `InvariantGlobalization=true` still holds. `client.ts` must set the header on the FormData branch too.
+  - **Untranslated is a valid state, and it's pinned.** Three proper-noun titles (Spotify Canvas / Artist
+    Pick / Discovery Mode) get no row at all; `SeedDataTests` asserts that exact set, so a *forgotten*
+    translation fails a test instead of passing as English inside a Spanish checklist. Domain jargon
+    stays English by rule — DSP/BMI/MLC/SoundExchange/Musixmatch, "smart link", "pre-save", "waterfall",
+    "multitracks", "splits", "focus tracks".
 - **Prod runs Postgres (Neon); integration tests run SQLite in-memory (v2.5/M30).** Migrations are
   Postgres-specific. Keep query code **provider-agnostic** — e.g.
   title search lowercases both sides of `Like` rather than using Npgsql `ILike` — so SQLite tests stay
   representative. Note Postgres' `lower()` is Unicode-aware while SQLite's is ASCII-only, so accented
-  titles may match in prod but not in tests — this starts mattering with v2.8's Spanish content.
+  titles may match in prod but not in tests — reachable now that v2.8 put Spanish content in the app.
   Real-Postgres tests (Testcontainers + CI service container) are deferred to Phase 2.
 
 ---
@@ -428,22 +387,14 @@ infra                    Terraform: azurerm + neon + cloudflare in one root modu
 - **Shipped — v2.6 (M35–M38):** startup fail-fast · hard-delete · responsive navbar · catalog counting.
 - **Shipped — v2.7 (M39–M42):** remote Terraform state · cold-start baseline · API boot path ·
   edge-served SPA.
-- **Shipped — v2.8 (M43–M48): multilingual EN/ES**, on `feat/i18n-multilingual` off `dev` — **merged?
-  not yet.** The branch carries M43 i18n foundation + language selector · M44 home/releases strings ·
-  M45 catalog/artists/templates strings · M46 API messages as stable codes · M47 DB-authored checklist
-  translations + the `IsDistributed` fix · M48 Spanish content + per-locale editing. Each milestone is
-  its own pushed commit. **Two migrations ship with it** — `TaskCodesAndTranslations` and
-  `SpanishChecklistText`, both additive-only, already applied to the dev Neon branch; prod gets them
-  through the pipeline's EF bundle on merge, before the image swaps.
-  **Open follow-up:** the user's review pass over the 38 Spanish task titles. It is deliberately *not*
-  a blocker — corrections now go straight into the templates screen (a title edit lands in the language
-  being read) rather than needing a migration, which is exactly what M48 step 4 bought.
-
-- **Then: Phase 2 — DSP stats** (the reason this exists over Notion/Trello): hang streaming/revenue data
+- **Shipped — v2.8 (M43–M48):** i18n foundation + language selector · home/releases strings ·
+  catalog/artists/templates strings · API message codes · checklist translations · Spanish content.
+- **Next: Phase 2 — DSP stats** (the reason this exists over Notion/Trello): hang streaming/revenue data
   off the stable Artist / Release / **Song** / Track ids and the UPC/ISRC columns; the v2.0 Song ids are
   its foundation. Also real-Postgres tests. No build plan yet — write `build-plan-3.0.md` when it starts.
-- **Still open (not gating):** Low-value test polish (exhaustive AAA pass, the last few Theory
-  conversions). The suite is green without it.
+- **Still open (not gating):** a review pass over the seeded Spanish task titles — corrections go into
+  the templates screen, not a migration. Low-value test polish (exhaustive AAA pass, the last few Theory
+  conversions); the suite is green without it.
 - **Per-track task fan-out** on albums: registrations that repeat per track are single "per track" tasks
   today. Decide after the first real album.
 - Deferred: un-archive/restore (archives are terminal by rule); auth for hosted deploys; absolute
