@@ -14,12 +14,12 @@ public class PendingActionsTests
         Builders.Release(date, title, upc, type, tasks: tasks);
 
     private static ReleaseTask Task(string title, Phase phase = Phase.Pre, bool done = false,
-        int? min = null, int? max = null, int sort = 0, string? sourceCode = null) =>
-        Builders.Task(title, phase, done, min, max, sort, sourceCode);
+        int? min = null, int? max = null, int sort = 0, string? sourceCode = null, string? titleEs = null) =>
+        Builders.Task(title, phase, done, min, max, sort, sourceCode, titleEs);
 
-    /// <summary>The seeded DSP-distribution task — identified by its code, not its title (M47).</summary>
+    /// <summary>The seeded DSP-distribution task — identified by its code, never its title.</summary>
     private static ReleaseTask DistributeTask(bool done) =>
-        Task(SeedData.DistributeToDspsTitle, done: done, sourceCode: TaskCodes.DistributeToDsps);
+        Task(SeedData.DistributeToDspsEn, done: done, sourceCode: TaskCodes.DistributeToDsps);
 
     [Fact]
     public void Task_with_no_timeframe_never_pends()
@@ -40,7 +40,9 @@ public class PendingActionsTests
         var actions = PendingActions.Compute(open, Today);
         var due = Assert.Single(actions);
         Assert.Equal(PendingKind.TaskDue, due.Kind);
-        Assert.Equal("Pitch to Spotify", due.Label);
+        // TaskDue carries the task's own text in both languages; WarningCode is for the data kinds.
+        Assert.Equal("Pitch to Spotify", due.TaskTitleEn);
+        Assert.Null(due.WarningCode);
         Assert.Equal(10, due.DaysToRelease);
     }
 
@@ -72,7 +74,7 @@ public class PendingActionsTests
             tasks: DistributeTask(done: true));
         var action = Assert.Single(PendingActions.Compute(dist, Today));
         Assert.Equal(PendingKind.MissingUpc, action.Kind);
-        Assert.Equal(ReleaseWarnings.MissingUpc, action.Label);
+        Assert.Equal(ReleaseWarnings.MissingUpc, action.WarningCode);
         Assert.Null(action.TaskId);
         Assert.NotNull(action.ReleaseId);
         Assert.Null(action.SongId);
@@ -86,13 +88,13 @@ public class PendingActionsTests
     [Theory]
     [InlineData(0, ReleaseWarnings.AlbumIsEmpty)]
     [InlineData(1, ReleaseWarnings.AlbumHasOneTrack)]
-    public void Empty_album_pends_with_fewer_than_two_tracks(int trackCount, string label)
+    public void Empty_album_pends_with_fewer_than_two_tracks(int trackCount, string code)
     {
         var album = Rel(Today.AddDays(10), type: ReleaseType.Album);
         album.Tracks = Enumerable.Range(0, trackCount).Select(_ => new Track()).ToList();
 
         var action = Assert.Single(PendingActions.Compute(album, Today), a => a.Kind == PendingKind.EmptyAlbum);
-        Assert.Equal(label, action.Label);
+        Assert.Equal(code, action.WarningCode);
         Assert.NotNull(action.ReleaseId);
     }
 
@@ -133,7 +135,7 @@ public class PendingActionsTests
         // Distributed, blank ISRC → one song-owned action.
         var action = Assert.Single(PendingActions.ComputeForSong(song, hasDistributedRelease: true));
         Assert.Equal(PendingKind.MissingIsrc, action.Kind);
-        Assert.Equal(PendingActions.MissingIsrc, action.Label);
+        Assert.Equal(PendingActions.MissingIsrc, action.WarningCode);
         Assert.Equal(song.Id, action.SongId);
         Assert.Null(action.ReleaseId);
 

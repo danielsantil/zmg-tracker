@@ -115,14 +115,17 @@ public record ArchivePreviewDto(List<string> SongsToArchive);
 
 public record PhaseGroupDto(Phase Phase, int Done, int Total, List<ReleaseTaskDto> Tasks);
 
+// Both languages go on the wire and the SPA reads the column matching what the user is reading (v2.9),
+// so the API never resolves a locale and switching language needs no refetch. TitleEs is nullable —
+// null means "show the English", which is a legitimate answer, not a missing translation.
 public record ReleaseTaskDto(
-    Guid Id, string Title, Phase Phase, int SortOrder,
+    Guid Id, string TitleEn, string? TitleEs, Phase Phase, int SortOrder,
     bool IsDone, DateTime? CompletedAt, string? Notes,
     int? MinDaysBefore, int? MaxDaysBefore);
 
 // ---- Release task mutations (M2 checklist engine; timeframe fields added in M8) ----
-public record AddTaskInput(string Title, Phase Phase, int? MinDaysBefore = null, int? MaxDaysBefore = null);
-public record UpdateTaskInput(string Title, Phase Phase, string? Notes, int? MinDaysBefore = null, int? MaxDaysBefore = null);
+public record AddTaskInput(string TitleEn, string? TitleEs, Phase Phase, int? MinDaysBefore = null, int? MaxDaysBefore = null);
+public record UpdateTaskInput(string TitleEn, string? TitleEs, Phase Phase, string? Notes, int? MinDaysBefore = null, int? MaxDaysBefore = null);
 public record ReorderTasksInput(Phase Phase, List<Guid> OrderedTaskIds);
 
 // ---- Tracks (v2.0: a Release↔Song join) ----
@@ -137,10 +140,10 @@ public record ReorderTracksInput(List<Guid> OrderedSongIds);
 // ---- Templates (M3 template management) ----
 public record TemplateDto(Guid Id, ReleaseType Type, List<TemplatePhaseGroupDto> Phases);
 public record TemplatePhaseGroupDto(Phase Phase, List<TemplateTaskDto> Tasks);
-public record TemplateTaskDto(Guid Id, string Title, Phase Phase, int SortOrder, int? MinDaysBefore, int? MaxDaysBefore);
+public record TemplateTaskDto(Guid Id, string TitleEn, string? TitleEs, Phase Phase, int SortOrder, int? MinDaysBefore, int? MaxDaysBefore);
 
-public record AddTemplateTaskInput(string Title, Phase Phase, int? MinDaysBefore = null, int? MaxDaysBefore = null);
-public record UpdateTemplateTaskInput(string Title, Phase Phase, int? MinDaysBefore = null, int? MaxDaysBefore = null);
+public record AddTemplateTaskInput(string TitleEn, string? TitleEs, Phase Phase, int? MinDaysBefore = null, int? MaxDaysBefore = null);
+public record UpdateTemplateTaskInput(string TitleEn, string? TitleEs, Phase Phase, int? MinDaysBefore = null, int? MaxDaysBefore = null);
 public record ReorderTemplateTasksInput(Phase Phase, List<Guid> OrderedTaskIds);
 
 // ---- Cover uploads (M31) ----

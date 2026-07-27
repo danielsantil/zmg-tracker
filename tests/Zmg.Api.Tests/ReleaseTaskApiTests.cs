@@ -51,7 +51,7 @@ public class ReleaseTaskApiTests(ZmgApiFactory factory) : IClassFixture<ZmgApiFa
         var preBefore = release.Phases.Single(p => p.Phase == Phase.Pre).Total;
 
         var res = await client.PostAsJsonAsync($"/api/releases/{release.Id}/tasks",
-            new AddTaskInput("Custom pre task", Phase.Pre));
+            new AddTaskInput("Custom pre task", null, Phase.Pre));
         res.EnsureSuccessStatusCode();
         var created = (await res.Content.ReadFromJsonAsync<ReleaseTaskDto>())!;
         Assert.Equal(Phase.Pre, created.Phase);
@@ -69,7 +69,7 @@ public class ReleaseTaskApiTests(ZmgApiFactory factory) : IClassFixture<ZmgApiFa
         var release = await CreateReleaseWithChecklist(client, "Blank Artist", "Blank Song");
 
         var res = await client.PostAsJsonAsync($"/api/releases/{release.Id}/tasks",
-            new AddTaskInput("   ", Phase.Pre));
+            new AddTaskInput("   ", null, Phase.Pre));
         Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
     }
 
@@ -81,11 +81,11 @@ public class ReleaseTaskApiTests(ZmgApiFactory factory) : IClassFixture<ZmgApiFa
         var task = release.Phases.Single(p => p.Phase == Phase.Pre).Tasks.First();
 
         var res = await client.PutAsJsonAsync($"/api/tasks/{task.Id}",
-            new UpdateTaskInput("Renamed & moved", Phase.Post, "with notes"));
+            new UpdateTaskInput("Renamed & moved", null, Phase.Post, "with notes"));
         res.EnsureSuccessStatusCode();
         var updated = (await res.Content.ReadFromJsonAsync<ReleaseTaskDto>())!;
 
-        Assert.Equal("Renamed & moved", updated.Title);
+        Assert.Equal("Renamed & moved", updated.TitleEn);
         Assert.Equal(Phase.Post, updated.Phase);
         Assert.Equal("with notes", updated.Notes);
     }

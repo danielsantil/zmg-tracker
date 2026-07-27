@@ -14,8 +14,6 @@ public class ZmgDbContext(DbContextOptions<ZmgDbContext> options) : DbContext(op
     public DbSet<ReleaseTask> ReleaseTasks => Set<ReleaseTask>();
     public DbSet<ChecklistTemplate> ChecklistTemplates => Set<ChecklistTemplate>();
     public DbSet<TemplateTask> TemplateTasks => Set<TemplateTask>();
-    public DbSet<TemplateTaskTranslation> TemplateTaskTranslations => Set<TemplateTaskTranslation>();
-    public DbSet<ReleaseTaskTranslation> ReleaseTaskTranslations => Set<ReleaseTaskTranslation>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -79,24 +77,13 @@ public class ZmgDbContext(DbContextOptions<ZmgDbContext> options) : DbContext(op
         b.Entity<ReleaseTask>(e =>
         {
             e.HasKey(x => x.Id);
-            e.Property(x => x.Title).IsRequired();
+            // English is required and is the fallback; Spanish is nullable, and null legitimately means
+            // "reads the same in both languages" rather than "not translated yet".
+            e.Property(x => x.TitleEn).IsRequired();
             e.HasOne(x => x.Release)
                 .WithMany(r => r.Tasks)
                 .HasForeignKey(x => x.ReleaseId)
                 .OnDelete(DeleteBehavior.Cascade);
-            // The release's own per-locale text, copied down at create — never resolved from the
-            // template, so a template edit can't rewrite a live checklist.
-            e.HasMany(x => x.Translations)
-                .WithOne(t => t.ReleaseTask!)
-                .HasForeignKey(t => t.ReleaseTaskId)
-                .OnDelete(DeleteBehavior.Cascade);
-        });
-
-        b.Entity<ReleaseTaskTranslation>(e =>
-        {
-            e.HasKey(x => new { x.ReleaseTaskId, x.Locale });
-            e.Property(x => x.Locale).IsRequired().HasMaxLength(8);
-            e.Property(x => x.Text).IsRequired();
         });
 
         b.Entity<ChecklistTemplate>(e =>
@@ -111,23 +98,12 @@ public class ZmgDbContext(DbContextOptions<ZmgDbContext> options) : DbContext(op
         b.Entity<TemplateTask>(e =>
         {
             e.HasKey(x => x.Id);
-            e.Property(x => x.Title).IsRequired();
-            // Code is the stable identity of a seeded task (M47), null for user-added ones. Unique per
+            e.Property(x => x.TitleEn).IsRequired();
+            // Code is the stable identity of a seeded task, null for user-added ones. Unique per
             // template — a filtered index would exclude the nulls, but SQLite and Postgres disagree on
             // filtered-index syntax and the tests run SQLite, so uniqueness stays an app-level invariant
             // of SeedData and the index exists for lookup.
             e.HasIndex(x => new { x.ChecklistTemplateId, x.Code });
-            e.HasMany(x => x.Translations)
-                .WithOne(t => t.TemplateTask!)
-                .HasForeignKey(t => t.TemplateTaskId)
-                .OnDelete(DeleteBehavior.Cascade);
-        });
-
-        b.Entity<TemplateTaskTranslation>(e =>
-        {
-            e.HasKey(x => new { x.TemplateTaskId, x.Locale });
-            e.Property(x => x.Locale).IsRequired().HasMaxLength(8);
-            e.Property(x => x.Text).IsRequired();
         });
 
         // Seed both templates and their tasks (build-plan.md section 5.4).
@@ -142,22 +118,12 @@ public class ZmgDbContext(DbContextOptions<ZmgDbContext> options) : DbContext(op
                 Id = task.Id,
                 ChecklistTemplateId = task.ChecklistTemplateId,
                 Code = task.Code,
-                Title = task.Title,
+                TitleEn = task.TitleEn,
+                TitleEs = task.TitleEs,
                 Phase = task.Phase,
                 SortOrder = task.SortOrder,
                 MinDaysBefore = task.MinDaysBefore,
                 MaxDaysBefore = task.MaxDaysBefore,
-            });
-        }
-        // Spanish checklist text (M48). Rows, not resources — English stays in Title, so only `es` is
-        // seeded, and a task with no row (three Spotify proper nouns) correctly falls back to English.
-        foreach (var translation in SeedData.AllTemplateTaskTranslations())
-        {
-            b.Entity<TemplateTaskTranslation>().HasData(new TemplateTaskTranslation
-            {
-                TemplateTaskId = translation.TemplateTaskId,
-                Locale = translation.Locale,
-                Text = translation.Text,
             });
         }
     }

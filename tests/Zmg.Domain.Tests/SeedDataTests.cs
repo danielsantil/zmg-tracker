@@ -8,15 +8,16 @@ public class SeedDataTests
     // pure change-detector here would only assert the data file says what the data file says (M25 task 11).
 
     [Theory]
-    [InlineData("Distribute to DSPs")]
-    [InlineData("Pitch to Spotify")]
-    public void Single_template_pre_release_tasks_have_the_7_to_14_timeframe(string title)
+    [InlineData(TaskCodes.DistributeToDsps)]
+    [InlineData(TaskCodes.PitchSpotify)]
+    public void Single_template_pre_release_tasks_have_the_7_to_14_timeframe(string code)
     {
-        // Arrange
+        // Arrange — located by code, never by title: a title is display copy in two languages that the
+        // user may reword at any time, which is the whole point of v2.9.
         var single = SeedData.Templates().Single(t => t.Type == ReleaseType.Single);
 
         // Act
-        var task = single.Tasks.Single(t => t.Title == title);
+        var task = single.Tasks.Single(t => t.Code == code);
 
         // Assert
         Assert.Equal(7, task.MinDaysBefore);
@@ -30,70 +31,59 @@ public class SeedDataTests
         Assert.Equal(all.Count, all.Select(t => t.Id).Distinct().Count());
     }
 
-    // ---- Spanish checklist copy (M48) ----
-    // Not change detectors: these assert *structural* properties of the translation set, which is the
-    // part that breaks quietly when a code is renamed or a title is added without its Spanish.
+    // ---- Checklist copy (v2.9) ----
+    // Not change detectors: these assert *structural* properties of the seeded text, which is the part
+    // that breaks quietly when a task is added without its Spanish or a code is renamed.
 
     [Fact]
-    public void Every_spanish_translation_points_at_a_real_seeded_task()
+    public void Every_seeded_task_carries_both_languages()
     {
-        var codes = SeedData.AllTemplateTasks().Select(t => t.Id).ToHashSet();
+        // A null TitleEs is a state the schema supports — it means "reads the same in both languages",
+        // and the templates editor can produce one. No *seeded* task uses it, though, so a translation
+        // forgotten during a future edit fails here instead of sitting quietly as English text inside a
+        // Spanish checklist.
+        var all = SeedData.AllTemplateTasks().ToList();
 
-        var translations = SeedData.AllTemplateTaskTranslations().ToList();
-
-        Assert.NotEmpty(translations);
-        Assert.All(translations, t => Assert.Contains(t.TemplateTaskId, codes));
-    }
-
-    [Fact]
-    public void Spanish_rows_are_unique_per_task_and_locale_and_never_blank()
-    {
-        var translations = SeedData.AllTemplateTaskTranslations().ToList();
-
-        // (TemplateTaskId, Locale) is the composite PK — a duplicate would fail the migration at deploy.
-        Assert.Equal(
-            translations.Count,
-            translations.Select(t => (t.TemplateTaskId, t.Locale)).Distinct().Count());
-        Assert.All(translations, t =>
+        Assert.All(all, t =>
         {
-            Assert.Equal("es", t.Locale);
-            Assert.False(string.IsNullOrWhiteSpace(t.Text));
+            Assert.False(string.IsNullOrWhiteSpace(t.TitleEn));
+            Assert.False(string.IsNullOrWhiteSpace(t.TitleEs));
         });
     }
 
     [Fact]
-    public void A_shared_base_task_is_translated_in_both_templates()
+    public void Every_seeded_task_has_a_code()
     {
-        // The base checklist is seeded into both templates as separate rows, so a title written once in
-        // SpanishTitles has to land twice — otherwise albums silently read half their checklist in English.
-        var byCode = SeedData.AllTemplateTasks().ToDictionary(t => t.Id, t => t.Code);
-        var translated = SeedData.AllTemplateTaskTranslations()
-            .Select(t => byCode[t.TemplateTaskId])
-            .ToList();
-
-        Assert.Equal(2, translated.Count(c => c == TaskCodes.DistributeToDsps));
-        // An album-only task exists once, so it is translated once.
-        Assert.Equal(1, translated.Count(c => c == TaskCodes.AlbumPreSave));
+        // Null codes are for user-added tasks only. A seeded task without one is invisible to any rule
+        // that identifies it — which is exactly how the IsDistributed bug went unnoticed.
+        Assert.All(SeedData.AllTemplateTasks(), t => Assert.False(string.IsNullOrWhiteSpace(t.Code)));
     }
 
     [Fact]
-    public void The_untranslated_titles_are_the_three_deliberate_proper_nouns()
+    public void A_shared_base_task_is_seeded_into_both_templates_with_the_same_text()
     {
-        // A task with no Spanish row falls back to English by design (SeedData.SpanishTitles' remarks).
-        // Pinning the set means a *forgotten* translation shows up as a failure rather than as English
-        // text quietly sitting in a Spanish checklist.
-        var single = SeedData.Templates().Single(t => t.Type == ReleaseType.Single);
-        var translatedIds = SeedData.AllTemplateTaskTranslations().Select(t => t.TemplateTaskId).ToHashSet();
-
-        var untranslated = single.Tasks
-            .Where(t => !translatedIds.Contains(t.Id))
-            .Select(t => t.Code)
-            .OrderBy(c => c, StringComparer.Ordinal)
+        // The base checklist is seeded into both templates as separate rows (v2.9 keeps template edits
+        // per-template, so they diverge only when the user edits one). At seed time they must match, or
+        // albums start life reading a different checklist from singles.
+        var byCode = SeedData.AllTemplateTasks()
+            .Where(t => t.Code == TaskCodes.DistributeToDsps)
             .ToList();
 
-        Assert.Equal(
-            new[] { TaskCodes.SpotifyArtistPick, TaskCodes.SpotifyCanvas, TaskCodes.SpotifyDiscoveryMode }
-                .OrderBy(c => c, StringComparer.Ordinal),
-            untranslated);
+        Assert.Equal(2, byCode.Count);
+        Assert.Single(byCode.Select(t => t.TitleEn).Distinct());
+        Assert.Single(byCode.Select(t => t.TitleEs).Distinct());
+
+        // An album-only task exists exactly once.
+        Assert.Single(SeedData.AllTemplateTasks().Where(t => t.Code == TaskCodes.AlbumPreSave));
+    }
+
+    [Fact]
+    public void Codes_are_unique_within_each_template()
+    {
+        foreach (var template in SeedData.Templates())
+        {
+            var codes = template.Tasks.Select(t => t.Code).ToList();
+            Assert.Equal(codes.Count, codes.Distinct().Count());
+        }
     }
 }

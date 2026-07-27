@@ -54,7 +54,7 @@ public class ArchivedReleaseWriteApiTests(ZmgApiFactory factory) : IClassFixture
         var detail = await CreateArchivedAlbum(client, "Archived Add-Task Artist");
 
         var res = await client.PostAsJsonAsync($"/api/releases/{detail.Id}/tasks",
-            new AddTaskInput("Late task", Phase.Pre));
+            new AddTaskInput("Late task", null, Phase.Pre));
 
         Assert.Equal(HttpStatusCode.Conflict, res.StatusCode);
     }

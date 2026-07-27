@@ -105,7 +105,7 @@ public class ArtistReleaseApiTests(ZmgApiFactory factory) : IClassFixture<ZmgApi
         Assert.Equal(6, detail.Phases.Single(p => p.Phase == Phase.Pre).Total);
         Assert.Equal(18, detail.Phases.Single(p => p.Phase == Phase.Release).Total);
         Assert.Equal(7, detail.Phases.Single(p => p.Phase == Phase.Post).Total);
-        Assert.Contains(detail.Phases.SelectMany(p => p.Tasks), t => t.Title == "Mix/master");
+        Assert.Contains(detail.Phases.SelectMany(p => p.Tasks), t => t.TitleEn == "Mix/master");
     }
 
     [Fact]

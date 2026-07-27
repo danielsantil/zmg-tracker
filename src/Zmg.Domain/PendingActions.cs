@@ -9,14 +9,22 @@ namespace Zmg.Domain;
 /// <see cref="Subject"/> is that owner's display name (release title / song title).
 /// </summary>
 /// <remarks>
-/// <see cref="Label"/> is deliberately two things, switched on by <see cref="Kind"/> (M46):
-/// for <see cref="PendingKind.TaskDue"/> it is the task's <b>title</b> — user content, rendered
-/// verbatim — and for the three data kinds it is a <b>warning code</b> the SPA runs through
-/// <c>t()</c>. That keeps the DTO shape unchanged while the prose moves client-side.
+/// The text fields are split by <see cref="Kind"/> and each means exactly one thing (v2.9). The three
+/// data kinds carry a <see cref="WarningCode"/> the SPA runs through <c>t()</c>;
+/// <see cref="PendingKind.TaskDue"/> carries the task's own text in
+/// <see cref="TaskTitleEn"/>/<see cref="TaskTitleEs"/> — user content, rendered verbatim in whichever
+/// language the reader has selected. Exactly one of the two groups is populated on any given action.
+/// <para>
+/// This replaces M46's single <c>Label</c>, which was those two things overloaded onto one field. The
+/// server no longer picks the language: both texts go on the wire and the SPA reads the column it
+/// wants, so nothing here needs a locale, a culture, or a refetch when the user switches.
+/// </para>
 /// </remarks>
 public record PendingAction(
     PendingKind Kind,
-    string Label,
+    string? WarningCode,
+    string? TaskTitleEn,
+    string? TaskTitleEs,
     string Subject,
     string ArtistName,
     Guid? ReleaseId,
@@ -40,8 +48,7 @@ public static class PendingActions
     /// and an empty-album nag. Song-owned ISRC actions come from <see cref="ComputeForSong"/>. The aggregate
     /// ordering across owners is applied by <see cref="Order"/>.
     /// </summary>
-    public static List<PendingAction> Compute(
-        Release release, DateOnly today, string locale = TaskText.DefaultLocale)
+    public static List<PendingAction> Compute(Release release, DateOnly today)
     {
         var artistName = release.MainArtist?.Name ?? string.Empty;
         var daysToRelease = release.ReleaseDate.DayNumber - today.DayNumber;
@@ -57,9 +64,9 @@ public static class PendingActions
             if (today >= windowOpens && release.ReleaseDate >= today)
             {
                 result.Add(new PendingAction(
-                    // TaskDue's label is the task's own text, so it reads like the checklist does —
-                    // from the release's own snapshot rows, never the template's.
-                    PendingKind.TaskDue, TaskText.Resolve(t.Translations, locale, t.Title),
+                    // Both texts, straight off the release's own snapshot columns, so this row reads
+                    // exactly like the checklist does in whichever language the reader picks.
+                    PendingKind.TaskDue, null, t.TitleEn, t.TitleEs,
                     release.Title, artistName, release.Id, null, t.Id, daysToRelease));
             }
         }
@@ -68,7 +75,7 @@ public static class PendingActions
         if (release.IsDistributed && string.IsNullOrWhiteSpace(release.Upc))
         {
             result.Add(new PendingAction(
-                PendingKind.MissingUpc, ReleaseWarnings.MissingUpc, release.Title, artistName,
+                PendingKind.MissingUpc, ReleaseWarnings.MissingUpc, null, null, release.Title, artistName,
                 release.Id, null, null, null));
         }
 
@@ -76,9 +83,9 @@ public static class PendingActions
         // the nag persists until the tracks exist. Singles never qualify (they carry exactly one track).
         if (release is { Type: ReleaseType.Album, IsArchived: false } && release.Tracks.Count < 2)
         {
-            var label = release.Tracks.Count == 0 ? ReleaseWarnings.AlbumIsEmpty : ReleaseWarnings.AlbumHasOneTrack;
+            var code = release.Tracks.Count == 0 ? ReleaseWarnings.AlbumIsEmpty : ReleaseWarnings.AlbumHasOneTrack;
             result.Add(new PendingAction(
-                PendingKind.EmptyAlbum, label, release.Title, artistName,
+                PendingKind.EmptyAlbum, code, null, null, release.Title, artistName,
                 release.Id, null, null, null));
         }
 
@@ -98,7 +105,7 @@ public static class PendingActions
         if (hasDistributedRelease && !song.IsArchived && string.IsNullOrWhiteSpace(song.Isrc))
         {
             result.Add(new PendingAction(
-                PendingKind.MissingIsrc, MissingIsrc, song.Title,
+                PendingKind.MissingIsrc, MissingIsrc, null, null, song.Title,
                 song.MainArtist?.Name ?? string.Empty,
                 null, song.Id, null, null));
         }

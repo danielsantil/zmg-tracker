@@ -12,7 +12,7 @@ namespace Zmg.Api.Services;
 /// Template management (M3). Edits here only shape *future* releases — existing releases
 /// own a snapshot copy taken on create, so nothing here touches live checklists.
 /// </summary>
-public sealed class TemplateService(ZmgDbContext db, ITaskTranslationService translations) : ITemplateService
+public sealed class TemplateService(ZmgDbContext db) : ITemplateService
 {
     public async Task<IReadOnlyList<TemplateDto>> ListAsync(CancellationToken ct = default)
     {
@@ -21,8 +21,7 @@ public sealed class TemplateService(ZmgDbContext db, ITaskTranslationService tra
             .OrderBy(t => t.Type)
             .ToListAsync(ct);
 
-        var text = await translations.ForRequestLocaleAsync(ct);
-        return templates.Select(t => ToDto(t, text)).ToList();
+        return templates.Select(ToDto).ToList();
     }
 
     public async Task<OperationResult<TemplateTaskDto>> AddTaskAsync(Guid templateId, AddTemplateTaskInput input, CancellationToken ct = default)
@@ -30,7 +29,7 @@ public sealed class TemplateService(ZmgDbContext db, ITaskTranslationService tra
         if (!await db.ChecklistTemplates.AnyAsync(t => t.Id == templateId, ct))
             return OperationResult<TemplateTaskDto>.NotFound();
 
-        var validation = Validation.ValidateTaskTitle(input.Title);
+        var validation = Validation.ValidateTaskTitle(input.TitleEn);
         if (!validation.IsValid)
             return OperationResult<TemplateTaskDto>.Invalid(validation.Errors);
 
@@ -40,7 +39,8 @@ public sealed class TemplateService(ZmgDbContext db, ITaskTranslationService tra
         {
             Id = Guid.NewGuid(),
             ChecklistTemplateId = templateId,
-            Title = input.Title.Trim(),
+            TitleEn = input.TitleEn.Trim(),
+            TitleEs = Clean(input.TitleEs),
             Phase = input.Phase,
             SortOrder = nextOrder,
             MinDaysBefore = input.MinDaysBefore,
@@ -49,7 +49,7 @@ public sealed class TemplateService(ZmgDbContext db, ITaskTranslationService tra
         db.TemplateTasks.Add(task);
         await db.SaveChangesAsync(ct);
 
-        return OperationResult<TemplateTaskDto>.Success(ToDto(task, await translations.ForRequestLocaleAsync(ct)));
+        return OperationResult<TemplateTaskDto>.Success(ToDto(task));
     }
 
     public async Task<OperationResult<TemplateTaskDto>> UpdateTaskAsync(Guid id, UpdateTemplateTaskInput input, CancellationToken ct = default)
@@ -57,7 +57,7 @@ public sealed class TemplateService(ZmgDbContext db, ITaskTranslationService tra
         var task = await db.TemplateTasks.FindAsync([id], ct);
         if (task is null) return OperationResult<TemplateTaskDto>.NotFound();
 
-        var validation = Validation.ValidateTaskTitle(input.Title);
+        var validation = Validation.ValidateTaskTitle(input.TitleEn);
         if (!validation.IsValid)
             return OperationResult<TemplateTaskDto>.Invalid(validation.Errors);
 
@@ -68,82 +68,19 @@ public sealed class TemplateService(ZmgDbContext db, ITaskTranslationService tra
             task.Phase = input.Phase;
         }
 
-        // A title edit is applied to *the locale the editor is reading* (M48). Editing a seeded task
-        // while in Spanish rewrites its Spanish row and leaves the English standard — and the code —
-        // alone; editing in English rewrites the standard and leaves the Spanish alone. That is what
-        // makes the copy correctable in the app instead of by migration, and it supersedes M47's
-        // "clear the Code on edit" for template tasks: with per-locale edits there is no silent revert
-        // to protect against, and dropping the code would orphan every other locale's text.
-        // (Release tasks keep M47's rule — a release owns a snapshot, with no per-locale text of its own.)
-        //
-        // "Edited" is still measured against what the user was shown, not the English column: the SPA
-        // round-trips the title on a phase move, so comparing to `Title` would treat every Spanish move
-        // as an edit.
-        var text = await translations.ForRequestLocaleAsync(ct);
-        var newTitle = input.Title.Trim();
-        var responseTitle = TaskText.Resolve(task.Code, task.Title, text);
-
-        if (!string.Equals(newTitle, responseTitle, StringComparison.Ordinal))
-        {
-            responseTitle = newTitle;
-            if (task.Code is not null && translations.Locale != TaskText.DefaultLocale)
-                await UpsertTranslationAsync(task, translations.Locale, newTitle, ct);
-            else
-                task.Title = newTitle; // English, or a user-added task that has no locale to key off
-        }
-
+        // A plain field write, in both languages, on this row only (v2.9). The editor sends both texts
+        // explicitly, so there is nothing left to infer: no "did they really edit this, or is it the
+        // title round-tripped by a phase move?", no per-locale branch, and no fan-out to the other
+        // template's copy of the same task. Editing the Single template changes the Single template,
+        // which is what its two tabs have always implied. The Code is untouched — it is identity, not
+        // a text key, and that is what keeps a reworded task still recognisable to the rules.
+        task.TitleEn = input.TitleEn.Trim();
+        task.TitleEs = Clean(input.TitleEs);
         task.MinDaysBefore = input.MinDaysBefore;
         task.MaxDaysBefore = input.MaxDaysBefore;
         await db.SaveChangesAsync(ct);
 
-        return OperationResult<TemplateTaskDto>.Success(
-            new TemplateTaskDto(task.Id, responseTitle, task.Phase, task.SortOrder, task.MinDaysBefore, task.MaxDaysBefore));
-    }
-
-    /// <summary>
-    /// Writes one locale's text for a task — and for <b>every</b> template task sharing its code.
-    /// </summary>
-    /// <remarks>
-    /// Code-scoped, not row-scoped, because the lookup map is keyed by code: a release task carries a
-    /// <c>SourceCode</c> and no live FK, so there is nothing else to resolve through. The base checklist
-    /// is seeded into both templates, so writing only this row would leave the other one supplying the
-    /// old text to the same code — the edit would appear to do nothing, which is exactly what the test
-    /// for this caught. (English titles stay per-row, as they always have been: <c>Title</c> is a
-    /// column, and nothing resolves it by code.)
-    /// <para>
-    /// Text identical to the English title <b>deletes</b> the row rather than storing it: falling back
-    /// to the column is the same result with less to keep in step, and it is the rule the seed already
-    /// follows for the untranslatable proper nouns.
-    /// </para>
-    /// </remarks>
-    private async Task UpsertTranslationAsync(TemplateTask task, string locale, string text, CancellationToken ct)
-    {
-        var code = task.Code!;
-        var siblings = await db.TemplateTasks.Where(t => t.Code == code).ToListAsync(ct);
-        var existingByTask = (await db.TemplateTaskTranslations
-                .Where(t => t.Locale == locale && t.TemplateTask!.Code == code)
-                .ToListAsync(ct))
-            .ToDictionary(t => t.TemplateTaskId);
-
-        foreach (var sibling in siblings)
-        {
-            existingByTask.TryGetValue(sibling.Id, out var existing);
-            Write(sibling, existing);
-        }
-
-        void Write(TemplateTask target, TemplateTaskTranslation? existing)
-        {
-            if (string.Equals(text, target.Title, StringComparison.Ordinal))
-            {
-                if (existing is not null) db.TemplateTaskTranslations.Remove(existing);
-                return;
-            }
-
-            if (existing is null)
-                db.TemplateTaskTranslations.Add(new TemplateTaskTranslation { TemplateTaskId = target.Id, Locale = locale, Text = text });
-            else
-                existing.Text = text;
-        }
+        return OperationResult<TemplateTaskDto>.Success(ToDto(task));
     }
 
     public async Task<OperationResult> ReorderTasksAsync(Guid templateId, ReorderTemplateTasksInput input, CancellationToken ct = default)
@@ -185,7 +122,7 @@ public sealed class TemplateService(ZmgDbContext db, ITaskTranslationService tra
             .Select(t => (int?)t.SortOrder)
             .MaxAsync(ct) ?? -1) + 1;
 
-    private static TemplateDto ToDto(ChecklistTemplate template, IReadOnlyDictionary<string, string> text)
+    private static TemplateDto ToDto(ChecklistTemplate template)
     {
         var phases = Enum.GetValues<Phase>()
             .Select(phase => new TemplatePhaseGroupDto(
@@ -193,17 +130,18 @@ public sealed class TemplateService(ZmgDbContext db, ITaskTranslationService tra
                 template.Tasks
                     .Where(t => t.Phase == phase)
                     .OrderBy(t => t.SortOrder)
-                    .Select(t => ToDto(t, text))
+                    .Select(ToDto)
                     .ToList()))
             .ToList();
         return new TemplateDto(template.Id, template.Type, phases);
     }
 
-    // Title is resolved per locale at read time (M47) — the stored row never changes, so a user's edit
-    // is never silently reverted and English is always the fallback. Mutation responses go through the
-    // same mapper: the SPA replaces its local row with what comes back, so English there would flip the
-    // list mid-edit for a Spanish reader.
-    private static TemplateTaskDto ToDto(TemplateTask t, IReadOnlyDictionary<string, string> text) =>
-        new(t.Id, TaskText.Resolve(t.Code, t.Title, text), t.Phase, t.SortOrder, t.MinDaysBefore, t.MaxDaysBefore);
+    // Both texts as stored; the SPA picks the column. Mutation responses go through the same mapper, so
+    // the row the SPA swaps into its local state is shaped exactly like the one it loaded.
+    private static TemplateTaskDto ToDto(TemplateTask t) =>
+        new(t.Id, t.TitleEn, t.TitleEs, t.Phase, t.SortOrder, t.MinDaysBefore, t.MaxDaysBefore);
 
+    // Blank Spanish is stored as null — "show the English" is one state, not two.
+    private static string? Clean(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

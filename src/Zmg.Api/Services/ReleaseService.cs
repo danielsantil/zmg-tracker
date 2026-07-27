@@ -17,7 +17,7 @@ namespace Zmg.Api.Services;
 /// <see cref="ReleaseStatus"/>, <see cref="ReleaseArchival"/>, <see cref="ReleaseMutability"/>,
 /// <see cref="PendingActions"/>); this loads/persists and maps to DTOs.
 /// </summary>
-public sealed class ReleaseService(ZmgDbContext db, ILocaleAccessor locale) : IReleaseService
+public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
 {
     // List with progress counts (done/total) and derived status. Filterable.
     // scope=home returns only forward-looking active releases (releaseDate >= today) ordered nearest-first;
@@ -80,7 +80,7 @@ public sealed class ReleaseService(ZmgDbContext db, ILocaleAccessor locale) : IR
         var release = await db.Releases.AsNoTracking().WithDetailIncludes().FirstOrDefaultAsync(r => r.Id == id, ct);
         if (release is null) return OperationResult<ReleaseDetailDto>.NotFound();
 
-        return OperationResult<ReleaseDetailDto>.Success(ToDetail(release, locale.Locale));
+        return OperationResult<ReleaseDetailDto>.Success(ToDetail(release));
     }
 
     // Create; copies the default template for the type onto the release and materialises the inline
@@ -111,7 +111,7 @@ public sealed class ReleaseService(ZmgDbContext db, ILocaleAccessor locale) : IR
 
         var created = await db.Releases.AsNoTracking().WithDetailIncludes().FirstAsync(r => r.Id == release.Id, ct);
         return OperationResult<ReleaseDetailDto>.Success(
-            ToDetail(created, locale.Locale), validation.Warnings);
+            ToDetail(created), validation.Warnings);
     }
 
     // Structural + per-artist title rules for a create. The title-clash rule (incl. within-request
@@ -268,7 +268,7 @@ public sealed class ReleaseService(ZmgDbContext db, ILocaleAccessor locale) : IR
             await db.Entry(release).Reference(r => r.MainArtist).LoadAsync(ct);
 
         return OperationResult<ReleaseDetailDto>.Success(
-            ToDetail(release, locale.Locale), validation.Warnings);
+            ToDetail(release), validation.Warnings);
     }
 
     // Preview the archive cascade (2.0 improvement): the titles of the songs that would archive alongside
@@ -347,13 +347,12 @@ public sealed class ReleaseService(ZmgDbContext db, ILocaleAccessor locale) : IR
 
     private async Task<ChecklistTemplate?> LoadTemplate(ReleaseType type, CancellationToken ct) =>
         await db.ChecklistTemplates
-            .Include(t => t.Tasks).ThenInclude(t => t.Translations)
+            .Include(t => t.Tasks)
             .FirstOrDefaultAsync(t => t.Type == type, ct);
 
-    // Each task resolves from the release's OWN translation rows (never the template's), falling back
-    // to the stored English title — so an edited or user-added task stays verbatim, and a later
-    // template edit can't reach a live checklist.
-    private static ReleaseDetailDto ToDetail(Release release, string locale)
+    // Both task texts go out as stored: the release owns its own columns, so a later template edit
+    // can't reach a live checklist, and the SPA renders whichever language the reader has selected.
+    private static ReleaseDetailDto ToDetail(Release release)
     {
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
         var progress = ProgressCalculator.Calculate(release.Tasks);
@@ -366,7 +365,7 @@ public sealed class ReleaseService(ZmgDbContext db, ILocaleAccessor locale) : IR
                     .Where(t => t.Phase == phase)
                     .OrderBy(t => t.SortOrder)
                     .Select(t => new ReleaseTaskDto(
-                        t.Id, TaskText.Resolve(t.Translations, locale, t.Title), t.Phase, t.SortOrder,
+                        t.Id, t.TitleEn, t.TitleEs, t.Phase, t.SortOrder,
                         t.IsDone, t.CompletedAt, t.Notes, t.MinDaysBefore, t.MaxDaysBefore))
                     .ToList();
                 return new PhaseGroupDto(phase, count.Done, count.Total, tasks);

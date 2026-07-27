@@ -12,10 +12,11 @@ public class ReleaseTests
         {
             Tasks =
             [
-                // Identity is the code, not the title (M47) — a Spanish title must not change this.
+                // Identity is the code, not the title — neither a Spanish title nor a user's rewording
+                // may change this.
                 new ReleaseTask
                 {
-                    Id = Guid.NewGuid(), Title = SeedData.DistributeToDspsTitle,
+                    Id = Guid.NewGuid(), TitleEn = SeedData.DistributeToDspsEn,
                     SourceCode = TaskCodes.DistributeToDsps, Phase = Phase.Pre, IsDone = false,
                 }
             ]

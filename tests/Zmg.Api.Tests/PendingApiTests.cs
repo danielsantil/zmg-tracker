@@ -112,14 +112,14 @@ public class PendingApiTests
         // 0 tracks → the album-is-empty code.
         var album = await CreateAlbum(client, artist, "Growing Album", Today.AddDays(30));
         var emptyAction = Assert.Single((await GetPending(client))!, a => a.Kind == PendingKind.EmptyAlbum);
-        Assert.Equal(ReleaseWarnings.AlbumIsEmpty, emptyAction.Label);
+        Assert.Equal(ReleaseWarnings.AlbumIsEmpty, emptyAction.WarningCode);
         Assert.Equal(album.Id, emptyAction.ReleaseId);
 
         // 1 track → the one-track code.
         (await client.PostAsJsonAsync($"/api/releases/{album.Id}/tracks",
             new TrackInput(null, "One", null, null))).EnsureSuccessStatusCode();
         var oneAction = Assert.Single((await GetPending(client))!, a => a.Kind == PendingKind.EmptyAlbum);
-        Assert.Equal(ReleaseWarnings.AlbumHasOneTrack, oneAction.Label);
+        Assert.Equal(ReleaseWarnings.AlbumHasOneTrack, oneAction.WarningCode);
 
         // 2 tracks → no empty-album action.
         (await client.PostAsJsonAsync($"/api/releases/{album.Id}/tracks",

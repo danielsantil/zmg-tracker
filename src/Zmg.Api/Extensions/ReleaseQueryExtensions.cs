@@ -12,6 +12,6 @@ public static class ReleaseQueryExtensions
     public static IQueryable<Release> WithDetailIncludes(this IQueryable<Release> query) =>
         query
             .Include(r => r.MainArtist)
-            .Include(r => r.Tasks).ThenInclude(t => t.Translations)
+            .Include(r => r.Tasks)
             .Include(r => r.Tracks).ThenInclude(t => t.Song!).ThenInclude(s => s.Artists).ThenInclude(sa => sa.Artist);
 }

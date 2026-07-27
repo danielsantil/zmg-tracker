@@ -45,7 +45,7 @@ public class TemplateApiTests : IDisposable
         var preBefore = single.Phases.Single(p => p.Phase == Phase.Pre).Tasks.Count;
 
         var res = await client.PostAsJsonAsync($"/api/templates/{single.Id}/tasks",
-            new AddTemplateTaskInput("Custom pre step", Phase.Pre));
+            new AddTemplateTaskInput("Custom pre step", null, Phase.Pre));
         res.EnsureSuccessStatusCode();
         var created = (await res.Content.ReadFromJsonAsync<TemplateTaskDto>())!;
         Assert.Equal(Phase.Pre, created.Phase);
@@ -63,7 +63,7 @@ public class TemplateApiTests : IDisposable
         var single = await GetTemplate(client, ReleaseType.Single);
 
         var res = await client.PostAsJsonAsync($"/api/templates/{single.Id}/tasks",
-            new AddTemplateTaskInput("   ", Phase.Pre));
+            new AddTemplateTaskInput("   ", null, Phase.Pre));
         Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
     }
 
@@ -75,11 +75,11 @@ public class TemplateApiTests : IDisposable
         var task = single.Phases.Single(p => p.Phase == Phase.Pre).Tasks.First();
 
         var res = await client.PutAsJsonAsync($"/api/template-tasks/{task.Id}",
-            new UpdateTemplateTaskInput("Renamed step", Phase.Post));
+            new UpdateTemplateTaskInput("Renamed step", null, Phase.Post));
         res.EnsureSuccessStatusCode();
         var updated = (await res.Content.ReadFromJsonAsync<TemplateTaskDto>())!;
 
-        Assert.Equal("Renamed step", updated.Title);
+        Assert.Equal("Renamed step", updated.TitleEn);
         Assert.Equal(Phase.Post, updated.Phase);
     }
 
@@ -155,10 +155,10 @@ public class TemplateApiTests : IDisposable
         // Mutate the Single template every way: add, rename, delete.
         var single = await GetTemplate(client, ReleaseType.Single);
         await client.PostAsJsonAsync($"/api/templates/{single.Id}/tasks",
-            new AddTemplateTaskInput("Brand new template task", Phase.Pre));
+            new AddTemplateTaskInput("Brand new template task", null, Phase.Pre));
         var renameTarget = single.Phases.Single(p => p.Phase == Phase.Release).Tasks.First();
         await client.PutAsJsonAsync($"/api/template-tasks/{renameTarget.Id}",
-            new UpdateTemplateTaskInput("Template task renamed", Phase.Release));
+            new UpdateTemplateTaskInput("Template task renamed", null, Phase.Release));
         var deleteTarget = single.Phases.Single(p => p.Phase == Phase.Post).Tasks.First();
         await client.DeleteAsync($"/api/template-tasks/{deleteTarget.Id}");
 
@@ -166,8 +166,8 @@ public class TemplateApiTests : IDisposable
         // task whose template source was renamed, no sign of the new template task.
         var after = await client.GetFromJsonAsync<ReleaseDetailDto>($"/api/releases/{release.Id}");
         Assert.Equal(releaseTotalBefore, after!.TotalTasks);
-        var titles = after.Phases.SelectMany(p => p.Tasks).Select(t => t.Title).ToList();
-        Assert.Contains(renameTarget.Title, titles);
+        var titles = after.Phases.SelectMany(p => p.Tasks).Select(t => t.TitleEn).ToList();
+        Assert.Contains(renameTarget.TitleEn, titles);
         Assert.DoesNotContain("Template task renamed", titles);
         Assert.DoesNotContain("Brand new template task", titles);
     }

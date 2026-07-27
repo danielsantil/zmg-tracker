@@ -13,7 +13,7 @@ namespace Zmg.Api.Services;
 /// small and single-purpose; the frontend recomputes progress from the task list.
 /// Every write is gated on <see cref="ReleaseMutability"/> — archived releases are read-only (M25).
 /// </summary>
-public sealed class ReleaseTaskService(ZmgDbContext db, ILocaleAccessor locale) : IReleaseTaskService
+public sealed class ReleaseTaskService(ZmgDbContext db) : IReleaseTaskService
 {
     public async Task<OperationResult<ReleaseTaskDto>> AddAsync(Guid releaseId, AddTaskInput input, CancellationToken ct = default)
     {
@@ -25,7 +25,7 @@ public sealed class ReleaseTaskService(ZmgDbContext db, ILocaleAccessor locale) 
         if (!ReleaseMutability.CanEdit(archived.Value))
             return OperationResult<ReleaseTaskDto>.Conflict([ReleaseMutability.ArchivedReadOnlyCode]);
 
-        var validation = Validation.ValidateTaskTitle(input.Title);
+        var validation = Validation.ValidateTaskTitle(input.TitleEn);
         if (!validation.IsValid)
             return OperationResult<ReleaseTaskDto>.Invalid(validation.Errors);
 
@@ -33,7 +33,8 @@ public sealed class ReleaseTaskService(ZmgDbContext db, ILocaleAccessor locale) 
         {
             Id = Guid.NewGuid(),
             ReleaseId = releaseId,
-            Title = input.Title.Trim(),
+            TitleEn = input.TitleEn.Trim(),
+            TitleEs = Clean(input.TitleEs),
             Phase = input.Phase,
             SortOrder = await NextSortOrder(releaseId, input.Phase, ct: ct),
             IsDone = false,
@@ -43,7 +44,7 @@ public sealed class ReleaseTaskService(ZmgDbContext db, ILocaleAccessor locale) 
         db.ReleaseTasks.Add(task);
         await db.SaveChangesAsync(ct);
 
-        return OperationResult<ReleaseTaskDto>.Success(ToDto(task, locale.Locale));
+        return OperationResult<ReleaseTaskDto>.Success(ToDto(task));
     }
 
     public async Task<OperationResult<ReleaseTaskDto>> UpdateAsync(Guid id, UpdateTaskInput input, CancellationToken ct = default)
@@ -53,7 +54,7 @@ public sealed class ReleaseTaskService(ZmgDbContext db, ILocaleAccessor locale) 
         if (await IsArchived(task.ReleaseId, ct))
             return OperationResult<ReleaseTaskDto>.Conflict([ReleaseMutability.ArchivedReadOnlyCode]);
 
-        var validation = Validation.ValidateTaskTitle(input.Title);
+        var validation = Validation.ValidateTaskTitle(input.TitleEn);
         if (!validation.IsValid)
             return OperationResult<ReleaseTaskDto>.Invalid(validation.Errors);
 
@@ -64,30 +65,20 @@ public sealed class ReleaseTaskService(ZmgDbContext db, ILocaleAccessor locale) 
             task.Phase = input.Phase;
         }
 
-        // A real title edit makes the task custom: one text in every language. The new text goes to
-        // Title, the code is dropped, and the copied-down translations go with it — otherwise a snapshot
-        // row would keep overriding what the user just typed whenever they switched language (M47).
-        //
-        // "Real" is measured against the text they were *shown*, not the stored English one. The SPA
-        // sends the whole editable row back on any edit — a phase move round-trips the title verbatim —
-        // so comparing against the column would let a Spanish reader's phase move overwrite the English
-        // title with its own translation and orphan the code, for every task, silently.
-        await db.Entry(task).Collection(t => t.Translations).LoadAsync(ct);
-        var newTitle = input.Title.Trim();
-        if (!string.Equals(newTitle, TaskText.Resolve(task.Translations, locale.Locale, task.Title), StringComparison.Ordinal))
-        {
-            task.Title = newTitle;
-            task.SourceCode = null;
-            db.ReleaseTaskTranslations.RemoveRange(task.Translations);
-            task.Translations.Clear();
-        }
+        // A plain field write, in both languages (v2.9) — and note what is *not* here: SourceCode is no
+        // longer cleared. While the code doubled as a translation key it had to be, which meant
+        // rewording "Distribute to DSPs" on a release silently switched off IsDistributed, and with it
+        // the missing-UPC warning, the pending engine and the past-date backfill. Text and identity are
+        // separate now, so a user can word their checklist however they like and the rules still hold.
+        task.TitleEn = input.TitleEn.Trim();
+        task.TitleEs = Clean(input.TitleEs);
 
         task.Notes = string.IsNullOrWhiteSpace(input.Notes) ? null : input.Notes.Trim();
         task.MinDaysBefore = input.MinDaysBefore;
         task.MaxDaysBefore = input.MaxDaysBefore;
         await db.SaveChangesAsync(ct);
 
-        return OperationResult<ReleaseTaskDto>.Success(ToDto(task, locale.Locale));
+        return OperationResult<ReleaseTaskDto>.Success(ToDto(task));
     }
 
     public async Task<OperationResult<ReleaseTaskDto>> ToggleAsync(Guid id, CancellationToken ct = default)
@@ -99,10 +90,9 @@ public sealed class ReleaseTaskService(ZmgDbContext db, ILocaleAccessor locale) 
 
         task.IsDone = !task.IsDone;
         task.CompletedAt = task.IsDone ? DateTime.UtcNow : null;
-        await db.Entry(task).Collection(t => t.Translations).LoadAsync(ct);
         await db.SaveChangesAsync(ct);
 
-        return OperationResult<ReleaseTaskDto>.Success(ToDto(task, locale.Locale));
+        return OperationResult<ReleaseTaskDto>.Success(ToDto(task));
     }
 
     public async Task<OperationResult> ReorderAsync(Guid releaseId, ReorderTasksInput input, CancellationToken ct = default)
@@ -145,10 +135,13 @@ public sealed class ReleaseTaskService(ZmgDbContext db, ILocaleAccessor locale) 
             .Select(t => (int?)t.SortOrder)
             .MaxAsync(ct) ?? -1) + 1;
 
-    // Mutation responses replace the row in the SPA's local state, so they must answer in the request's
-    // locale (M47) — otherwise toggling a task while reading Spanish would flip its title to English.
-    // Resolves from the task's own rows; after a title edit those are gone, so the user's text wins.
-    private static ReleaseTaskDto ToDto(ReleaseTask t, string locale) =>
-        new(t.Id, TaskText.Resolve(t.Translations, locale, t.Title), t.Phase, t.SortOrder,
+    // Both texts as stored — the SPA replaces its local row with this and picks the column matching
+    // what the reader has selected, so no mutation can flip a title's language.
+    private static ReleaseTaskDto ToDto(ReleaseTask t) =>
+        new(t.Id, t.TitleEn, t.TitleEs, t.Phase, t.SortOrder,
             t.IsDone, t.CompletedAt, t.Notes, t.MinDaysBefore, t.MaxDaysBefore);
+
+    // Blank Spanish is stored as null — "show the English" is one state, not two.
+    private static string? Clean(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

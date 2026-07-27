@@ -142,8 +142,11 @@ namespace Zmg.Infra.Migrations
                     b.Property<Guid?>("SourceTemplateTaskId")
                         .HasColumnType("uuid");
 
-                    b.Property<string>("Title")
+                    b.Property<string>("TitleEn")
                         .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("TitleEs")
                         .HasColumnType("text");
 
                     b.HasKey("Id");
@@ -151,24 +154,6 @@ namespace Zmg.Infra.Migrations
                     b.HasIndex("ReleaseId");
 
                     b.ToTable("ReleaseTasks");
-                });
-
-            modelBuilder.Entity("Zmg.Domain.Entities.ReleaseTaskTranslation", b =>
-                {
-                    b.Property<Guid>("ReleaseTaskId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Locale")
-                        .HasMaxLength(8)
-                        .HasColumnType("character varying(8)");
-
-                    b.Property<string>("Text")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("ReleaseTaskId", "Locale");
-
-                    b.ToTable("ReleaseTaskTranslations");
                 });
 
             modelBuilder.Entity("Zmg.Domain.Entities.Song", b =>
@@ -241,8 +226,11 @@ namespace Zmg.Infra.Migrations
                     b.Property<int>("SortOrder")
                         .HasColumnType("integer");
 
-                    b.Property<string>("Title")
+                    b.Property<string>("TitleEn")
                         .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("TitleEs")
                         .HasColumnType("text");
 
                     b.HasKey("Id");
@@ -259,7 +247,8 @@ namespace Zmg.Infra.Migrations
                             Code = "mix-master",
                             Phase = 0,
                             SortOrder = 0,
-                            Title = "Mix/master"
+                            TitleEn = "Mix/master",
+                            TitleEs = "Mezcla/master"
                         },
                         new
                         {
@@ -268,7 +257,8 @@ namespace Zmg.Infra.Migrations
                             Code = "design-cover",
                             Phase = 0,
                             SortOrder = 1,
-                            Title = "Design cover for DSPs"
+                            TitleEn = "Design cover for DSPs",
+                            TitleEs = "Diseñar la portada para los DSPs"
                         },
                         new
                         {
@@ -279,7 +269,8 @@ namespace Zmg.Infra.Migrations
                             MinDaysBefore = 7,
                             Phase = 0,
                             SortOrder = 2,
-                            Title = "Distribute to DSPs"
+                            TitleEn = "Distribute to DSPs",
+                            TitleEs = "Distribuir a los DSPs"
                         },
                         new
                         {
@@ -288,7 +279,8 @@ namespace Zmg.Infra.Migrations
                             Code = "youtube-video-assets",
                             Phase = 0,
                             SortOrder = 3,
-                            Title = "Make video for YouTube, thumbnail and additional YouTube resources"
+                            TitleEn = "Make video for YouTube, thumbnail and additional YouTube resources",
+                            TitleEs = "Hacer el video para YouTube, la miniatura y los demás recursos de YouTube"
                         },
                         new
                         {
@@ -297,7 +289,8 @@ namespace Zmg.Infra.Migrations
                             Code = "pitch-amazon",
                             Phase = 0,
                             SortOrder = 4,
-                            Title = "Pitch to Amazon"
+                            TitleEn = "Pitch to Amazon",
+                            TitleEs = "Pitch a Amazon"
                         },
                         new
                         {
@@ -308,7 +301,8 @@ namespace Zmg.Infra.Migrations
                             MinDaysBefore = 7,
                             Phase = 0,
                             SortOrder = 5,
-                            Title = "Pitch to Spotify"
+                            TitleEn = "Pitch to Spotify",
+                            TitleEs = "Pitch a Spotify"
                         },
                         new
                         {
@@ -317,7 +311,8 @@ namespace Zmg.Infra.Migrations
                             Code = "smart-link",
                             Phase = 1,
                             SortOrder = 0,
-                            Title = "Setup smart link to all stores"
+                            TitleEn = "Setup smart link to all stores",
+                            TitleEs = "Configurar el smart link a todas las tiendas"
                         },
                         new
                         {
@@ -326,7 +321,8 @@ namespace Zmg.Infra.Migrations
                             Code = "smart-link-redirect",
                             Phase = 1,
                             SortOrder = 1,
-                            Title = "Setup smart link redirect from zionmusicgroup.com/<song-name>"
+                            TitleEn = "Setup smart link redirect from zionmusicgroup.com/<song-name>",
+                            TitleEs = "Configurar la redirección del smart link desde zionmusicgroup.com/<song-name>"
                         },
                         new
                         {
@@ -335,7 +331,8 @@ namespace Zmg.Infra.Migrations
                             Code = "register-bmi",
                             Phase = 1,
                             SortOrder = 2,
-                            Title = "Register composition to BMI"
+                            TitleEn = "Register composition to BMI",
+                            TitleEs = "Registrar la composición en BMI"
                         },
                         new
                         {
@@ -344,7 +341,8 @@ namespace Zmg.Infra.Migrations
                             Code = "register-mlc",
                             Phase = 1,
                             SortOrder = 3,
-                            Title = "Register composition to MLC"
+                            TitleEn = "Register composition to MLC",
+                            TitleEs = "Registrar la composición en MLC"
                         },
                         new
                         {
@@ -353,7 +351,8 @@ namespace Zmg.Infra.Migrations
                             Code = "register-soundexchange",
                             Phase = 1,
                             SortOrder = 4,
-                            Title = "Register to SoundExchange"
+                            TitleEn = "Register to SoundExchange",
+                            TitleEs = "Registrar en SoundExchange"
                         },
                         new
                         {
@@ -362,7 +361,8 @@ namespace Zmg.Infra.Migrations
                             Code = "musixmatch-lyrics",
                             Phase = 1,
                             SortOrder = 5,
-                            Title = "Musixmatch lyrics, add/sync"
+                            TitleEn = "Musixmatch lyrics, add/sync",
+                            TitleEs = "Letra en Musixmatch: agregar/sincronizar"
                         },
                         new
                         {
@@ -371,7 +371,8 @@ namespace Zmg.Infra.Migrations
                             Code = "check-deezer",
                             Phase = 1,
                             SortOrder = 6,
-                            Title = "Check release in Deezer (wrong artist)"
+                            TitleEn = "Check release in Deezer (wrong artist)",
+                            TitleEs = "Revisar el lanzamiento en Deezer (artista equivocado)"
                         },
                         new
                         {
@@ -380,7 +381,8 @@ namespace Zmg.Infra.Migrations
                             Code = "check-amazon",
                             Phase = 1,
                             SortOrder = 7,
-                            Title = "Check release in Amazon (wrong artist)"
+                            TitleEn = "Check release in Amazon (wrong artist)",
+                            TitleEs = "Revisar el lanzamiento en Amazon (artista equivocado)"
                         },
                         new
                         {
@@ -389,7 +391,8 @@ namespace Zmg.Infra.Migrations
                             Code = "check-apple",
                             Phase = 1,
                             SortOrder = 8,
-                            Title = "Check release in Apple (wrong artist)"
+                            TitleEn = "Check release in Apple (wrong artist)",
+                            TitleEs = "Revisar el lanzamiento en Apple (artista equivocado)"
                         },
                         new
                         {
@@ -398,7 +401,8 @@ namespace Zmg.Infra.Migrations
                             Code = "spotify-canvas",
                             Phase = 1,
                             SortOrder = 9,
-                            Title = "Spotify Canvas"
+                            TitleEn = "Spotify Canvas",
+                            TitleEs = "Spotify: agregar canvas"
                         },
                         new
                         {
@@ -407,7 +411,8 @@ namespace Zmg.Infra.Migrations
                             Code = "spotify-artist-pick",
                             Phase = 1,
                             SortOrder = 10,
-                            Title = "Spotify Artist Pick"
+                            TitleEn = "Spotify Artist Pick",
+                            TitleEs = "Spotify: selección de artista"
                         },
                         new
                         {
@@ -416,7 +421,8 @@ namespace Zmg.Infra.Migrations
                             Code = "youtube-banner",
                             Phase = 1,
                             SortOrder = 11,
-                            Title = "Update YouTube banner"
+                            TitleEn = "Update YouTube banner",
+                            TitleEs = "Actualizar el banner de YouTube"
                         },
                         new
                         {
@@ -425,7 +431,8 @@ namespace Zmg.Infra.Migrations
                             Code = "youtube-home-video",
                             Phase = 1,
                             SortOrder = 12,
-                            Title = "Update YouTube home video"
+                            TitleEn = "Update YouTube home video",
+                            TitleEs = "Actualizar el video de inicio en canal de YouTube"
                         },
                         new
                         {
@@ -434,7 +441,8 @@ namespace Zmg.Infra.Migrations
                             Code = "youtube-cards",
                             Phase = 1,
                             SortOrder = 13,
-                            Title = "Update cards in existing videos"
+                            TitleEn = "Update cards in existing videos",
+                            TitleEs = "Actualizar las tarjetas en los videos existentes"
                         },
                         new
                         {
@@ -443,7 +451,8 @@ namespace Zmg.Infra.Migrations
                             Code = "youtube-pinned-comment",
                             Phase = 1,
                             SortOrder = 14,
-                            Title = "Update pinned comment in existing videos with link to new video"
+                            TitleEn = "Update pinned comment in existing videos with link to new video",
+                            TitleEs = "Actualizar el comentario fijado en los videos existentes con el enlace al video nuevo"
                         },
                         new
                         {
@@ -452,7 +461,8 @@ namespace Zmg.Infra.Migrations
                             Code = "instagram-bio-youtube-link",
                             Phase = 1,
                             SortOrder = 15,
-                            Title = "Update YouTube link on Instagram bios"
+                            TitleEn = "Update YouTube link on Instagram bios",
+                            TitleEs = "Actualizar el enlace de YouTube en las bios de Instagram"
                         },
                         new
                         {
@@ -461,7 +471,8 @@ namespace Zmg.Infra.Migrations
                             Code = "instagram-bio-song",
                             Phase = 1,
                             SortOrder = 16,
-                            Title = "Update song on Instagram bios"
+                            TitleEn = "Update song on Instagram bios",
+                            TitleEs = "Actualizar la canción en las bios de Instagram"
                         },
                         new
                         {
@@ -470,7 +481,8 @@ namespace Zmg.Infra.Migrations
                             Code = "master-splits",
                             Phase = 1,
                             SortOrder = 17,
-                            Title = "Send master splits to collaborators"
+                            TitleEn = "Send master splits to collaborators",
+                            TitleEs = "Enviar los splits de master a los colaboradores"
                         },
                         new
                         {
@@ -479,7 +491,8 @@ namespace Zmg.Infra.Migrations
                             Code = "meta-ads-initial",
                             Phase = 2,
                             SortOrder = 0,
-                            Title = "Meta ads, initial release campaign"
+                            TitleEn = "Meta ads, initial release campaign",
+                            TitleEs = "Meta ads: campaña inicial de lanzamiento"
                         },
                         new
                         {
@@ -488,7 +501,8 @@ namespace Zmg.Infra.Migrations
                             Code = "meta-ads-ongoing",
                             Phase = 2,
                             SortOrder = 1,
-                            Title = "Meta ads, ongoing campaign"
+                            TitleEn = "Meta ads, ongoing campaign",
+                            TitleEs = "Meta ads: campaña continua"
                         },
                         new
                         {
@@ -497,7 +511,8 @@ namespace Zmg.Infra.Migrations
                             Code = "spotify-discovery-mode",
                             Phase = 2,
                             SortOrder = 2,
-                            Title = "Spotify Discovery Mode"
+                            TitleEn = "Spotify Discovery Mode",
+                            TitleEs = "Spotify: campaña Discovery Mode"
                         },
                         new
                         {
@@ -506,7 +521,8 @@ namespace Zmg.Infra.Migrations
                             Code = "youtube-video-ads",
                             Phase = 2,
                             SortOrder = 3,
-                            Title = "YouTube video ads"
+                            TitleEn = "YouTube video ads",
+                            TitleEs = "Anuncios de video en YouTube"
                         },
                         new
                         {
@@ -515,7 +531,8 @@ namespace Zmg.Infra.Migrations
                             Code = "tiktok-ads",
                             Phase = 2,
                             SortOrder = 4,
-                            Title = "TikTok ads"
+                            TitleEn = "TikTok ads",
+                            TitleEs = "Anuncios en TikTok"
                         },
                         new
                         {
@@ -524,7 +541,8 @@ namespace Zmg.Infra.Migrations
                             Code = "youtube-lyrics-video",
                             Phase = 2,
                             SortOrder = 5,
-                            Title = "Create YouTube lyrics video"
+                            TitleEn = "Create YouTube lyrics video",
+                            TitleEs = "Crear el video de letras para YouTube"
                         },
                         new
                         {
@@ -533,7 +551,8 @@ namespace Zmg.Infra.Migrations
                             Code = "multitracks-setup",
                             Phase = 2,
                             SortOrder = 6,
-                            Title = "Set up multitracks: Ableton project, Google Drive upload, new entry in zionmusicgroup.com/recursos"
+                            TitleEn = "Set up multitracks: Ableton project, Google Drive upload, new entry in zionmusicgroup.com/recursos",
+                            TitleEs = "Preparar los multitracks: proyecto de Ableton, subida a Google Drive, nueva entrada en zionmusicgroup.com/recursos"
                         },
                         new
                         {
@@ -542,7 +561,8 @@ namespace Zmg.Infra.Migrations
                             Code = "mix-master",
                             Phase = 0,
                             SortOrder = 0,
-                            Title = "Mix/master"
+                            TitleEn = "Mix/master",
+                            TitleEs = "Mezcla/master"
                         },
                         new
                         {
@@ -551,7 +571,8 @@ namespace Zmg.Infra.Migrations
                             Code = "design-cover",
                             Phase = 0,
                             SortOrder = 1,
-                            Title = "Design cover for DSPs"
+                            TitleEn = "Design cover for DSPs",
+                            TitleEs = "Diseñar la portada para los DSPs"
                         },
                         new
                         {
@@ -562,7 +583,8 @@ namespace Zmg.Infra.Migrations
                             MinDaysBefore = 7,
                             Phase = 0,
                             SortOrder = 2,
-                            Title = "Distribute to DSPs"
+                            TitleEn = "Distribute to DSPs",
+                            TitleEs = "Distribuir a los DSPs"
                         },
                         new
                         {
@@ -571,7 +593,8 @@ namespace Zmg.Infra.Migrations
                             Code = "youtube-video-assets",
                             Phase = 0,
                             SortOrder = 3,
-                            Title = "Make video for YouTube, thumbnail and additional YouTube resources"
+                            TitleEn = "Make video for YouTube, thumbnail and additional YouTube resources",
+                            TitleEs = "Hacer el video para YouTube, la miniatura y los demás recursos de YouTube"
                         },
                         new
                         {
@@ -580,7 +603,8 @@ namespace Zmg.Infra.Migrations
                             Code = "pitch-amazon",
                             Phase = 0,
                             SortOrder = 4,
-                            Title = "Pitch to Amazon"
+                            TitleEn = "Pitch to Amazon",
+                            TitleEs = "Pitch a Amazon"
                         },
                         new
                         {
@@ -591,7 +615,8 @@ namespace Zmg.Infra.Migrations
                             MinDaysBefore = 7,
                             Phase = 0,
                             SortOrder = 5,
-                            Title = "Pitch to Spotify"
+                            TitleEn = "Pitch to Spotify",
+                            TitleEs = "Pitch a Spotify"
                         },
                         new
                         {
@@ -600,7 +625,8 @@ namespace Zmg.Infra.Migrations
                             Code = "smart-link",
                             Phase = 1,
                             SortOrder = 0,
-                            Title = "Setup smart link to all stores"
+                            TitleEn = "Setup smart link to all stores",
+                            TitleEs = "Configurar el smart link a todas las tiendas"
                         },
                         new
                         {
@@ -609,7 +635,8 @@ namespace Zmg.Infra.Migrations
                             Code = "smart-link-redirect",
                             Phase = 1,
                             SortOrder = 1,
-                            Title = "Setup smart link redirect from zionmusicgroup.com/<song-name>"
+                            TitleEn = "Setup smart link redirect from zionmusicgroup.com/<song-name>",
+                            TitleEs = "Configurar la redirección del smart link desde zionmusicgroup.com/<song-name>"
                         },
                         new
                         {
@@ -618,7 +645,8 @@ namespace Zmg.Infra.Migrations
                             Code = "register-bmi",
                             Phase = 1,
                             SortOrder = 2,
-                            Title = "Register composition to BMI"
+                            TitleEn = "Register composition to BMI",
+                            TitleEs = "Registrar la composición en BMI"
                         },
                         new
                         {
@@ -627,7 +655,8 @@ namespace Zmg.Infra.Migrations
                             Code = "register-mlc",
                             Phase = 1,
                             SortOrder = 3,
-                            Title = "Register composition to MLC"
+                            TitleEn = "Register composition to MLC",
+                            TitleEs = "Registrar la composición en MLC"
                         },
                         new
                         {
@@ -636,7 +665,8 @@ namespace Zmg.Infra.Migrations
                             Code = "register-soundexchange",
                             Phase = 1,
                             SortOrder = 4,
-                            Title = "Register to SoundExchange"
+                            TitleEn = "Register to SoundExchange",
+                            TitleEs = "Registrar en SoundExchange"
                         },
                         new
                         {
@@ -645,7 +675,8 @@ namespace Zmg.Infra.Migrations
                             Code = "musixmatch-lyrics",
                             Phase = 1,
                             SortOrder = 5,
-                            Title = "Musixmatch lyrics, add/sync"
+                            TitleEn = "Musixmatch lyrics, add/sync",
+                            TitleEs = "Letra en Musixmatch: agregar/sincronizar"
                         },
                         new
                         {
@@ -654,7 +685,8 @@ namespace Zmg.Infra.Migrations
                             Code = "check-deezer",
                             Phase = 1,
                             SortOrder = 6,
-                            Title = "Check release in Deezer (wrong artist)"
+                            TitleEn = "Check release in Deezer (wrong artist)",
+                            TitleEs = "Revisar el lanzamiento en Deezer (artista equivocado)"
                         },
                         new
                         {
@@ -663,7 +695,8 @@ namespace Zmg.Infra.Migrations
                             Code = "check-amazon",
                             Phase = 1,
                             SortOrder = 7,
-                            Title = "Check release in Amazon (wrong artist)"
+                            TitleEn = "Check release in Amazon (wrong artist)",
+                            TitleEs = "Revisar el lanzamiento en Amazon (artista equivocado)"
                         },
                         new
                         {
@@ -672,7 +705,8 @@ namespace Zmg.Infra.Migrations
                             Code = "check-apple",
                             Phase = 1,
                             SortOrder = 8,
-                            Title = "Check release in Apple (wrong artist)"
+                            TitleEn = "Check release in Apple (wrong artist)",
+                            TitleEs = "Revisar el lanzamiento en Apple (artista equivocado)"
                         },
                         new
                         {
@@ -681,7 +715,8 @@ namespace Zmg.Infra.Migrations
                             Code = "spotify-canvas",
                             Phase = 1,
                             SortOrder = 9,
-                            Title = "Spotify Canvas"
+                            TitleEn = "Spotify Canvas",
+                            TitleEs = "Spotify: agregar canvas"
                         },
                         new
                         {
@@ -690,7 +725,8 @@ namespace Zmg.Infra.Migrations
                             Code = "spotify-artist-pick",
                             Phase = 1,
                             SortOrder = 10,
-                            Title = "Spotify Artist Pick"
+                            TitleEn = "Spotify Artist Pick",
+                            TitleEs = "Spotify: selección de artista"
                         },
                         new
                         {
@@ -699,7 +735,8 @@ namespace Zmg.Infra.Migrations
                             Code = "youtube-banner",
                             Phase = 1,
                             SortOrder = 11,
-                            Title = "Update YouTube banner"
+                            TitleEn = "Update YouTube banner",
+                            TitleEs = "Actualizar el banner de YouTube"
                         },
                         new
                         {
@@ -708,7 +745,8 @@ namespace Zmg.Infra.Migrations
                             Code = "youtube-home-video",
                             Phase = 1,
                             SortOrder = 12,
-                            Title = "Update YouTube home video"
+                            TitleEn = "Update YouTube home video",
+                            TitleEs = "Actualizar el video de inicio en canal de YouTube"
                         },
                         new
                         {
@@ -717,7 +755,8 @@ namespace Zmg.Infra.Migrations
                             Code = "youtube-cards",
                             Phase = 1,
                             SortOrder = 13,
-                            Title = "Update cards in existing videos"
+                            TitleEn = "Update cards in existing videos",
+                            TitleEs = "Actualizar las tarjetas en los videos existentes"
                         },
                         new
                         {
@@ -726,7 +765,8 @@ namespace Zmg.Infra.Migrations
                             Code = "youtube-pinned-comment",
                             Phase = 1,
                             SortOrder = 14,
-                            Title = "Update pinned comment in existing videos with link to new video"
+                            TitleEn = "Update pinned comment in existing videos with link to new video",
+                            TitleEs = "Actualizar el comentario fijado en los videos existentes con el enlace al video nuevo"
                         },
                         new
                         {
@@ -735,7 +775,8 @@ namespace Zmg.Infra.Migrations
                             Code = "instagram-bio-youtube-link",
                             Phase = 1,
                             SortOrder = 15,
-                            Title = "Update YouTube link on Instagram bios"
+                            TitleEn = "Update YouTube link on Instagram bios",
+                            TitleEs = "Actualizar el enlace de YouTube en las bios de Instagram"
                         },
                         new
                         {
@@ -744,7 +785,8 @@ namespace Zmg.Infra.Migrations
                             Code = "instagram-bio-song",
                             Phase = 1,
                             SortOrder = 16,
-                            Title = "Update song on Instagram bios"
+                            TitleEn = "Update song on Instagram bios",
+                            TitleEs = "Actualizar la canción en las bios de Instagram"
                         },
                         new
                         {
@@ -753,7 +795,8 @@ namespace Zmg.Infra.Migrations
                             Code = "master-splits",
                             Phase = 1,
                             SortOrder = 17,
-                            Title = "Send master splits to collaborators"
+                            TitleEn = "Send master splits to collaborators",
+                            TitleEs = "Enviar los splits de master a los colaboradores"
                         },
                         new
                         {
@@ -762,7 +805,8 @@ namespace Zmg.Infra.Migrations
                             Code = "meta-ads-initial",
                             Phase = 2,
                             SortOrder = 0,
-                            Title = "Meta ads, initial release campaign"
+                            TitleEn = "Meta ads, initial release campaign",
+                            TitleEs = "Meta ads: campaña inicial de lanzamiento"
                         },
                         new
                         {
@@ -771,7 +815,8 @@ namespace Zmg.Infra.Migrations
                             Code = "meta-ads-ongoing",
                             Phase = 2,
                             SortOrder = 1,
-                            Title = "Meta ads, ongoing campaign"
+                            TitleEn = "Meta ads, ongoing campaign",
+                            TitleEs = "Meta ads: campaña continua"
                         },
                         new
                         {
@@ -780,7 +825,8 @@ namespace Zmg.Infra.Migrations
                             Code = "spotify-discovery-mode",
                             Phase = 2,
                             SortOrder = 2,
-                            Title = "Spotify Discovery Mode"
+                            TitleEn = "Spotify Discovery Mode",
+                            TitleEs = "Spotify: campaña Discovery Mode"
                         },
                         new
                         {
@@ -789,7 +835,8 @@ namespace Zmg.Infra.Migrations
                             Code = "youtube-video-ads",
                             Phase = 2,
                             SortOrder = 3,
-                            Title = "YouTube video ads"
+                            TitleEn = "YouTube video ads",
+                            TitleEs = "Anuncios de video en YouTube"
                         },
                         new
                         {
@@ -798,7 +845,8 @@ namespace Zmg.Infra.Migrations
                             Code = "tiktok-ads",
                             Phase = 2,
                             SortOrder = 4,
-                            Title = "TikTok ads"
+                            TitleEn = "TikTok ads",
+                            TitleEs = "Anuncios en TikTok"
                         },
                         new
                         {
@@ -807,7 +855,8 @@ namespace Zmg.Infra.Migrations
                             Code = "youtube-lyrics-video",
                             Phase = 2,
                             SortOrder = 5,
-                            Title = "Create YouTube lyrics video"
+                            TitleEn = "Create YouTube lyrics video",
+                            TitleEs = "Crear el video de letras para YouTube"
                         },
                         new
                         {
@@ -816,7 +865,8 @@ namespace Zmg.Infra.Migrations
                             Code = "multitracks-setup",
                             Phase = 2,
                             SortOrder = 6,
-                            Title = "Set up multitracks: Ableton project, Google Drive upload, new entry in zionmusicgroup.com/recursos"
+                            TitleEn = "Set up multitracks: Ableton project, Google Drive upload, new entry in zionmusicgroup.com/recursos",
+                            TitleEs = "Preparar los multitracks: proyecto de Ableton, subida a Google Drive, nueva entrada en zionmusicgroup.com/recursos"
                         },
                         new
                         {
@@ -825,7 +875,8 @@ namespace Zmg.Infra.Migrations
                             Code = "album-tracklist-sequencing",
                             Phase = 0,
                             SortOrder = 6,
-                            Title = "Finalize tracklist and sequencing (locked once submitted to distributor)"
+                            TitleEn = "Finalize tracklist and sequencing (locked once submitted to distributor)",
+                            TitleEs = "Acordar el tracklist y orden de las canciones (queda fijo al enviarlo a la distribuidora)"
                         },
                         new
                         {
@@ -834,7 +885,8 @@ namespace Zmg.Infra.Migrations
                             Code = "album-isrc-upc-metadata",
                             Phase = 0,
                             SortOrder = 7,
-                            Title = "Confirm ISRC/UPC and per-track metadata/credits"
+                            TitleEn = "Confirm ISRC/UPC and per-track metadata/credits",
+                            TitleEs = "Confirmar ISRC/UPC y la metadata/créditos de cada canción"
                         },
                         new
                         {
@@ -843,7 +895,8 @@ namespace Zmg.Infra.Migrations
                             Code = "album-focus-tracks-waterfall",
                             Phase = 0,
                             SortOrder = 8,
-                            Title = "Pick focus tracks and plan 2-4 pre-release singles (waterfall: each new single re-packaged with prior ones, album inherits their streams)"
+                            TitleEn = "Pick focus tracks and plan 2-4 pre-release singles (waterfall: each new single re-packaged with prior ones, album inherits their streams)",
+                            TitleEs = "Elegir los focus tracks y planear 2-4 sencillos previos al álbum (waterfall: cada sencillo nuevo se reempaqueta con los anteriores y el álbum hereda sus streams)"
                         },
                         new
                         {
@@ -852,7 +905,8 @@ namespace Zmg.Infra.Migrations
                             Code = "album-pre-save",
                             Phase = 0,
                             SortOrder = 9,
-                            Title = "Album pre-save campaign"
+                            TitleEn = "Album pre-save campaign",
+                            TitleEs = "Campaña de pre-save del álbum"
                         },
                         new
                         {
@@ -861,7 +915,8 @@ namespace Zmg.Infra.Migrations
                             Code = "album-bio-press-epk",
                             Phase = 0,
                             SortOrder = 10,
-                            Title = "Update artist bio / press release / EPK"
+                            TitleEn = "Update artist bio / press release / EPK",
+                            TitleEs = "Actualizar la biografía del artista / comunicado de prensa / press kits"
                         },
                         new
                         {
@@ -870,7 +925,8 @@ namespace Zmg.Infra.Migrations
                             Code = "album-batch-content",
                             Phase = 0,
                             SortOrder = 11,
-                            Title = "Batch-produce content before release week (track-by-track commentary, lyric videos, acoustic cuts)"
+                            TitleEn = "Batch-produce content before release week (track-by-track commentary, lyric videos, acoustic cuts)",
+                            TitleEs = "Producir contenido por lotes antes de la semana de lanzamiento (comentario canción por canción, videos de letras, versiones acústicas)"
                         },
                         new
                         {
@@ -879,7 +935,8 @@ namespace Zmg.Infra.Migrations
                             Code = "album-physical-media",
                             Phase = 0,
                             SortOrder = 12,
-                            Title = "Physical media if applicable (vinyl/CD lead times are months)"
+                            TitleEn = "Physical media if applicable (vinyl/CD lead times are months)",
+                            TitleEs = "Medios físicos si aplica (los tiempos de producción de vinilo/CD son de meses)"
                         },
                         new
                         {
@@ -888,7 +945,8 @@ namespace Zmg.Infra.Migrations
                             Code = "album-per-track-registrations",
                             Phase = 1,
                             SortOrder = 18,
-                            Title = "Registrations (BMI, MLC, Musixmatch, splits) repeat per track"
+                            TitleEn = "Registrations (BMI, MLC, Musixmatch, splits) repeat per track",
+                            TitleEs = "Los registros (BMI, MLC, Musixmatch, splits) se repiten por cada canción"
                         },
                         new
                         {
@@ -897,7 +955,8 @@ namespace Zmg.Infra.Migrations
                             Code = "album-rotate-focus-tracks",
                             Phase = 2,
                             SortOrder = 7,
-                            Title = "Rotate focus tracks every few weeks with per-track playlist pitching"
+                            TitleEn = "Rotate focus tracks every few weeks with per-track playlist pitching",
+                            TitleEs = "Rotar los focus tracks cada pocas semanas con pitching de playlists por canción"
                         },
                         new
                         {
@@ -906,423 +965,8 @@ namespace Zmg.Infra.Migrations
                             Code = "album-remaining-lyric-videos",
                             Phase = 2,
                             SortOrder = 8,
-                            Title = "Lyric videos for remaining tracks"
-                        });
-                });
-
-            modelBuilder.Entity("Zmg.Domain.Entities.TemplateTaskTranslation", b =>
-                {
-                    b.Property<Guid>("TemplateTaskId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Locale")
-                        .HasMaxLength(8)
-                        .HasColumnType("character varying(8)");
-
-                    b.Property<string>("Text")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("TemplateTaskId", "Locale");
-
-                    b.ToTable("TemplateTaskTranslations");
-
-                    b.HasData(
-                        new
-                        {
-                            TemplateTaskId = new Guid("11111111-1111-1111-1111-111111110100"),
-                            Locale = "es",
-                            Text = "Mezcla/master"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("11111111-1111-1111-1111-111111110201"),
-                            Locale = "es",
-                            Text = "Diseñar la portada para los DSPs"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("11111111-1111-1111-1111-111111110302"),
-                            Locale = "es",
-                            Text = "Distribuir a los DSPs"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("11111111-1111-1111-1111-111111110403"),
-                            Locale = "es",
-                            Text = "Hacer el video para YouTube, la miniatura y los demás recursos de YouTube"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("11111111-1111-1111-1111-111111110504"),
-                            Locale = "es",
-                            Text = "Pitch a Amazon"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("11111111-1111-1111-1111-111111110605"),
-                            Locale = "es",
-                            Text = "Pitch a Spotify"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("11111111-1111-1111-1111-111111110140"),
-                            Locale = "es",
-                            Text = "Configurar el smart link a todas las tiendas"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("11111111-1111-1111-1111-111111110241"),
-                            Locale = "es",
-                            Text = "Configurar la redirección del smart link desde zionmusicgroup.com/<song-name>"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("11111111-1111-1111-1111-111111110342"),
-                            Locale = "es",
-                            Text = "Registrar la composición en BMI"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("11111111-1111-1111-1111-111111110443"),
-                            Locale = "es",
-                            Text = "Registrar la composición en MLC"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("11111111-1111-1111-1111-111111110544"),
-                            Locale = "es",
-                            Text = "Registrar en SoundExchange"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("11111111-1111-1111-1111-111111110645"),
-                            Locale = "es",
-                            Text = "Letra en Musixmatch: agregar/sincronizar"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("11111111-1111-1111-1111-111111110746"),
-                            Locale = "es",
-                            Text = "Revisar el lanzamiento en Deezer (artista equivocado)"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("11111111-1111-1111-1111-111111110847"),
-                            Locale = "es",
-                            Text = "Revisar el lanzamiento en Amazon (artista equivocado)"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("11111111-1111-1111-1111-111111110948"),
-                            Locale = "es",
-                            Text = "Revisar el lanzamiento en Apple (artista equivocado)"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("11111111-1111-1111-1111-111111110c4b"),
-                            Locale = "es",
-                            Text = "Actualizar el banner de YouTube"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("11111111-1111-1111-1111-111111110d4c"),
-                            Locale = "es",
-                            Text = "Actualizar el video destacado de YouTube"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("11111111-1111-1111-1111-111111110e4d"),
-                            Locale = "es",
-                            Text = "Actualizar las tarjetas en los videos existentes"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("11111111-1111-1111-1111-111111110f4e"),
-                            Locale = "es",
-                            Text = "Actualizar el comentario fijado en los videos existentes con el enlace al video nuevo"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("11111111-1111-1111-1111-11111111104f"),
-                            Locale = "es",
-                            Text = "Actualizar el enlace de YouTube en las biografías de Instagram"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("11111111-1111-1111-1111-111111111150"),
-                            Locale = "es",
-                            Text = "Actualizar la canción en las biografías de Instagram"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("11111111-1111-1111-1111-111111111251"),
-                            Locale = "es",
-                            Text = "Enviar los master splits a los colaboradores"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("11111111-1111-1111-1111-111111110180"),
-                            Locale = "es",
-                            Text = "Meta ads: campaña inicial de lanzamiento"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("11111111-1111-1111-1111-111111110281"),
-                            Locale = "es",
-                            Text = "Meta ads: campaña continua"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("11111111-1111-1111-1111-111111110483"),
-                            Locale = "es",
-                            Text = "Anuncios de video en YouTube"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("11111111-1111-1111-1111-111111110584"),
-                            Locale = "es",
-                            Text = "Anuncios en TikTok"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("11111111-1111-1111-1111-111111110685"),
-                            Locale = "es",
-                            Text = "Crear el video con letra para YouTube"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("11111111-1111-1111-1111-111111110786"),
-                            Locale = "es",
-                            Text = "Preparar los multitracks: proyecto de Ableton, subida a Google Drive, nueva entrada en zionmusicgroup.com/recursos"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("22222222-2222-2222-2222-222222220100"),
-                            Locale = "es",
-                            Text = "Mezcla/master"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("22222222-2222-2222-2222-222222220201"),
-                            Locale = "es",
-                            Text = "Diseñar la portada para los DSPs"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("22222222-2222-2222-2222-222222220302"),
-                            Locale = "es",
-                            Text = "Distribuir a los DSPs"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("22222222-2222-2222-2222-222222220403"),
-                            Locale = "es",
-                            Text = "Hacer el video para YouTube, la miniatura y los demás recursos de YouTube"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("22222222-2222-2222-2222-222222220504"),
-                            Locale = "es",
-                            Text = "Pitch a Amazon"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("22222222-2222-2222-2222-222222220605"),
-                            Locale = "es",
-                            Text = "Pitch a Spotify"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("22222222-2222-2222-2222-222222220140"),
-                            Locale = "es",
-                            Text = "Configurar el smart link a todas las tiendas"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("22222222-2222-2222-2222-222222220241"),
-                            Locale = "es",
-                            Text = "Configurar la redirección del smart link desde zionmusicgroup.com/<song-name>"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("22222222-2222-2222-2222-222222220342"),
-                            Locale = "es",
-                            Text = "Registrar la composición en BMI"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("22222222-2222-2222-2222-222222220443"),
-                            Locale = "es",
-                            Text = "Registrar la composición en MLC"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("22222222-2222-2222-2222-222222220544"),
-                            Locale = "es",
-                            Text = "Registrar en SoundExchange"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("22222222-2222-2222-2222-222222220645"),
-                            Locale = "es",
-                            Text = "Letra en Musixmatch: agregar/sincronizar"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("22222222-2222-2222-2222-222222220746"),
-                            Locale = "es",
-                            Text = "Revisar el lanzamiento en Deezer (artista equivocado)"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("22222222-2222-2222-2222-222222220847"),
-                            Locale = "es",
-                            Text = "Revisar el lanzamiento en Amazon (artista equivocado)"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("22222222-2222-2222-2222-222222220948"),
-                            Locale = "es",
-                            Text = "Revisar el lanzamiento en Apple (artista equivocado)"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("22222222-2222-2222-2222-222222220c4b"),
-                            Locale = "es",
-                            Text = "Actualizar el banner de YouTube"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("22222222-2222-2222-2222-222222220d4c"),
-                            Locale = "es",
-                            Text = "Actualizar el video destacado de YouTube"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("22222222-2222-2222-2222-222222220e4d"),
-                            Locale = "es",
-                            Text = "Actualizar las tarjetas en los videos existentes"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("22222222-2222-2222-2222-222222220f4e"),
-                            Locale = "es",
-                            Text = "Actualizar el comentario fijado en los videos existentes con el enlace al video nuevo"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("22222222-2222-2222-2222-22222222104f"),
-                            Locale = "es",
-                            Text = "Actualizar el enlace de YouTube en las biografías de Instagram"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("22222222-2222-2222-2222-222222221150"),
-                            Locale = "es",
-                            Text = "Actualizar la canción en las biografías de Instagram"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("22222222-2222-2222-2222-222222221251"),
-                            Locale = "es",
-                            Text = "Enviar los master splits a los colaboradores"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("22222222-2222-2222-2222-222222220180"),
-                            Locale = "es",
-                            Text = "Meta ads: campaña inicial de lanzamiento"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("22222222-2222-2222-2222-222222220281"),
-                            Locale = "es",
-                            Text = "Meta ads: campaña continua"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("22222222-2222-2222-2222-222222220483"),
-                            Locale = "es",
-                            Text = "Anuncios de video en YouTube"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("22222222-2222-2222-2222-222222220584"),
-                            Locale = "es",
-                            Text = "Anuncios en TikTok"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("22222222-2222-2222-2222-222222220685"),
-                            Locale = "es",
-                            Text = "Crear el video con letra para YouTube"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("22222222-2222-2222-2222-222222220786"),
-                            Locale = "es",
-                            Text = "Preparar los multitracks: proyecto de Ableton, subida a Google Drive, nueva entrada en zionmusicgroup.com/recursos"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("22222222-2222-2222-2222-222222220706"),
-                            Locale = "es",
-                            Text = "Cerrar el tracklist y el orden de las canciones (queda fijo al enviarlo a la distribuidora)"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("22222222-2222-2222-2222-222222220807"),
-                            Locale = "es",
-                            Text = "Confirmar ISRC/UPC y los metadatos/créditos de cada canción"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("22222222-2222-2222-2222-222222220908"),
-                            Locale = "es",
-                            Text = "Elegir los focus tracks y planear 2-4 sencillos previos al álbum (waterfall: cada sencillo nuevo se reempaqueta con los anteriores y el álbum hereda sus streams)"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("22222222-2222-2222-2222-222222220a09"),
-                            Locale = "es",
-                            Text = "Campaña de pre-save del álbum"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("22222222-2222-2222-2222-222222220b0a"),
-                            Locale = "es",
-                            Text = "Actualizar la biografía del artista / el comunicado de prensa / el EPK"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("22222222-2222-2222-2222-222222220c0b"),
-                            Locale = "es",
-                            Text = "Producir contenido por lotes antes de la semana de lanzamiento (comentario canción por canción, videos con letra, versiones acústicas)"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("22222222-2222-2222-2222-222222220d0c"),
-                            Locale = "es",
-                            Text = "Medios físicos si aplica (los tiempos de producción de vinilo/CD son de meses)"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("22222222-2222-2222-2222-222222221352"),
-                            Locale = "es",
-                            Text = "Los registros (BMI, MLC, Musixmatch, splits) se repiten por cada canción"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("22222222-2222-2222-2222-222222220887"),
-                            Locale = "es",
-                            Text = "Rotar los focus tracks cada pocas semanas con pitching de playlists por canción"
-                        },
-                        new
-                        {
-                            TemplateTaskId = new Guid("22222222-2222-2222-2222-222222220988"),
-                            Locale = "es",
-                            Text = "Videos con letra para las canciones restantes"
+                            TitleEn = "Lyric videos for remaining tracks",
+                            TitleEs = "Videos de letras para las canciones restantes"
                         });
                 });
 
@@ -1369,17 +1013,6 @@ namespace Zmg.Infra.Migrations
                     b.Navigation("Release");
                 });
 
-            modelBuilder.Entity("Zmg.Domain.Entities.ReleaseTaskTranslation", b =>
-                {
-                    b.HasOne("Zmg.Domain.Entities.ReleaseTask", "ReleaseTask")
-                        .WithMany("Translations")
-                        .HasForeignKey("ReleaseTaskId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("ReleaseTask");
-                });
-
             modelBuilder.Entity("Zmg.Domain.Entities.Song", b =>
                 {
                     b.HasOne("Zmg.Domain.Entities.Artist", "MainArtist")
@@ -1419,17 +1052,6 @@ namespace Zmg.Infra.Migrations
                         .IsRequired();
 
                     b.Navigation("ChecklistTemplate");
-                });
-
-            modelBuilder.Entity("Zmg.Domain.Entities.TemplateTaskTranslation", b =>
-                {
-                    b.HasOne("Zmg.Domain.Entities.TemplateTask", "TemplateTask")
-                        .WithMany("Translations")
-                        .HasForeignKey("TemplateTaskId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("TemplateTask");
                 });
 
             modelBuilder.Entity("Zmg.Domain.Entities.Track", b =>
@@ -1472,21 +1094,11 @@ namespace Zmg.Infra.Migrations
                     b.Navigation("Tracks");
                 });
 
-            modelBuilder.Entity("Zmg.Domain.Entities.ReleaseTask", b =>
-                {
-                    b.Navigation("Translations");
-                });
-
             modelBuilder.Entity("Zmg.Domain.Entities.Song", b =>
                 {
                     b.Navigation("Artists");
 
                     b.Navigation("ReleaseLinks");
-                });
-
-            modelBuilder.Entity("Zmg.Domain.Entities.TemplateTask", b =>
-                {
-                    b.Navigation("Translations");
                 });
 #pragma warning restore 612, 618
         }
