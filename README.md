@@ -162,26 +162,26 @@ dotnet test && cd src/Zmg.Web && pnpm test
 
 ### 3. Checklist task text — a new seeded task or a translation fix
 
-English lives in the `TemplateTask.Title` column; other locales are `TemplateTaskTranslation` rows
-resolved at read time. A task with no row simply falls back to English, which is a valid state.
+Both languages are plain columns on the task row — `TitleEn` and `TitleEs` on `TemplateTask` and
+`ReleaseTask`. A null `TitleEs` shows the English, which is a valid state rather than a missing
+translation. The API ships both columns and never resolves a locale; the SPA picks one in
+`lib/taskText.ts`, which is why switching language costs no request.
 
-**To fix existing Spanish copy — no code, no deploy:** open **Templates**, switch the language to
-Español, and edit the task inline. The edit lands in the language you're reading (English stays put),
-and applies to both the single and album templates.
+**To fix existing copy — no code, no deploy:** open **Templates**, use a task's kebab → **Edit**, and
+type both languages in the dialog. It edits the template you're looking at (Single or Album), not both.
 
 **To add a new seeded task:**
 
 1. Add a slug to `TaskCodes.cs`, then the seed in `SeedData.BaseTasks` / `AlbumExtraTasks` with that
-   code and its English title.
-2. Add the Spanish to `SeedData.SpanishTitles`, keyed by the same code — **or leave it out on purpose**
-   if the title is a proper noun. If you leave it out, add the code to the pinned set in
-   `SeedDataTests.The_untranslated_titles_are_the_three_deliberate_proper_nouns`, so a *forgotten*
-   translation still fails a test.
-3. Generate a migration (`HasData` picks up both the task and its translation rows).
-4. **Never key a rule off a task title** — use the code, as `Release.IsDistributed` does.
+   code and **both** titles — they sit on the same line, so a missing translation shows up in the diff.
+   `SeedDataTests` fails if any seeded task lacks either one.
+2. Generate a migration (`HasData` picks up both columns).
+3. **Never key a rule off a task title** — use the code, as `Release.IsDistributed` does. Titles are
+   display copy in two languages that the user can reword at will; the code is the identity.
 
-Domain jargon stays English by rule: DSP/BMI/MLC/SoundExchange/Musixmatch, "smart link", "pre-save",
-"waterfall", "multitracks", "splits", "focus tracks".
+The reviewed copy of record is [`plans/seed-checklist-text.md`](plans/seed-checklist-text.md) — edit
+there, then transcribe. Domain jargon stays English by rule: DSP/BMI/MLC/SoundExchange/Musixmatch,
+"smart link", "pre-save", "waterfall", "multitracks", "splits", "focus tracks".
 
 ```bash
 dotnet ef migrations add <Name> --project src/Zmg.Infra --startup-project src/Zmg.Api
@@ -190,10 +190,11 @@ dotnet test
 
 ### Adding a whole new language
 
-Add `src/i18n/locales/<code>.json`, a name in `src/i18n/language.ts`, and the locale in
-`Zmg.Domain/TaskText.SupportedLocales` — plus translation rows for the checklist. No component code
-changes; the two-language toggle becomes a popover (which must portal to `<body>`, per the standing
-popover rule).
+Add `src/i18n/locales/<code>.json` and a name in `src/i18n/language.ts` for the UI chrome. Checklist
+text needs a **third column** (`TitleFr`), one line in `lib/taskText.ts` and one field in
+`TaskEditorModal` — a deliberate trade for two languages being the real requirement, and the reason
+v2.9 dropped the normalized translation tables. No other component code changes; the two-language
+toggle becomes a popover (which must portal to `<body>`, per the standing popover rule).
 
 ## Common tasks
 

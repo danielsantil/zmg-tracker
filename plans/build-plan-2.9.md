@@ -1,7 +1,8 @@
 # ZMG Release Tracker — Build Plan v2.9 (checklist text, simplified)
 
 Delta on [build-plan-2.8.md](build-plan-2.8.md), which shipped M43–M48 on `feat/i18n-multilingual`.
-Continues milestone numbering from M48 → **M49–M52**.
+Continues milestone numbering from M48 → **M49–M52**. **Shipped 2026-07-27** — see PROGRESS.md for the
+journal entry and the rules this established.
 
 v2.8 is **unmerged and undeployed**, so this plan *supersedes* its M47/M48 mechanism rather than
 correcting production. It lands on the same branch.
@@ -151,9 +152,16 @@ edit cannot reach it in any language.
 
 **Migrations** squashed to one `InitialCreate`.
 
-**Tests:** `TaskTextTests` shrinks to the resolver's four cases (en, es present, es blank, es null).
-`TemplateCopyTests` asserts both columns and the code survive the copy. `SeedDataTests` keeps the
-untranslated-set pin and the 31/41 counts. `Builders.cs` updated.
+**Tests:** `TemplateCopyTests` asserts both columns and the code survive the copy. `SeedDataTests`
+pins that *every* seeded task carries both languages and a code. `Builders.cs` updated.
+
+**As built, two deviations from the above:**
+- `TaskText` was **deleted entirely** rather than shrunk. Once the SPA picks the column, nothing
+  server-side resolves text, so a server-side resolver would have been dead code. Its client
+  counterpart is `src/lib/taskText.ts`, tested there.
+- The untranslated-set pin became "every seeded task has both languages" — ZMG's copy review
+  translated the three Spotify proper nouns, so the set it pinned is now empty, and the stronger
+  assertion is the useful one. `TitleEs` stays nullable for tasks added in the app.
 
 ## M50 — API surface
 
@@ -208,8 +216,10 @@ used by **both** the templates editor and the release-detail checklist, for **ad
 - The `templates.perLocaleEdit` banner is removed — the modal makes it self-evident. Its i18n keys go;
   the modal's new keys are added to **both** `en.json` and `es.json` (the parity test enforces it).
 
-**Tests:** Vitest on the modal — both fields round-trip, blank Spanish is allowed, blank English blocks
-save, phase move doesn't disturb either text.
+**Tests:** as built, the pure resolver (`lib/taskText.test.ts`) rather than the modal — the repo has no
+component tests and no `@testing-library/react`, so adding that dependency for one modal would be out of
+step with the codebase. The resolver is where the logic that can render a blank row actually lives; the
+modal's behaviours were verified in the browser instead (M52).
 
 ## M52 — Verification + docs
 
@@ -222,9 +232,25 @@ Full `dotnet test`, then `pnpm lint && pnpm test && pnpm build`, then live brows
 4. **Reword** the DSP-distribution task on a release, check it, and confirm the missing-UPC warning and
    the pending action still fire. This is the bug the whole plan exists to make impossible.
 
-Docs: `plans/PROGRESS.md` gets a v2.9 journal entry, and the M47/M48 cross-cutting bullets (currently
-~25 lines of rules describing the mechanism being deleted) are replaced by the much shorter new rule.
-`CLAUDE.md`'s checklist-text convention block is rewritten to match.
+Docs: `plans/PROGRESS.md` gets a v2.9 journal entry, and the M47/M48 cross-cutting bullets are replaced
+by the new rule. `CLAUDE.md`'s checklist-text convention block and README's "adding a seeded task" /
+"adding a language" sections are rewritten to match.
+
+**As built — verification results (2026-07-27).** Full `dotnet test` (domain 125, API 214), `pnpm lint`
+/ `tsc -b` / 57 Vitest / `pnpm build` all clean. Live against real Postgres, production-style single
+process:
+
+1. ✅ Spanish checklist end to end on a fresh release, chrome and content together.
+2. ✅ Editing a task on a release left the template untouched; the templates screen still showed the
+   seeded text.
+3. ✅ Language switch made **zero** fetch requests (instrumented `window.fetch`) and flipped all 31
+   task titles — the M48 race is structurally impossible now.
+4. ✅ **The regression:** the DSP-distribution task reworded to "Send it to DistroKid" / "Enviarlo a
+   DistroKid" and checked off still raised *both* "Falta el UPC" and "Falta el ISRC". Before v2.9 that
+   rename nulled `SourceCode` and silenced them.
+
+Also checked: the modal's blank-English guard, the 375px bottom sheet, Notes present on releases and
+absent on templates, and a clean browser console and server log.
 
 ---
 

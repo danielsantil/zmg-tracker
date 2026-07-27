@@ -108,12 +108,14 @@ compute them via the domain classes rather than persisting them.
   reflects over the constants and fails otherwise. Codes are permanent identifiers; keep them next to
   the rule that raises them (`Validation`, `ReleaseWarnings`, `CoverImage`), or in
   `Api/Services/ServiceErrors.cs` for the ones a service mints. Full rules in PROGRESS.md.
-- **Checklist task text is data, keyed by a stable code (v2.8/M47–M48).** `TaskCodes` holds a slug per
-  seeded task; `TemplateTask.Code` carries it and `TemplateCopy` stamps it onto `ReleaseTask.SourceCode`.
-  Per-locale text lives in `TemplateTaskTranslation` rows and resolves at read time through pure
-  `TaskText.Resolve`, which falls back to the English `Title` column on every miss. **Never key a rule
-  off a task title** — `Release.IsDistributed` uses the code, and anything new must too. Adding a seeded
-  task means adding its code, its English title, and (usually) its Spanish. Full rules in PROGRESS.md.
+- **Checklist task text is two columns; a task's identity is its `Code` (v2.9/M49–M52).** `TemplateTask`
+  and `ReleaseTask` each carry `TitleEn` + `TitleEs` (nullable — null means "shows the English", a valid
+  state). `TemplateCopy` copies both down, so a release owns its checklist in every language and a
+  template edit can never reach it. The API **never resolves a locale**: it ships both columns and the
+  SPA picks one via `lib/taskText.ts`. **Never key a rule off a task title** — `Release.IsDistributed`
+  uses `SourceCode`, and anything new must too; text edits leave the code alone, which is what lets ZMG
+  reword a task without silencing the rules. These two columns are the **only** dual-language fields in
+  the app; song titles, artist names and notes stay single-value. Full rules in PROGRESS.md.
 - **The SPA is EN/ES (v2.8).** No user-facing literal in `src/features/**` or `src/components/**` —
   everything goes through `t()`, keyed in `src/i18n/locales/{en,es}.json` (add to **both**; the parity
   test in `src/i18n/i18n.test.ts` fails otherwise). `t()` is typed off `en.json`, so a wrong key won't

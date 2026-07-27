@@ -211,11 +211,16 @@ Appended to the base checklist in the **Album** template only, giving it **41** 
 
 ## Totals
 
-| Template | Tasks | Spanish rows | English-only |
+| Template | Tasks | With Spanish | English-only |
 |---|---|---|---|
-| Single | 31 | 28 | 3 (Canvas, Artist Pick, Discovery Mode) |
-| Album | 41 | 38 | 3 (same) |
+| Single | 31 | 31 | 0 |
+| Album | 41 | 41 | 0 |
 
-The English text above is **unchanged from what's live today** — I only paired it with the Spanish that
-already exists in `SeedData.SpanishTitles`. If you want to reword any English while you're in here, do
-it; the migration is being regenerated from scratch, so there's no cost to changing either column.
+**Reviewed and shipped (2026-07-27).** ZMG's pass translated the three Spotify proper nouns that were
+originally left English-only, so every seeded task now carries both languages — which is why
+`SeedDataTests` asserts exactly that, a stronger pin than the "these three are deliberately
+untranslated" set it replaced. A null `TitleEs` is still a supported state for tasks added in the app;
+no seeded task uses it.
+
+This file stays the copy of record. To change seeded text, edit here and transcribe into
+`SeedData.cs`; to correct a *live* template, use the templates screen instead — no migration needed.
