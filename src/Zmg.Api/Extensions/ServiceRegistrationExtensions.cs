@@ -21,9 +21,6 @@ public static class ServiceRegistrationExtensions
         services.AddScoped<ITemplateService, TemplateService>();
         services.AddScoped<IReleaseTaskService, ReleaseTaskService>();
 
-        // No locale plumbing here, deliberately (v2.9): checklist text goes on the wire in both
-        // languages and the SPA reads the column it needs, so nothing server-side resolves a locale.
-
         // Cover images (M31). R2 is required at startup (M35) — the env-var validator fails the boot if any
         // R2:* setting is missing, so the eagerly-built S3 client always has real credentials to work with.
         services.Configure<R2Options>(configuration.GetSection(R2Options.SectionName));
