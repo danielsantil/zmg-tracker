@@ -1,0 +1,58 @@
+{
+  "nav": {
+    "home": "Home",
+    "releases": "Releases",
+    "catalog": "Catalog",
+    "artists": "Artists",
+    "templates": "Templates",
+    "brandHome": "Zion Music Group — home",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu"
+  },
+  "theme": {
+    "toLight": "Switch to light mode",
+    "toDark": "Switch to dark mode"
+  },
+  "language": {
+    "switchTo": "Switch to {{language}}"
+  },
+  "status": {
+    "upcoming": "Upcoming",
+    "released": "Released",
+    "complete": "Complete",
+    "archived": "Archived"
+  },
+  "releaseType": {
+    "single": "Single",
+    "album": "Album"
+  },
+  "phase": {
+    "pre": "Pre",
+    "release": "Release",
+    "post": "Post"
+  },
+  "tasks": {
+    "moveToPhase": "Move to {{phase}}"
+  },
+  "countdown": {
+    "today": "Releasing today",
+    "days_one": "in {{count}} day",
+    "days_other": "in {{count}} days"
+  },
+  "timeframe": {
+    "days_one": "{{count}} day before",
+    "days_other": "{{count}} days before",
+    "range": "{{min}}–{{max}} days before"
+  },
+  "calendar": {
+    "weekdays": {
+      "sun": "Sun",
+      "mon": "Mon",
+      "tue": "Tue",
+      "wed": "Wed",
+      "thu": "Thu",
+      "fri": "Fri",
+      "sat": "Sat"
+    }
+  }
+}

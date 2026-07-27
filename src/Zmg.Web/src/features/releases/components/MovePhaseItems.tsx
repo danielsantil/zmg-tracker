@@ -1,6 +1,7 @@
+import { useTranslation } from 'react-i18next';
 import type { Phase } from '@/types';
 import { MenuItem } from '@/components';
-import { PHASE_ORDER, phaseLabels } from '@/lib/phase';
+import { PHASE_ORDER, phaseLabelKeys } from '@/lib/phase';
 
 /**
  * The "Move to <phase>" menu items for a task — one per phase other than its current one. Generic
@@ -15,6 +16,7 @@ export function MovePhaseItems<T extends { phase: Phase }>({
   onUpdate: (t: T, patch: { phase: Phase }) => void;
   close: () => void;
 }) {
+  const { t } = useTranslation();
   const targets = PHASE_ORDER.filter((p) => p !== task.phase);
   return (
     <>
@@ -26,7 +28,7 @@ export function MovePhaseItems<T extends { phase: Phase }>({
             close();
           }}
         >
-          Move to {phaseLabels[p]}
+          {t('tasks.moveToPhase', { phase: t(phaseLabelKeys[p]) })}
         </MenuItem>
       ))}
     </>

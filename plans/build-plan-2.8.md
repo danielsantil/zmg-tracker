@@ -366,8 +366,12 @@ judgement call inline for review rather than deciding silently.
 deterministic, versioned in the repo, and reviewable in a diff. Ids are `(TemplateTaskId, Locale)`, which
 is already deterministic — no new id scheme, and none of the `DeterministicTaskId` renumbering hazard.
 
-**Step 3.** The user reviews the Spanish and edits it. Corrections after this ship as either a follow-up
-migration or, once step 4 exists, directly in the app.
+**Step 3.** The user reviews the Spanish and edits it. **The bar here is deliberately low** (user, v2.8
+kickoff): a first pass, not perfect copy. **Anything genuinely ambiguous stays in English** rather than
+being guessed at — the user revisits the running site and completes it. So: translate what's clearly
+translatable, leave the doubtful term as-is, and never invent a Spanish equivalent for an industry term
+to avoid an English string. Corrections after this ship as either a follow-up migration or, once step 4
+exists, directly in the app.
 
 **Step 4** is the "editable without a deploy" half of the v2.7 outline: the templates editor grows a
 per-locale text field so ZMG can fix Spanish copy without a migration, over a

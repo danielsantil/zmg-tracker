@@ -1,7 +1,8 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Phase } from '@/types';
 import { InlineAddForm } from '@/components';
-import { phaseLabels } from '@/lib/phase';
+import { phaseLabelKeys } from '@/lib/phase';
 import { TaskRow, type ChecklistTask, type TaskPatch } from './TaskRow';
 
 /**
@@ -33,6 +34,7 @@ export function PhaseSection<T extends ChecklistTask>({
   onDelete: (t: T) => void;
   onMove: (t: T, dir: -1 | 1) => void;
 }) {
+  const { t } = useTranslation();
   const total = tasks.length;
   const done = getIsDone ? tasks.filter(getIsDone).length : 0;
   const tracksProgress = !!getIsDone;
@@ -44,7 +46,7 @@ export function PhaseSection<T extends ChecklistTask>({
   const header = (
     <span className="flex items-center gap-2 font-semibold text-strong">
       {collapsible && <span className="text-subtle">{open ? '▾' : '▸'}</span>}
-      {phaseLabels[phase].toUpperCase()}
+      {t(phaseLabelKeys[phase]).toUpperCase()}
       <span className="text-sm font-normal text-muted">
         {tracksProgress ? `(${done}/${total})` : `(${total})`}
       </span>

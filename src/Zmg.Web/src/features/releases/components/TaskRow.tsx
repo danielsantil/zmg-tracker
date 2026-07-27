@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Phase } from '@/types';
 import { MenuItem, ReorderArrows, RowMenu, inputClass } from '@/components';
-import { formatTimeframe } from '@/lib/format';
+import { useFormatters } from '@/hooks/useFormatters';
 import { TimeframeEditor } from './TimeframeEditor';
 import { MovePhaseItems } from './MovePhaseItems';
 
@@ -52,7 +52,7 @@ export function TaskRow<T extends ChecklistTask>({
   const [editing, setEditing] = useState<'title' | 'notes' | 'timeframe' | null>(null);
   const [draft, setDraft] = useState('');
 
-  const timeframe = formatTimeframe(task.minDaysBefore, task.maxDaysBefore);
+  const timeframe = useFormatters().timeframe(task.minDaysBefore, task.maxDaysBefore);
 
   function startEdit(field: 'title' | 'notes') {
     setDraft(field === 'title' ? task.title : notes ?? '');

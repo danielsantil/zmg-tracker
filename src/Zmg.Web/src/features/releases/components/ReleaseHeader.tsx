@@ -1,6 +1,6 @@
 import type { ReleaseDetail } from '@/types';
 import { ProgressBar, SoftWarning, StatusBadge, TypeBadge } from '@/components';
-import { formatCountdown } from '@/lib/format';
+import { useFormatters } from '@/hooks/useFormatters';
 
 export function ReleaseHeader({
   release,
@@ -11,7 +11,8 @@ export function ReleaseHeader({
   done: number;
   total: number;
 }) {
-  const countdown = formatCountdown(release.releaseDate);
+  const format = useFormatters();
+  const countdown = format.countdown(release.releaseDate);
 
   return (
     <div className="mb-6 flex gap-4 rounded-xl border border-edge bg-panel p-4">

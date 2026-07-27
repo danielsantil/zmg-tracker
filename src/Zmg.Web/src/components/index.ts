@@ -6,6 +6,7 @@ export { ErrorBanner } from './ErrorBanner';
 export { Field, inputClass, inputErrorClass } from './Field';
 export { FilterBar, ArtistSelect, TypeSelect, StatusSelect, SearchInput } from './FilterBar';
 export { InlineAddForm } from './InlineAddForm';
+export { LanguageToggle } from './LanguageToggle';
 export { Loading } from './Loading';
 export { Modal } from './Modal';
 export { SoftWarning } from './SoftWarning';

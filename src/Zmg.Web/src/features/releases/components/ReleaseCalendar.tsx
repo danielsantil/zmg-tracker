@@ -1,15 +1,16 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import type { ReleaseListItem } from '@/types';
 import { ReleaseType } from '@/types';
 import { Modal } from '@/components';
-import { formatReleaseDate, todayIso } from '@/lib/format';
+import { todayIso } from '@/lib/format';
+import { useFormatters } from '@/hooks/useFormatters';
 import {
   WEEKDAYS,
   addMonths,
   isInMonth,
   monthGrid,
-  monthLabel,
   monthOf,
   type YearMonth,
 } from '@/lib/calendar';
@@ -38,6 +39,8 @@ export function ReleaseCalendar({
   onArchive: (r: ReleaseListItem) => void;
 }) {
   const navigate = useNavigate();
+  const { t } = useTranslation();
+  const format = useFormatters();
   const today = todayIso();
   const [ym, setYm] = useState<YearMonth>(() => monthOf(today));
   const [selected, setSelected] = useState<string | null>(null);
@@ -86,7 +89,7 @@ export function ReleaseCalendar({
             ›
           </button>
         </div>
-        <h2 className="text-base font-semibold text-strong">{monthLabel(ym)}</h2>
+        <h2 className="text-base font-semibold text-strong">{format.month(ym)}</h2>
         <button
           onClick={() => setYm(monthOf(today))}
           className="rounded-lg bg-edge px-2.5 py-1 text-xs font-medium text-body hover:bg-edge/70"
@@ -98,19 +101,22 @@ export function ReleaseCalendar({
             onClick={() => setYm(monthOf(next.releaseDate))}
             className="ml-auto truncate rounded-full bg-accent/15 px-2.5 py-1 text-xs font-medium text-accent ring-1 ring-accent/30 hover:bg-accent/25"
           >
-            Next release · {formatReleaseDate(next.releaseDate)}
+            Next release · {format.releaseDate(next.releaseDate)}
           </button>
         )}
       </div>
 
       <div className="grid grid-cols-7 border-b border-edge text-center text-[11px] uppercase tracking-wide text-subtle">
-        {WEEKDAYS.map((d) => (
-          <div key={d} className="py-2">
-            {/* Mobile cells are too narrow for "Wed" — the first letter still orients the grid. */}
-            <span className="sm:hidden">{d.slice(0, 1)}</span>
-            <span className="hidden sm:inline">{d}</span>
-          </div>
-        ))}
+        {WEEKDAYS.map((d) => {
+          const label = t(`calendar.weekdays.${d}`);
+          return (
+            <div key={d} className="py-2">
+              {/* Mobile cells are too narrow for "Wed" — the first letter still orients the grid. */}
+              <span className="sm:hidden">{label.slice(0, 1)}</span>
+              <span className="hidden sm:inline">{label}</span>
+            </div>
+          );
+        })}
       </div>
 
       <div className="grid grid-cols-7">
@@ -179,7 +185,7 @@ export function ReleaseCalendar({
       <Modal
         open={selected !== null}
         onClose={() => setSelected(null)}
-        title={selected ? formatReleaseDate(selected) : undefined}
+        title={selected ? format.releaseDate(selected) : undefined}
       >
         <div className="flex flex-col gap-3">
           {selectedReleases.map((r) => (

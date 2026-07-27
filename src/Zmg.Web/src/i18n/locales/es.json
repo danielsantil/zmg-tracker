@@ -1,0 +1,58 @@
+{
+  "nav": {
+    "home": "Inicio",
+    "releases": "Lanzamientos",
+    "catalog": "Catálogo",
+    "artists": "Artistas",
+    "templates": "Plantillas",
+    "brandHome": "Zion Music Group — inicio",
+    "openMenu": "Abrir menú",
+    "closeMenu": "Cerrar menú"
+  },
+  "theme": {
+    "toLight": "Cambiar a modo claro",
+    "toDark": "Cambiar a modo oscuro"
+  },
+  "language": {
+    "switchTo": "Cambiar a {{language}}"
+  },
+  "status": {
+    "upcoming": "Próximo",
+    "released": "Publicado",
+    "complete": "Completo",
+    "archived": "Archivado"
+  },
+  "releaseType": {
+    "single": "Sencillo",
+    "album": "Álbum"
+  },
+  "phase": {
+    "pre": "Pre",
+    "release": "Lanzamiento",
+    "post": "Post"
+  },
+  "tasks": {
+    "moveToPhase": "Mover a {{phase}}"
+  },
+  "countdown": {
+    "today": "Se publica hoy",
+    "days_one": "en {{count}} día",
+    "days_other": "en {{count}} días"
+  },
+  "timeframe": {
+    "days_one": "{{count}} día antes",
+    "days_other": "{{count}} días antes",
+    "range": "{{min}}–{{max}} días antes"
+  },
+  "calendar": {
+    "weekdays": {
+      "sun": "Dom",
+      "mon": "Lun",
+      "tue": "Mar",
+      "wed": "Mié",
+      "thu": "Jue",
+      "fri": "Vie",
+      "sat": "Sáb"
+    }
+  }
+}

@@ -1,22 +1,31 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { daysToRelease, formatCountdown, formatTimeframe, todayIso } from './format';
+import { countdown, daysToRelease, formatReleaseDate, timeframeHint, todayIso } from './format';
 
-describe('formatTimeframe', () => {
+describe('timeframeHint', () => {
   it('returns null when neither bound is set', () => {
-    expect(formatTimeframe(null, null)).toBeNull();
+    expect(timeframeHint(null, null)).toBeNull();
   });
 
-  it('collapses an equal min/max to a single value', () => {
-    expect(formatTimeframe(7, 7)).toBe('7 days before');
+  it('collapses an equal min/max to a single count', () => {
+    expect(timeframeHint(7, 7)).toEqual({ kind: 'single', count: 7 });
   });
 
-  it('renders a range when min and max differ', () => {
-    expect(formatTimeframe(7, 14)).toBe('7–14 days before');
+  it('reports a range when min and max differ', () => {
+    expect(timeframeHint(7, 14)).toEqual({ kind: 'range', min: 7, max: 14 });
   });
 
   it('falls back to the set bound when only one is present', () => {
-    expect(formatTimeframe(null, 14)).toBe('14 days before');
-    expect(formatTimeframe(7, null)).toBe('7 days before');
+    expect(timeframeHint(null, 14)).toEqual({ kind: 'single', count: 14 });
+    expect(timeframeHint(7, null)).toEqual({ kind: 'single', count: 7 });
+  });
+});
+
+describe('formatReleaseDate', () => {
+  it('renders the date in the given locale, read off the string rather than UTC', () => {
+    // The 1st is the case a UTC parse would drift back into the previous month.
+    expect(formatReleaseDate('2026-08-01', 'en')).toBe('Aug 1, 2026');
+    expect(formatReleaseDate('2026-08-01', 'es')).toMatch(/2026/);
+    expect(formatReleaseDate('2026-08-01', 'es')).toMatch(/^1 /);
   });
 });
 
@@ -50,17 +59,17 @@ describe('date-relative helpers', () => {
     });
   });
 
-  describe('formatCountdown', () => {
-    it('says "Releasing today" on the day', () => {
-      expect(formatCountdown('2026-07-17')).toBe('Releasing today');
+  describe('countdown', () => {
+    it('reports "today" on the day', () => {
+      expect(countdown('2026-07-17')).toBe('today');
     });
 
     it('counts the days up for a future upcoming release', () => {
-      expect(formatCountdown('2026-07-20')).toBe('in 3 days');
+      expect(countdown('2026-07-20')).toEqual({ days: 3 });
     });
 
     it('returns null once the release date has passed', () => {
-      expect(formatCountdown('2026-07-16')).toBeNull();
+      expect(countdown('2026-07-16')).toBeNull();
     });
   });
 });

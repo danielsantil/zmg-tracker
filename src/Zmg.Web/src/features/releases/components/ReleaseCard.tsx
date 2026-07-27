@@ -1,6 +1,6 @@
 import type { ReleaseListItem } from '@/types';
 import { MenuItem, ProgressBar, RowMenu, SoftWarning, StatusBadge, TypeBadge } from '@/components';
-import { formatCountdown, formatReleaseDate } from '@/lib/format';
+import { useFormatters } from '@/hooks/useFormatters';
 
 /**
  * The compact release card. Actions live in the kebab so it stays short enough to stack in a modal.
@@ -22,7 +22,8 @@ export function ReleaseCard({
   showCover?: boolean;
   showOpenLink?: boolean;
 }) {
-  const countdown = formatCountdown(r.releaseDate);
+  const format = useFormatters();
+  const countdown = format.countdown(r.releaseDate);
 
   return (
     <div className="flex flex-col overflow-hidden rounded-xl border border-edge bg-panel">
@@ -78,7 +79,7 @@ export function ReleaseCard({
         </div>
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
           <TypeBadge type={r.type} />
-          <span>{formatReleaseDate(r.releaseDate)}</span>
+          <span>{format.releaseDate(r.releaseDate)}</span>
           {countdown && <span className="text-accent">· {countdown}</span>}
         </div>
         <div className="mt-auto">

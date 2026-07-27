@@ -29,9 +29,9 @@ export function addMonths({ year, month }: YearMonth, delta: number): YearMonth 
   return { year: Math.floor(total / 12), month: ((total % 12) + 12) % 12 };
 }
 
-/** "August 2026" for the calendar header. */
-export function monthLabel({ year, month }: YearMonth): string {
-  return new Date(year, month, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+/** "August 2026" / "agosto de 2026" for the calendar header; `Intl` owns the wording per locale. */
+export function monthLabel({ year, month }: YearMonth, locale = 'en'): string {
+  return new Date(year, month, 1).toLocaleDateString(locale, { month: 'long', year: 'numeric' });
 }
 
 /**
@@ -69,4 +69,9 @@ export function isInMonth(iso: string, { year, month }: YearMonth): boolean {
   return iso.slice(0, 7) === `${year}-${pad(month + 1)}`;
 }
 
-export const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+/**
+ * Sunday-first weekday **keys**, matching the grid's column order. They're translation keys
+ * (`calendar.weekdays.*`), not labels — the grid is always Sunday-first, so a locale's own first-day
+ * convention deliberately doesn't apply here.
+ */
+export const WEEKDAYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;

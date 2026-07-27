@@ -1,13 +1,21 @@
 /**
- * Human timeframe hint for a Pre task ("7–14 days before"), or null when no timeframe is set.
- * Max drives calculations; the range is display-only (v1.1 M8).
+ * What a Pre task's timeframe should render as, or null when no timeframe is set: either a single
+ * count ("7 days before") or a range ("7–14 days before"). Max drives calculations; the range is
+ * display-only (v1.1 M8).
+ *
+ * Returns the *shape*, not the sentence — the words are i18next keys (`timeframe.*`), because
+ * Spanish doesn't put them in the same order (M43). Pure, so it stays testable here.
  */
-export function formatTimeframe(min: number | null, max: number | null): string | null {
+export type TimeframeHint =
+  | { kind: 'single'; count: number }
+  | { kind: 'range'; min: number; max: number };
+
+export function timeframeHint(min: number | null, max: number | null): TimeframeHint | null {
   if (min == null && max == null) return null;
   if (min != null && max != null) {
-    return min === max ? `${max} days before` : `${min}–${max} days before`;
+    return min === max ? { kind: 'single', count: max } : { kind: 'range', min, max };
   }
-  return `${max ?? min} days before`;
+  return { kind: 'single', count: (max ?? min)! };
 }
 
 /**
@@ -29,11 +37,12 @@ export function daysToRelease(date: string): number {
 }
 
 /**
- * A release date as "Aug 22, 2026". Parsed as local midnight (never `new Date('yyyy-MM-dd')`,
- * which is UTC and drifts a day back in negative offsets).
+ * A release date as "Aug 22, 2026" (`en`) / "22 ago 2026" (`es`) — `Intl` owns the word order, so
+ * callers pass `i18n.language` and nothing here needs to know the format. Parsed as local midnight
+ * (never `new Date('yyyy-MM-dd')`, which is UTC and drifts a day back in negative offsets).
  */
-export function formatReleaseDate(date: string): string {
-  return new Date(date + 'T00:00:00').toLocaleDateString('en-US', {
+export function formatReleaseDate(date: string, locale = 'en'): string {
+  return new Date(date + 'T00:00:00').toLocaleDateString(locale, {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
@@ -41,11 +50,14 @@ export function formatReleaseDate(date: string): string {
 }
 
 /**
- * Countdown string for an upcoming release ("3 days to release" / "Releases today"),
- * or null once it's released. Shared by release cards and the detail header.
+ * How far off an upcoming release is: `{ days }` to count down, `'today'` on the day, or null once
+ * it's released. Like `timeframeHint`, this returns the shape and the component supplies the words
+ * (`countdown.*`) — the sentence is a plural form, which differs per language.
  */
-export function formatCountdown(releaseDate: string): string | null {
+export type Countdown = 'today' | { days: number };
+
+export function countdown(releaseDate: string): Countdown | null {
   const days = daysToRelease(releaseDate);
   if (days < 0) return null;
-  return days === 0 ? 'Releasing today' : `in ${days} days`;
+  return days === 0 ? 'today' : { days };
 }
