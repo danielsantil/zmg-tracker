@@ -392,5 +392,68 @@
     "taskCount_one": "{{count}} task in this template",
     "taskCount_other": "{{count}} tasks in this template",
     "deleteTaskConfirm": "Delete template task \"{{title}}\"?"
+  },
+  "error": {
+    "artist": {
+      "nameRequired": "Artist name is required.",
+      "duplicateName": "An artist named \"{{name}}\" already exists.",
+      "hasDependents": "Can't delete an artist that has releases or songs."
+    },
+    "release": {
+      "titleRequired": "Release title is required.",
+      "dateRequired": "Release date is required.",
+      "archivedReadOnly": "Archived releases are read-only.",
+      "typeImmutable": "Release type can't change after creation.",
+      "alreadyArchived": "Release is already archived.",
+      "archiveTooLate": "Only releases dated today or later can be archived.",
+      "deleteNotArchived": "Only archived releases can be removed."
+    },
+    "song": {
+      "titleRequired": "Song title is required.",
+      "duplicateTitle": "A song with this title already exists for this artist.",
+      "archivedReadOnly": "Archived songs are read-only.",
+      "mainArtistImmutable": "A song's main artist can't be changed after creation.",
+      "alreadyArchived": "Song is already archived.",
+      "onActiveRelease": "Song is on an active release — archive flows through the release.",
+      "deleteNotArchived": "Only archived or never-released songs can be removed."
+    },
+    "task": {
+      "titleRequired": "Task title is required.",
+      "reorderMismatch": "Reorder must list every task in the phase exactly once."
+    },
+    "tracks": {
+      "singleNeedsOneTrack": "A single must have exactly one track.",
+      "eitherSongOrTitle": "Each track must be either an existing song or a new title, not both or neither.",
+      "duplicateSong": "The same song can't appear twice on a release.",
+      "singleIsFull": "Singles carry exactly one track.",
+      "songNotFound": "Selected song does not exist.",
+      "songsNotFound": "One or more selected songs do not exist.",
+      "archivedSong": "Can't add an archived song to a release.",
+      "alreadyOnRelease": "That song is already on this release.",
+      "reorderMismatch": "Reorder must list every track on the release exactly once."
+    },
+    "template": {
+      "lastTask": "A template must keep at least one task."
+    },
+    "cover": {
+      "invalidType": "Cover must be a PNG, JPEG or WebP image.",
+      "tooLarge": "Cover image must be 5 MB or smaller.",
+      "invalidUrl": "Enter an http(s) image URL.",
+      "blockedUrl": "That URL can't be fetched.",
+      "unreachableUrl": "Couldn't download an image from that URL."
+    },
+    "mainArtistRequired": "A main artist is required.",
+    "mainArtistNotFound": "The selected main artist does not exist.",
+    "unknown": "Something went wrong."
+  },
+  "warning": {
+    "missingUpc": "Missing UPC",
+    "missingIsrc": "Missing ISRC",
+    "albumIsEmpty": "Album is empty",
+    "albumHasOneTrack": "Album has only 1 track",
+    "release": {
+      "pastDate": "Release date is in the past — backfilling an old release?",
+      "duplicateTitle": "This artist already has a release titled \"{{title}}\"."
+    }
   }
 }

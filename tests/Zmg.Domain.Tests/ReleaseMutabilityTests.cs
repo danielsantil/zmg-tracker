@@ -15,8 +15,8 @@ public class ReleaseMutabilityTests
     }
 
     [Fact]
-    public void ArchivedReadOnlyMessage_is_populated()
+    public void ArchivedReadOnlyCode_is_populated()
     {
-        Assert.False(string.IsNullOrWhiteSpace(ReleaseMutability.ArchivedReadOnlyMessage));
+        Assert.False(string.IsNullOrWhiteSpace(ReleaseMutability.ArchivedReadOnlyCode));
     }
 }

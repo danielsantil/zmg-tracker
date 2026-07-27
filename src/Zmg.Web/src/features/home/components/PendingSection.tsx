@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useServerText } from '@/i18n/serverText';
 import type { PendingAction } from '@/types';
 import { PendingKind } from '@/types';
 
@@ -22,6 +23,7 @@ function nextPage(p: PendingAction) {
  */
 export function PendingSection({ pending }: { pending: PendingAction[] }) {
   const { t } = useTranslation();
+  const server = useServerText();
   const [open, setOpen] = useState(true);
 
   if (pending.length === 0) return null;
@@ -43,7 +45,10 @@ export function PendingSection({ pending }: { pending: PendingAction[] }) {
                 className="flex items-center justify-between gap-3 px-4 py-2.5 hover:bg-warn/[0.06]"
               >
                 <span className="min-w-0">
-                  <span className="text-sm text-strong">{p.label}</span>
+                  <span className="text-sm text-strong">
+                    {/* TaskDue's label is the task title (verbatim); the data kinds ship a code. */}
+                    {p.kind === PendingKind.TaskDue ? p.label : server.code(p.label)}
+                  </span>
                   <span className="ml-2 text-xs text-muted">
                     {p.subject} · {p.artistName}
                   </span>

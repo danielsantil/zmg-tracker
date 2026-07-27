@@ -5,6 +5,7 @@ import clsx from 'clsx';
 import { useTranslation } from 'react-i18next';
 import type { ParseKeys } from 'i18next';
 import { api, ApiError } from '@/api';
+import { useServerText, type ServerMessage } from '@/i18n/serverText';
 import { useArtists, useRelease, useTemplates, queryKeys } from '@/api/queries';
 import type { TrackInput } from '@/types';
 import { ReleaseType } from '@/types';
@@ -94,6 +95,7 @@ export default function ReleaseFormPage() {
   const { t } = useTranslation();
   const goBack = useBackNavigation();
   const queryClient = useQueryClient();
+  const server = useServerText();
 
   const { data: artists = [], isLoading: artistsLoading } = useArtists();
   const { data: templates = [] } = useTemplates();
@@ -101,7 +103,7 @@ export default function ReleaseFormPage() {
 
   const [form, dispatch] = useReducer(formReducer, initialForm);
   const [errors, setErrors] = useState<string[]>([]);
-  const [warnings, setWarnings] = useState<string[]>([]);
+  const [warnings, setWarnings] = useState<ServerMessage[]>([]);
   const [saving, setSaving] = useState(false);
   const [coverUploading, setCoverUploading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FormFieldErrors>({});
@@ -189,7 +191,7 @@ export default function ReleaseFormPage() {
         goBack();
       }
     } catch (err) {
-      setErrors(err instanceof ApiError ? err.errors : [t('releases.form.saveFailed')]);
+      setErrors(err instanceof ApiError ? err.messages : [t('releases.form.saveFailed')]);
     } finally {
       setSaving(false);
     }
@@ -298,8 +300,8 @@ export default function ReleaseFormPage() {
           <div className="mb-4 rounded-lg bg-warn/10 px-4 py-3 text-sm text-warnFg">
             <p className="font-medium">{t('releases.form.savedWithWarnings')}</p>
             <ul className="ml-4 list-disc">
-              {warnings.map((msg) => (
-                <li key={msg}>{msg}</li>
+              {warnings.map((w) => (
+                <li key={w.code}>{server.message(w)}</li>
               ))}
             </ul>
             {/* Both live inside the <form>, so they need an explicit type — the HTML default

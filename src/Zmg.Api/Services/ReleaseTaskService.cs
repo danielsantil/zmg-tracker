@@ -23,7 +23,7 @@ public sealed class ReleaseTaskService(ZmgDbContext db) : IReleaseTaskService
             .FirstOrDefaultAsync(ct);
         if (archived is null) return OperationResult<ReleaseTaskDto>.NotFound();
         if (!ReleaseMutability.CanEdit(archived.Value))
-            return OperationResult<ReleaseTaskDto>.Conflict(new[] { ReleaseMutability.ArchivedReadOnlyMessage });
+            return OperationResult<ReleaseTaskDto>.Conflict([ReleaseMutability.ArchivedReadOnlyCode]);
 
         var validation = Validation.ValidateTaskTitle(input.Title);
         if (!validation.IsValid)
@@ -51,7 +51,7 @@ public sealed class ReleaseTaskService(ZmgDbContext db) : IReleaseTaskService
         var task = await db.ReleaseTasks.FindAsync([id], ct);
         if (task is null) return OperationResult<ReleaseTaskDto>.NotFound();
         if (await IsArchived(task.ReleaseId, ct))
-            return OperationResult<ReleaseTaskDto>.Conflict(new[] { ReleaseMutability.ArchivedReadOnlyMessage });
+            return OperationResult<ReleaseTaskDto>.Conflict([ReleaseMutability.ArchivedReadOnlyCode]);
 
         var validation = Validation.ValidateTaskTitle(input.Title);
         if (!validation.IsValid)
@@ -78,7 +78,7 @@ public sealed class ReleaseTaskService(ZmgDbContext db) : IReleaseTaskService
         var task = await db.ReleaseTasks.FindAsync([id], ct);
         if (task is null) return OperationResult<ReleaseTaskDto>.NotFound();
         if (await IsArchived(task.ReleaseId, ct))
-            return OperationResult<ReleaseTaskDto>.Conflict(new[] { ReleaseMutability.ArchivedReadOnlyMessage });
+            return OperationResult<ReleaseTaskDto>.Conflict([ReleaseMutability.ArchivedReadOnlyCode]);
 
         task.IsDone = !task.IsDone;
         task.CompletedAt = task.IsDone ? DateTime.UtcNow : null;
@@ -94,11 +94,11 @@ public sealed class ReleaseTaskService(ZmgDbContext db) : IReleaseTaskService
             .ToListAsync(ct);
         if (tasks.Count == 0) return OperationResult.NotFound();
         if (await IsArchived(releaseId, ct))
-            return OperationResult.Conflict(new[] { ReleaseMutability.ArchivedReadOnlyMessage });
+            return OperationResult.Conflict([ReleaseMutability.ArchivedReadOnlyCode]);
 
         var applied = Reorder.TryApply(tasks, input.OrderedTaskIds, t => t.Id, (t, i) => t.SortOrder = i);
         if (!applied)
-            return OperationResult.Invalid(new[] { "Reorder must list every task in the phase exactly once." });
+            return OperationResult.Invalid([ServiceErrors.TaskReorderMismatch]);
 
         await db.SaveChangesAsync(ct);
         return OperationResult.Success();
@@ -109,7 +109,7 @@ public sealed class ReleaseTaskService(ZmgDbContext db) : IReleaseTaskService
         var task = await db.ReleaseTasks.FindAsync([id], ct);
         if (task is null) return OperationResult.NotFound();
         if (await IsArchived(task.ReleaseId, ct))
-            return OperationResult.Conflict(new[] { ReleaseMutability.ArchivedReadOnlyMessage });
+            return OperationResult.Conflict([ReleaseMutability.ArchivedReadOnlyCode]);
 
         db.ReleaseTasks.Remove(task);
         await db.SaveChangesAsync(ct);

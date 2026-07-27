@@ -84,7 +84,7 @@ public sealed class TemplateService(ZmgDbContext db) : ITemplateService
 
         var applied = Reorder.TryApply(tasks, input.OrderedTaskIds, t => t.Id, (t, i) => t.SortOrder = i);
         if (!applied)
-            return OperationResult.Invalid(new[] { "Reorder must list every task in the phase exactly once." });
+            return OperationResult.Invalid([ServiceErrors.TaskReorderMismatch]);
 
         await db.SaveChangesAsync(ct);
         return OperationResult.Success();

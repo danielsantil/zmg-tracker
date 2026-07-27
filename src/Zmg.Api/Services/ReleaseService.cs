@@ -156,9 +156,9 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
             .ToListAsync(ct);
 
         if (existingIds.Any(id => existingSongs.All(s => s.Id != id)))
-            return OperationResult<ReleaseDetailDto>.Invalid(new[] { "One or more selected songs do not exist." });
+            return OperationResult<ReleaseDetailDto>.Invalid([ServiceErrors.SongsNotFound]);
         if (existingSongs.Any(s => s.IsArchived))
-            return OperationResult<ReleaseDetailDto>.Conflict(new[] { "Can't add an archived song to a release." });
+            return OperationResult<ReleaseDetailDto>.Conflict([ServiceErrors.ArchivedSong]);
 
         return null;
     }
@@ -232,12 +232,12 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
 
         // Archived releases are terminal and read-only — the whole read side already assumes this (M25 defect 1).
         if (!ReleaseMutability.CanEdit(release.IsArchived))
-            return OperationResult<ReleaseDetailDto>.Conflict(new[] { ReleaseMutability.ArchivedReadOnlyMessage });
+            return OperationResult<ReleaseDetailDto>.Conflict([ReleaseMutability.ArchivedReadOnlyCode]);
 
         // Type is fixed at create (it determines the checklist template). Tracks mutate only via the
         // track endpoints, so input.Tracks is ignored on PUT.
         if (input.Type != release.Type)
-            return OperationResult<ReleaseDetailDto>.Conflict(new[] { "Release type can't change after creation." });
+            return OperationResult<ReleaseDetailDto>.Conflict([ServiceErrors.ReleaseTypeImmutable]);
 
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
         var mainArtistExists = input.MainArtistId != Guid.Empty
@@ -304,11 +304,11 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
         if (release is null) return OperationResult.NotFound();
 
         if (release.IsArchived)
-            return OperationResult.Conflict(new[] { "Release is already archived." });
+            return OperationResult.Conflict([ServiceErrors.ReleaseAlreadyArchived]);
 
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
         if (release.ReleaseDate < today)
-            return OperationResult.Conflict(new[] { "Only releases dated today or later can be archived." });
+            return OperationResult.Conflict([ServiceErrors.ReleaseArchiveTooLate]);
 
         var now = DateTime.UtcNow;
         release.ArchivedAt = now;
@@ -332,7 +332,7 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
         if (release is null) return OperationResult.NotFound();
 
         if (!release.IsArchived)
-            return OperationResult.Conflict(new[] { "Only archived releases can be removed." });
+            return OperationResult.Conflict([ServiceErrors.ReleaseDeleteNotArchived]);
 
         db.Releases.Remove(release);
         await db.SaveChangesAsync(ct);

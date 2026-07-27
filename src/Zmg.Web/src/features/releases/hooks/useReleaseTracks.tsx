@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { api, ApiError, errorMessage, DUPLICATE_SONG_TITLE_MESSAGE } from '@/api';
+import { api, ApiError, errorMessage, ServerErrors } from '@/api';
 import { queryKeys } from '@/api/queries';
 import type { ReleaseDetail, SongListItem, TrackDto } from '@/types';
 import { useConfirm } from '@/hooks/useConfirm';
@@ -73,8 +73,8 @@ export function useReleaseTracks(
       return true;
     } catch (e) {
       // A duplicate title (unique per artist) opens a prompt: pick the existing song or rename.
-      // Matches the server's DuplicateSongTitleMessage (mirrored in api/serverMessages.ts), M25.
-      if (e instanceof ApiError && e.errors.some((m) => m.includes(DUPLICATE_SONG_TITLE_MESSAGE))) {
+      // Recognised by its code, not its prose (M46) — the server ships no sentence to match on.
+      if (e instanceof ApiError && e.has(ServerErrors.duplicateSongTitle)) {
         await promptDuplicate(draft.title);
         return false;
       }

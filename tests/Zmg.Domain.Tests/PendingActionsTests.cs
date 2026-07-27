@@ -68,7 +68,7 @@ public class PendingActionsTests
             tasks: Task(SeedData.DistributeToDspsTitle, done: true));
         var action = Assert.Single(PendingActions.Compute(dist, Today));
         Assert.Equal(PendingKind.MissingUpc, action.Kind);
-        Assert.Equal("Missing UPC", action.Label);
+        Assert.Equal(ReleaseWarnings.MissingUpc, action.Label);
         Assert.Null(action.TaskId);
         Assert.NotNull(action.ReleaseId);
         Assert.Null(action.SongId);
@@ -80,8 +80,8 @@ public class PendingActionsTests
     }
 
     [Theory]
-    [InlineData(0, "Album is empty")]
-    [InlineData(1, "Album has only 1 track")]
+    [InlineData(0, ReleaseWarnings.AlbumIsEmpty)]
+    [InlineData(1, ReleaseWarnings.AlbumHasOneTrack)]
     public void Empty_album_pends_with_fewer_than_two_tracks(int trackCount, string label)
     {
         var album = Rel(Today.AddDays(10), type: ReleaseType.Album);
@@ -129,7 +129,7 @@ public class PendingActionsTests
         // Distributed, blank ISRC → one song-owned action.
         var action = Assert.Single(PendingActions.ComputeForSong(song, hasDistributedRelease: true));
         Assert.Equal(PendingKind.MissingIsrc, action.Kind);
-        Assert.Equal("Missing ISRC", action.Label);
+        Assert.Equal(PendingActions.MissingIsrc, action.Label);
         Assert.Equal(song.Id, action.SongId);
         Assert.Null(action.ReleaseId);
 

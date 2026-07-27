@@ -233,14 +233,36 @@ artists, and templates at 375px and desktop, light and dark.
 ## M46 — API messages as stable codes
 
 ```
-[ ] 1. Domain: Message record + ValidationResult carries codes   ← Code change
-[ ] 2. Validation.cs → codes + args (13 messages)                ← Code change
-[ ] 3. ReleaseWarnings → codes (3)                               ← Code change
-[ ] 4. Services → codes (17 messages)                            ← Code change
-[ ] 5. OperationResult + ValidationErrorResponse shape           ← Code change
-[ ] 6. SPA: client.ts translates, serverMessages.ts retires      ← Code change
-[ ] 7. Domain + API tests updated                                ← Code change
+[x] 1. Domain: Message record + ValidationResult carries codes   ← Code change
+[x] 2. Validation.cs → codes + args (13 messages)                ← Code change
+[x] 3. ReleaseWarnings → codes (3)                               ← Code change  (+ PendingActions' 3)
+[x] 4. Services → codes (17 messages)                            ← Code change  (+ ServiceErrors.cs)
+[x] 5. OperationResult + ValidationErrorResponse shape           ← Code change
+[x] 6. SPA: client.ts translates, serverMessages.ts retires      ← Code change  (+ i18n/serverText.ts)
+[x] 7. Domain + API tests updated                                ← Code change  (API 158 → 204)
 ```
+
+**Landed.** 42 codes across the two projects, all rendered by the SPA. Three decisions worth carrying:
+
+- **`ServiceErrors.cs`** (new, in `Zmg.Api/Services`) holds the codes a *service* mints — lifecycle and
+  existence conflicts that need the database to detect, so they can't live in pure `Validation`. One
+  home because several fire from more than one service (archived-song from both release-create and
+  track-add; reorder-mismatch from tasks, template tasks and tracks). Pure rules keep their codes next
+  to themselves.
+- **`i18n/serverText.ts`** is where the `ParseKeys` typing has to give way — a code is *data* at
+  runtime, so it can't be literal-checked. `i18n.exists()` replaces the lost type safety and degrades
+  to the raw code rather than a blank. Two entry points on purpose: `translateMessage` off the module
+  instance for `client.ts` (which builds `ApiError` outside any React tree), and a `useServerText()`
+  hook bound to `useTranslation`'s `t` for the components — codes that arrive as *data* (release
+  warnings, pending actions, create-form advisories) must re-render on a language switch, and the
+  module instance wouldn't do that. Browser-verified: the create-warning box flips language live.
+- **`MessageCodeApiTests`** reflects over every code constant and asserts each has a key in *both*
+  locale files. That is the real M46 failure mode — a code with no i18next key renders as its own key
+  path, in both languages, with every other test green. It also locks the wire shape: the error object
+  has exactly `code` + `args` and no prose field.
+
+`api/serverMessages.ts` retired as planned; `api/serverErrors.ts` replaces it with just the one code
+the UI *branches* on (duplicate song title), since everything else is rendered, never matched.
 
 Every server-minted sentence becomes a culture-invariant code the SPA renders. This is what lets the
 server keep `InvariantGlobalization=true` while the user reads Spanish.

@@ -41,7 +41,7 @@ export default function ArtistFormPage() {
         setName(artist.name);
         setNotes(artist.notes ?? '');
       } catch (err) {
-        setErrors(err instanceof ApiError ? err.errors : [i18n.t('artists.form.loadFailed')]);
+        setErrors(err instanceof ApiError ? err.messages : [i18n.t('artists.form.loadFailed')]);
       } finally {
         setLoading(false);
       }
@@ -71,7 +71,7 @@ export default function ArtistFormPage() {
         void navigate('/artists');
       }
     } catch (err) {
-      setErrors(err instanceof ApiError ? err.errors : [t('artists.form.saveFailed')]);
+      setErrors(err instanceof ApiError ? err.messages : [t('artists.form.saveFailed')]);
     } finally {
       setSaving(false);
     }

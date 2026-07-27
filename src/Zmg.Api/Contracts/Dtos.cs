@@ -149,5 +149,9 @@ public record CoverUrlInput(string? Url);
 public record UploadedCoverDto(string Url);
 
 // ---- Validation envelope ----
-public record ValidationErrorResponse(string[] Errors);
-public record CreatedWithWarnings<T>(T Data, string[] Warnings);
+// Errors/warnings ship as culture-invariant Message codes, never prose (M46): each Code is an
+// i18next key path the SPA renders with t(code, args). There is deliberately no `message` field —
+// a parallel prose channel is the thing that drifts. A raw curl therefore gets
+// {"errors":[{"code":"error.song.duplicateTitle"}]}, which is strictly better in logs anyway.
+public record ValidationErrorResponse(Message[] Errors);
+public record CreatedWithWarnings<T>(T Data, Message[] Warnings);

@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useServerText } from '@/i18n/serverText';
 import type { PendingAction } from '@/types';
 import { PendingKind } from '@/types';
 
@@ -10,6 +11,9 @@ import { PendingKind } from '@/types';
  */
 export function NeedsAttention({ actions }: { actions: PendingAction[] }) {
   const { t } = useTranslation();
+  const server = useServerText();
+  // TaskDue's label is the task's own title (user content, verbatim); the data kinds ship a code.
+  const labelOf = (a: PendingAction) => (a.kind === PendingKind.TaskDue ? a.label : server.code(a.label));
   return (
     <div className="mb-6 overflow-hidden rounded-xl border border-warn/25 bg-warn/[0.06]">
       <div className="border-b border-warn/20 px-4 py-2.5 text-sm font-semibold text-warnFg">
@@ -21,10 +25,10 @@ export function NeedsAttention({ actions }: { actions: PendingAction[] }) {
             <span className="text-warnFg">•</span>
             {a.kind === PendingKind.MissingIsrc && a.songId ? (
               <Link to={`/catalog/${a.songId}`} className="text-body underline decoration-dotted hover:text-strong">
-                {a.label} — {a.subject}
+                {labelOf(a)} — {a.subject}
               </Link>
             ) : (
-              <span>{a.label}</span>
+              <span>{labelOf(a)}</span>
             )}
             {a.kind === PendingKind.TaskDue && a.daysToRelease != null && (
               <span className="text-xs text-accent">

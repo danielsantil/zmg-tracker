@@ -61,7 +61,7 @@ export default function SongDetailPage() {
       void queryClient.invalidateQueries({ queryKey: queryKeys.artists });
       showToast(t('common.saved'), 'success');
     } catch (e) {
-      setErrors(e instanceof ApiError ? e.errors : [t('songs.form.saveFailed')]);
+      setErrors(e instanceof ApiError ? e.messages : [t('songs.form.saveFailed')]);
     } finally {
       setSaving(false);
     }

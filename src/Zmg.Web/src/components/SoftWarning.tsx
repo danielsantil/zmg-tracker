@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useServerText } from '@/i18n/serverText';
 
 /**
  * Soft advisory glyph for a release. A single amber icon carries every warning the release has
- * (e.g. "Missing UPC", "Album is empty"); clicking lists them all. Never a red error, never
+ * (missing UPC, empty album); clicking lists them all. `warnings` are server-minted **codes**
+ * (M46) — `ReleaseWarnings` in the domain, rendered here. Never a red error, never
  * blocking. It's a real button so the messages are reachable by tap on mobile (a hover-only `title`
  * was invisible on touch devices); the popover is positioned `fixed` from the button rect so it
  * escapes any `overflow-hidden` ancestor, dismissed by tapping the backdrop. Renders nothing when
@@ -14,6 +16,7 @@ import { createPortal } from 'react-dom';
  * the backdrop. It therefore also has to clear the modal layer (z-40).
  */
 export function SoftWarning({ warnings }: { warnings: string[] }) {
+  const server = useServerText();
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<React.CSSProperties | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
@@ -42,7 +45,8 @@ export function SoftWarning({ warnings }: { warnings: string[] }) {
   }, [open]);
 
   if (warnings.length === 0) return null;
-  const summary = warnings.join(', ');
+  const texts = warnings.map((w) => server.code(w));
+  const summary = texts.join(', ');
 
   return (
     <>
@@ -77,8 +81,8 @@ export function SoftWarning({ warnings }: { warnings: string[] }) {
               className="z-50 whitespace-nowrap rounded-lg border border-edge bg-panel px-3 py-2 text-sm text-warnFg shadow-lg"
             >
               <ul className="space-y-0.5">
-                {warnings.map((w) => (
-                  <li key={w}>{w}</li>
+                {warnings.map((code, i) => (
+                  <li key={code}>{texts[i]}</li>
                 ))}
               </ul>
             </div>

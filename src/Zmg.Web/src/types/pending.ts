@@ -4,6 +4,10 @@ import type { PendingKind } from './enums';
 // display name (release title / song title).
 export interface PendingAction {
   kind: PendingKind;
+  /**
+   * Two things, switched on by `kind` (M46): the task's **title** for `TaskDue` — user content,
+   * rendered verbatim — and a **warning code** for the three data kinds, run through `t()`.
+   */
   label: string;
   subject: string;
   artistName: string;

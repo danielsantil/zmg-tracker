@@ -8,6 +8,12 @@ namespace Zmg.Domain;
 /// An action is owned by either a release (<see cref="ReleaseId"/>) or a song (<see cref="SongId"/>);
 /// <see cref="Subject"/> is that owner's display name (release title / song title).
 /// </summary>
+/// <remarks>
+/// <see cref="Label"/> is deliberately two things, switched on by <see cref="Kind"/> (M46):
+/// for <see cref="PendingKind.TaskDue"/> it is the task's <b>title</b> — user content, rendered
+/// verbatim — and for the three data kinds it is a <b>warning code</b> the SPA runs through
+/// <c>t()</c>. That keeps the DTO shape unchanged while the prose moves client-side.
+/// </remarks>
 public record PendingAction(
     PendingKind Kind,
     string Label,
@@ -26,6 +32,9 @@ public record PendingAction(
 /// </summary>
 public static class PendingActions
 {
+    /// <summary>The one advisory code this engine owns; the other two come from <see cref="ReleaseWarnings"/>.</summary>
+    public const string MissingIsrc = "warning.missingIsrc";
+
     /// <summary>
     /// Release-owned pending actions: task-due items (in phase order), a missing-UPC nag once distributed,
     /// and an empty-album nag. Song-owned ISRC actions come from <see cref="ComputeForSong"/>. The aggregate
@@ -56,7 +65,7 @@ public static class PendingActions
         if (release.IsDistributed && string.IsNullOrWhiteSpace(release.Upc))
         {
             result.Add(new PendingAction(
-                PendingKind.MissingUpc, "Missing UPC", release.Title, artistName,
+                PendingKind.MissingUpc, ReleaseWarnings.MissingUpc, release.Title, artistName,
                 release.Id, null, null, null));
         }
 
@@ -85,7 +94,7 @@ public static class PendingActions
         if (hasDistributedRelease && !song.IsArchived && string.IsNullOrWhiteSpace(song.Isrc))
         {
             result.Add(new PendingAction(
-                PendingKind.MissingIsrc, "Missing ISRC", song.Title,
+                PendingKind.MissingIsrc, MissingIsrc, song.Title,
                 song.MainArtist?.Name ?? string.Empty,
                 null, song.Id, null, null));
         }

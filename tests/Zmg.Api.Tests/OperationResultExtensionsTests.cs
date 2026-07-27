@@ -34,7 +34,7 @@ public class OperationResultExtensionsTests
     [Fact]
     public void ToOkWithWarnings_maps_success_to_200()
     {
-        Assert.Equal(200, StatusOf(OperationResult<int>.Success(1, new[] { "heads up" }).ToOkWithWarnings()));
+        Assert.Equal(200, StatusOf(OperationResult<int>.Success(1, ["warning.test"]).ToOkWithWarnings()));
     }
 
     [Theory]
@@ -48,8 +48,8 @@ public class OperationResultExtensionsTests
         OperationResult<int> result = status switch
         {
             ResultStatus.NotFound => OperationResult<int>.NotFound(),
-            ResultStatus.ValidationFailed => OperationResult<int>.Invalid(new[] { "bad" }),
-            ResultStatus.Conflict => OperationResult<int>.Conflict(new[] { "conflict" }),
+            ResultStatus.ValidationFailed => OperationResult<int>.Invalid(["error.test.bad"]),
+            ResultStatus.Conflict => OperationResult<int>.Conflict(["error.test.conflict"]),
             _ => OperationResult<int>.Problem("boom"),
         };
 

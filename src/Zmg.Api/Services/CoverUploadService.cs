@@ -22,16 +22,16 @@ public sealed class CoverUploadService(IStorageService storage, HttpClient http,
         // The declared type is a cheap early reject; the bytes below are what actually decide.
         if (!CoverImage.IsAllowedContentType(declaredContentType))
         {
-            return OperationResult<UploadedCoverDto>.Invalid([CoverImage.InvalidTypeMessage]);
+            return OperationResult<UploadedCoverDto>.Invalid([CoverImage.InvalidTypeCode]);
         }
 
         if (declaredLength > CoverImage.MaxBytes)
         {
-            return OperationResult<UploadedCoverDto>.Invalid([CoverImage.TooLargeMessage]);
+            return OperationResult<UploadedCoverDto>.Invalid([CoverImage.TooLargeCode]);
         }
 
         var bytes = await ReadCappedAsync(content, ct);
-        if (bytes is null) return OperationResult<UploadedCoverDto>.Invalid([CoverImage.TooLargeMessage]);
+        if (bytes is null) return OperationResult<UploadedCoverDto>.Invalid([CoverImage.TooLargeCode]);
 
         return await StoreAsync(bytes, ct);
     }
@@ -42,7 +42,7 @@ public sealed class CoverUploadService(IStorageService storage, HttpClient http,
 
         if (!CoverImage.IsFetchableUrl(url, out var uri))
         {
-            return OperationResult<UploadedCoverDto>.Invalid([CoverImage.InvalidUrlMessage]);
+            return OperationResult<UploadedCoverDto>.Invalid([CoverImage.InvalidUrlCode]);
         }
 
         byte[] bytes;
@@ -56,7 +56,7 @@ public sealed class CoverUploadService(IStorageService storage, HttpClient http,
         {
             // Never surface the remote failure verbatim — it's a probe oracle, and useless to the user.
             logger.LogInformation(ex, "Cover fetch failed for {Host}", uri!.Host);
-            return OperationResult<UploadedCoverDto>.Invalid([CoverImage.UnreachableUrlMessage]);
+            return OperationResult<UploadedCoverDto>.Invalid([CoverImage.UnreachableUrlCode]);
         }
 
         return await StoreAsync(bytes, ct);
@@ -73,7 +73,7 @@ public sealed class CoverUploadService(IStorageService storage, HttpClient http,
         {
             if (!await IsAllowedHostAsync(uri, ct))
             {
-                return OperationResult<byte[]>.Invalid([CoverImage.BlockedUrlMessage]);
+                return OperationResult<byte[]>.Invalid([CoverImage.BlockedUrlCode]);
             }
 
             using var request = new HttpRequestMessage(HttpMethod.Get, uri);
@@ -82,12 +82,12 @@ public sealed class CoverUploadService(IStorageService storage, HttpClient http,
             if (IsRedirect(response.StatusCode))
             {
                 var location = response.Headers.Location;
-                if (location is null) return OperationResult<byte[]>.Invalid([CoverImage.UnreachableUrlMessage]);
+                if (location is null) return OperationResult<byte[]>.Invalid([CoverImage.UnreachableUrlCode]);
 
                 var next = location.IsAbsoluteUri ? location : new Uri(uri, location);
                 if (!CoverImage.IsFetchableUrl(next.ToString(), out var parsed))
                 {
-                    return OperationResult<byte[]>.Invalid([CoverImage.BlockedUrlMessage]);
+                    return OperationResult<byte[]>.Invalid([CoverImage.BlockedUrlCode]);
                 }
 
                 uri = parsed!;
@@ -96,23 +96,23 @@ public sealed class CoverUploadService(IStorageService storage, HttpClient http,
 
             if (!response.IsSuccessStatusCode)
             {
-                return OperationResult<byte[]>.Invalid([CoverImage.UnreachableUrlMessage]);
+                return OperationResult<byte[]>.Invalid([CoverImage.UnreachableUrlCode]);
             }
 
             if (response.Content.Headers.ContentLength > CoverImage.MaxBytes)
             {
-                return OperationResult<byte[]>.Invalid([CoverImage.TooLargeMessage]);
+                return OperationResult<byte[]>.Invalid([CoverImage.TooLargeCode]);
             }
 
             // A lying Content-Length is why the read below is capped rather than trusted.
             await using var stream = await response.Content.ReadAsStreamAsync(ct);
             var bytes = await ReadCappedAsync(stream, ct);
             return bytes is null
-                ? OperationResult<byte[]>.Invalid([CoverImage.TooLargeMessage])
+                ? OperationResult<byte[]>.Invalid([CoverImage.TooLargeCode])
                 : OperationResult<byte[]>.Success(bytes);
         }
 
-        return OperationResult<byte[]>.Invalid([CoverImage.UnreachableUrlMessage]);
+        return OperationResult<byte[]>.Invalid([CoverImage.UnreachableUrlCode]);
     }
 
     private static bool IsRedirect(HttpStatusCode status) =>
@@ -159,12 +159,12 @@ public sealed class CoverUploadService(IStorageService storage, HttpClient http,
     private async Task<OperationResult<UploadedCoverDto>> StoreAsync(byte[] bytes, CancellationToken ct)
     {
         var sniffed = CoverImage.SniffContentType(bytes);
-        if (sniffed is null) return OperationResult<UploadedCoverDto>.Invalid([CoverImage.InvalidTypeMessage]);
+        if (sniffed is null) return OperationResult<UploadedCoverDto>.Invalid([CoverImage.InvalidTypeCode]);
 
         // Re-encoded to a bounded WebP (M33): the header can be valid while the rest is corrupt, so a
         // failed decode is a 400 rather than a 500.
         var normalized = CoverProcessor.Normalize(bytes);
-        if (normalized is null) return OperationResult<UploadedCoverDto>.Invalid([CoverImage.InvalidTypeMessage]);
+        if (normalized is null) return OperationResult<UploadedCoverDto>.Invalid([CoverImage.InvalidTypeCode]);
 
         var url = await storage.UploadCoverAsync(normalized, CoverImage.StoredContentType, ct);
         return OperationResult<UploadedCoverDto>.Success(new UploadedCoverDto(url));

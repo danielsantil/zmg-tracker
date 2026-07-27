@@ -392,5 +392,68 @@
     "taskCount_one": "{{count}} tarea en esta plantilla",
     "taskCount_other": "{{count}} tareas en esta plantilla",
     "deleteTaskConfirm": "¿Eliminar la tarea de plantilla \"{{title}}\"?"
+  },
+  "error": {
+    "artist": {
+      "nameRequired": "El nombre del artista es obligatorio.",
+      "duplicateName": "Ya existe un artista llamado \"{{name}}\".",
+      "hasDependents": "No se puede eliminar un artista que tiene lanzamientos o canciones."
+    },
+    "release": {
+      "titleRequired": "El título del lanzamiento es obligatorio.",
+      "dateRequired": "La fecha de lanzamiento es obligatoria.",
+      "archivedReadOnly": "Los lanzamientos archivados son de solo lectura.",
+      "typeImmutable": "El tipo de lanzamiento no se puede cambiar después de crearlo.",
+      "alreadyArchived": "El lanzamiento ya está archivado.",
+      "archiveTooLate": "Solo se pueden archivar los lanzamientos con fecha de hoy o posterior.",
+      "deleteNotArchived": "Solo se pueden eliminar los lanzamientos archivados."
+    },
+    "song": {
+      "titleRequired": "El título de la canción es obligatorio.",
+      "duplicateTitle": "Ya existe una canción con este título para este artista.",
+      "archivedReadOnly": "Las canciones archivadas son de solo lectura.",
+      "mainArtistImmutable": "El artista principal de una canción no se puede cambiar después de crearla.",
+      "alreadyArchived": "La canción ya está archivada.",
+      "onActiveRelease": "La canción está en un lanzamiento activo — se archiva desde el lanzamiento.",
+      "deleteNotArchived": "Solo se pueden eliminar las canciones archivadas o nunca publicadas."
+    },
+    "task": {
+      "titleRequired": "El título de la tarea es obligatorio.",
+      "reorderMismatch": "Al reordenar hay que incluir cada tarea de la fase exactamente una vez."
+    },
+    "tracks": {
+      "singleNeedsOneTrack": "Un sencillo debe tener exactamente una canción.",
+      "eitherSongOrTitle": "Cada canción debe ser o una canción existente o un título nuevo, no ambos ni ninguno.",
+      "duplicateSong": "La misma canción no puede aparecer dos veces en un lanzamiento.",
+      "singleIsFull": "Los sencillos llevan exactamente una canción.",
+      "songNotFound": "La canción seleccionada no existe.",
+      "songsNotFound": "Una o más de las canciones seleccionadas no existen.",
+      "archivedSong": "No se puede agregar una canción archivada a un lanzamiento.",
+      "alreadyOnRelease": "Esa canción ya está en este lanzamiento.",
+      "reorderMismatch": "Al reordenar hay que incluir cada canción del lanzamiento exactamente una vez."
+    },
+    "template": {
+      "lastTask": "Una plantilla debe conservar al menos una tarea."
+    },
+    "cover": {
+      "invalidType": "La portada debe ser una imagen PNG, JPEG o WebP.",
+      "tooLarge": "La imagen de portada debe pesar 5 MB o menos.",
+      "invalidUrl": "Ingresa una URL de imagen http(s).",
+      "blockedUrl": "Esa URL no se puede consultar.",
+      "unreachableUrl": "No se pudo descargar una imagen desde esa URL."
+    },
+    "mainArtistRequired": "Se requiere un artista principal.",
+    "mainArtistNotFound": "El artista principal seleccionado no existe.",
+    "unknown": "Algo salió mal."
+  },
+  "warning": {
+    "missingUpc": "Falta el UPC",
+    "missingIsrc": "Falta el ISRC",
+    "albumIsEmpty": "El álbum está vacío",
+    "albumHasOneTrack": "El álbum solo tiene 1 canción",
+    "release": {
+      "pastDate": "La fecha de lanzamiento ya pasó, ¿estás registrando un lanzamiento antiguo?",
+      "duplicateTitle": "Este artista ya tiene un lanzamiento titulado \"{{title}}\"."
+    }
   }
 }

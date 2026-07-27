@@ -43,9 +43,9 @@ public class ValidationTests
         var missingAll = Validation.ValidateRelease(
             "", Guid.Empty, mainArtistExists: false, null, Today, Array.Empty<string>());
         Assert.False(missingAll.IsValid);
-        Assert.Contains("Release title is required.", missingAll.Errors);
-        Assert.Contains("A main artist is required.", missingAll.Errors);
-        Assert.Contains("Release date is required.", missingAll.Errors);
+        Assert.Contains(missingAll.Errors, e => e.Code == Validation.ReleaseTitleRequiredCode);
+        Assert.Contains(missingAll.Errors, e => e.Code == Validation.MainArtistRequiredCode);
+        Assert.Contains(missingAll.Errors, e => e.Code == Validation.ReleaseDateRequiredCode);
 
         var ok = Validation.ValidateRelease(
             "Luz", artistId, mainArtistExists: true, Today.AddDays(10), Today, Array.Empty<string>());
@@ -69,7 +69,7 @@ public class ValidationTests
             "Luz", Guid.NewGuid(), mainArtistExists: true, Today.AddDays(-5), Today, Array.Empty<string>());
 
         Assert.True(result.IsValid);
-        Assert.Contains(result.Warnings, w => w.Contains("past"));
+        Assert.Contains(result.Warnings, w => w.Code == Validation.PastReleaseDateCode);
     }
 
     [Fact]
@@ -80,7 +80,8 @@ public class ValidationTests
             new[] { "luz" });
 
         Assert.True(result.IsValid);
-        Assert.Contains(result.Warnings, w => w.Contains("already has a release"));
+        Assert.Contains(result.Warnings, w =>
+            w.Code == Validation.DuplicateReleaseTitleCode && w.Args!["title"] == "Luz");
     }
 
     // ---- Task title non-empty ----
@@ -107,7 +108,7 @@ public class ValidationTests
     {
         var result = Validation.ValidateSong("Luz", Guid.NewGuid(), mainArtistExists: true, new[] { "luz" });
         Assert.False(result.IsValid);
-        Assert.Contains(Validation.DuplicateSongTitleMessage, result.Errors);
+        Assert.Contains(result.Errors, e => e.Code == Validation.DuplicateSongTitleCode);
     }
 
     // ---- Release tracks (v2.0; per-artist title rule hoisted here in M25) ----
@@ -153,7 +154,7 @@ public class ValidationTests
 
         // Assert
         Assert.False(result.IsValid);
-        Assert.Contains(Validation.DuplicateSongTitleMessage, result.Errors);
+        Assert.Contains(result.Errors, e => e.Code == Validation.DuplicateSongTitleCode);
     }
 
     [Fact]
@@ -167,7 +168,7 @@ public class ValidationTests
 
         // Assert
         Assert.False(result.IsValid);
-        Assert.Contains(Validation.DuplicateSongTitleMessage, result.Errors);
+        Assert.Contains(result.Errors, e => e.Code == Validation.DuplicateSongTitleCode);
     }
 
     private static ValidationResult ValidateTracks(ReleaseType type, params TrackSpec[] tracks) =>

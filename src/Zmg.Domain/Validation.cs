@@ -11,21 +11,22 @@ public readonly record struct TrackSpec(Guid? ExistingSongId, string? NewTitle);
 
 /// <summary>
 /// Outcome of a validation pass. Errors are hard failures (400/409); warnings advise
-/// but do not block (surfaced inline, dismissible).
+/// but do not block (surfaced inline, dismissible). Both carry <see cref="Message"/> codes,
+/// never prose — the SPA renders them (M46).
 /// </summary>
 public sealed class ValidationResult
 {
-    public List<string> Errors { get; } = new();
-    public List<string> Warnings { get; } = new();
+    public List<Message> Errors { get; } = new();
+    public List<Message> Warnings { get; } = new();
     public bool IsValid => Errors.Count == 0;
 
-    public ValidationResult Error(string message)
+    public ValidationResult Error(Message message)
     {
         Errors.Add(message);
         return this;
     }
 
-    public ValidationResult Warn(string message)
+    public ValidationResult Warn(Message message)
     {
         Warnings.Add(message);
         return this;
@@ -35,16 +36,34 @@ public sealed class ValidationResult
 /// <summary>
 /// The section 6 validation rules as pure functions. Uniqueness and "has releases"
 /// checks take already-loaded context so the rules stay testable without a database.
+/// Every outcome is a <see cref="Message"/> code (M46) — see <see cref="Message"/> for why.
 /// </summary>
 public static class Validation
 {
     /// <summary>
-    /// Blocking message for a song title that clashes with another active song of the same main
+    /// Blocking code for a song title that clashes with another active song of the same main
     /// artist. Shared by <see cref="ValidateSong"/>, the release-create inline tracks, and the
     /// track-add endpoint so the rule reads identically everywhere (and the SPA can recognise it).
     /// </summary>
-    public const string DuplicateSongTitleMessage =
-        "A song with this title already exists for this artist.";
+    public const string DuplicateSongTitleCode = "error.song.duplicateTitle";
+
+    public const string ArtistNameRequiredCode = "error.artist.nameRequired";
+    public const string DuplicateArtistNameCode = "error.artist.duplicateName";
+    public const string ArtistHasDependentsCode = "error.artist.hasDependents";
+    public const string ReleaseTitleRequiredCode = "error.release.titleRequired";
+    public const string ReleaseDateRequiredCode = "error.release.dateRequired";
+    public const string MainArtistRequiredCode = "error.mainArtistRequired";
+    public const string MainArtistNotFoundCode = "error.mainArtistNotFound";
+    public const string TaskTitleRequiredCode = "error.task.titleRequired";
+    public const string SongTitleRequiredCode = "error.song.titleRequired";
+    public const string SingleNeedsOneTrackCode = "error.tracks.singleNeedsOneTrack";
+    public const string TrackSpecAmbiguousCode = "error.tracks.eitherSongOrTitle";
+    public const string DuplicateTrackSongCode = "error.tracks.duplicateSong";
+    public const string TemplateNeedsATaskCode = "error.template.lastTask";
+
+    /// <summary>Advisory codes (non-blocking) raised by <see cref="ValidateRelease"/>.</summary>
+    public const string PastReleaseDateCode = "warning.release.pastDate";
+    public const string DuplicateReleaseTitleCode = "warning.release.duplicateTitle";
 
     public static ValidationResult ValidateArtist(
         string? name,
@@ -54,12 +73,12 @@ public static class Validation
 
         if (string.IsNullOrWhiteSpace(name))
         {
-            result.Error("Artist name is required.");
+            result.Error(ArtistNameRequiredCode);
         }
         else if (otherArtistNames.Any(n =>
                      string.Equals(n?.Trim(), name.Trim(), StringComparison.OrdinalIgnoreCase)))
         {
-            result.Error($"An artist named \"{name.Trim()}\" already exists.");
+            result.Error(Message.With(DuplicateArtistNameCode, ("name", name.Trim())));
         }
 
         return result;
@@ -71,7 +90,7 @@ public static class Validation
         var result = new ValidationResult();
         if (dependentCount > 0)
         {
-            result.Error("Can't delete an artist that has releases or songs.");
+            result.Error(ArtistHasDependentsCode);
         }
         return result;
     }
@@ -92,25 +111,25 @@ public static class Validation
         var result = new ValidationResult();
 
         if (string.IsNullOrWhiteSpace(title))
-            result.Error("Release title is required.");
+            result.Error(ReleaseTitleRequiredCode);
 
         if (mainArtistId == Guid.Empty)
-            result.Error("A main artist is required.");
+            result.Error(MainArtistRequiredCode);
         else if (!mainArtistExists)
-            result.Error("The selected main artist does not exist.");
+            result.Error(MainArtistNotFoundCode);
 
         if (releaseDate is null)
-            result.Error("Release date is required.");
+            result.Error(ReleaseDateRequiredCode);
 
         // Warnings (advise, don't block)
         if (releaseDate is { } date && date < today)
-            result.Warn("Release date is in the past — backfilling an old release?");
+            result.Warn(PastReleaseDateCode);
 
         if (!string.IsNullOrWhiteSpace(title) &&
             otherTitlesForSameArtist.Any(t =>
                 string.Equals(t?.Trim(), title.Trim(), StringComparison.OrdinalIgnoreCase)))
         {
-            result.Warn($"This artist already has a release titled \"{title.Trim()}\".");
+            result.Warn(Message.With(DuplicateReleaseTitleCode, ("title", title.Trim())));
         }
 
         return result;
@@ -120,7 +139,7 @@ public static class Validation
     {
         var result = new ValidationResult();
         if (string.IsNullOrWhiteSpace(title))
-            result.Error("Task title is required.");
+            result.Error(TaskTitleRequiredCode);
         return result;
     }
 
@@ -140,18 +159,18 @@ public static class Validation
         var result = new ValidationResult();
 
         if (string.IsNullOrWhiteSpace(title))
-            result.Error("Song title is required.");
+            result.Error(SongTitleRequiredCode);
 
         if (mainArtistId == Guid.Empty)
-            result.Error("A main artist is required.");
+            result.Error(MainArtistRequiredCode);
         else if (!mainArtistExists)
-            result.Error("The selected main artist does not exist.");
+            result.Error(MainArtistNotFoundCode);
 
         if (!string.IsNullOrWhiteSpace(title) &&
             otherTitlesForSameArtist.Any(t =>
                 string.Equals(t?.Trim(), title.Trim(), StringComparison.OrdinalIgnoreCase)))
         {
-            result.Error(DuplicateSongTitleMessage);
+            result.Error(DuplicateSongTitleCode);
         }
 
         return result;
@@ -163,7 +182,7 @@ public static class Validation
     /// must have exactly one track; an album may have zero or more. Each spec must set exactly one of
     /// existing-song-id / new-title, no song may appear twice, and new titles must be non-blank. A new
     /// title that clashes with another new title in the same request, or with an active same-artist song
-    /// in <paramref name="activeTitlesForArtist"/>, is a hard <see cref="DuplicateSongTitleMessage"/>
+    /// in <paramref name="activeTitlesForArtist"/>, is a hard <see cref="DuplicateSongTitleCode"/>
     /// error (M25: hoisted out of the two services that duplicated it, incl. the within-request dedupe).
     /// </summary>
     public static ValidationResult ValidateReleaseTracks(
@@ -174,14 +193,14 @@ public static class Validation
         var result = new ValidationResult();
 
         if (type == ReleaseType.Single && tracks.Count != 1)
-            result.Error("A single must have exactly one track.");
+            result.Error(SingleNeedsOneTrackCode);
 
         foreach (var spec in tracks)
         {
             var hasId = spec.ExistingSongId is { } id && id != Guid.Empty;
             var hasTitle = !string.IsNullOrWhiteSpace(spec.NewTitle);
             if (hasId == hasTitle) // both or neither
-                result.Error("Each track must be either an existing song or a new title, not both or neither.");
+                result.Error(TrackSpecAmbiguousCode);
         }
 
         var duplicateIds = tracks
@@ -189,7 +208,7 @@ public static class Validation
             .GroupBy(t => t.ExistingSongId!.Value)
             .Any(g => g.Count() > 1);
         if (duplicateIds)
-            result.Error("The same song can't appear twice on a release.");
+            result.Error(DuplicateTrackSongCode);
 
         // Per-artist title uniqueness for the new inline songs: a new title clashing with an active
         // same-artist song, or repeated within this request, must be renamed or linked as the existing
@@ -202,7 +221,7 @@ public static class Validation
                 string.Equals(t?.Trim(), newTitle, StringComparison.OrdinalIgnoreCase));
             if (clashesActive || !seenNewTitles.Add(newTitle))
             {
-                result.Error(DuplicateSongTitleMessage);
+                result.Error(DuplicateSongTitleCode);
                 break;
             }
         }
@@ -215,7 +234,7 @@ public static class Validation
     {
         var result = new ValidationResult();
         if (remainingTaskCount < 1)
-            result.Error("A template must keep at least one task.");
+            result.Error(TemplateNeedsATaskCode);
         return result;
     }
 }

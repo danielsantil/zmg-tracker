@@ -227,7 +227,7 @@ public class UploadApiTests : IClassFixture<UploadApiFactory>
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         var body = await response.Content.ReadFromJsonAsync<ValidationErrorResponse>();
-        Assert.Equal(Zmg.Domain.CoverImage.UnreachableUrlMessage, body!.Errors.Single());
+        Assert.Equal(Zmg.Domain.CoverImage.UnreachableUrlCode, body!.Errors.Single().Code);
     }
 
     private static Task<HttpResponseMessage> PostUrl(HttpClient client, string url) =>

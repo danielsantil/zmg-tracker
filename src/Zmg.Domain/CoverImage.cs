@@ -35,11 +35,12 @@ public static class CoverImage
     public static readonly IReadOnlyList<string> AllowedContentTypes =
         new[] { PngContentType, JpegContentType, WebpContentType };
 
-    public const string InvalidTypeMessage = "Cover must be a PNG, JPEG or WebP image.";
-    public const string TooLargeMessage = "Cover image must be 5 MB or smaller.";
-    public const string InvalidUrlMessage = "Enter an http(s) image URL.";
-    public const string BlockedUrlMessage = "That URL can't be fetched.";
-    public const string UnreachableUrlMessage = "Couldn't download an image from that URL.";
+    // Rejection codes for the two ingest paths; the SPA owns the prose (M46).
+    public const string InvalidTypeCode = "error.cover.invalidType";
+    public const string TooLargeCode = "error.cover.tooLarge";
+    public const string InvalidUrlCode = "error.cover.invalidUrl";
+    public const string BlockedUrlCode = "error.cover.blockedUrl";
+    public const string UnreachableUrlCode = "error.cover.unreachableUrl";
 
     /// <summary>
     /// True for a declared content type we accept. Tolerates parameters and casing

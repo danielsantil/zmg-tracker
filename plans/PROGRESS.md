@@ -16,7 +16,7 @@ for where the project stands and the rules that span plans.
 - [build-plan-2.5.md](build-plan-2.5.md) — deployment · ACA/Neon/R2/Terraform/CI-CD (M29–M34). Shipped.
 - [build-plan-2.6.md](build-plan-2.6.md) — hardening · hard-delete · navbar · catalog fixes (M35–M38). Shipped.
 - [build-plan-2.7.md](build-plan-2.7.md) — infra hardening · remote state · cold start (M39–M42). Shipped.
-- [build-plan-2.8.md](build-plan-2.8.md) — multilingual EN/ES (M43–M48). **In progress: M43–M45 done.**
+- [build-plan-2.8.md](build-plan-2.8.md) — multilingual EN/ES (M43–M48). **In progress: M43–M46 done.**
 
 Newer plan versions go in new `build-plan-N.N.md` files; older ones stay frozen.
 
@@ -25,15 +25,16 @@ Newer plan versions go in new `build-plan-N.N.md` files; older ones stay frozen.
 to **Azure Container Apps** over **Neon Postgres**; covers live in **Cloudflare R2**; the hosted stack is
 codified in Terraform under [`infra/`](../infra/README.md), with remote state in Azure Storage. A
 **GitHub Actions pipeline** tests, builds a SHA-tagged image, applies migrations, deploys to ACA over
-OIDC, then ships the SPA to Cloudflare. Backend **domain 119 / API 158**, SPA **50 Vitest** (32 before
-v2.8) — the pipeline gates on these. **Phase 2** (DSP stats, real-Postgres tests) follows v2.8 and starts a new
-`build-plan-3.0.md`.
+OIDC, then ships the SPA to Cloudflare. Backend **domain 119 / API 204** (158 before M46), SPA **50
+Vitest** (32 before v2.8) — the pipeline gates on these. **Phase 2** (DSP stats, real-Postgres tests)
+follows v2.8 and starts a new `build-plan-3.0.md`.
 
 > 🚧 **v2.8 is in flight on `feat/i18n-multilingual`, branched off `dev` — not merged, not deployed.**
-> M43–M45 are committed and pushed (the SPA is fully EN/ES); **M46 is next**. Everything the next
-> session needs is in [build-plan-2.8.md](build-plan-2.8.md), whose per-milestone checklists are ticked
-> through M45. Backend test counts and the deployed stack are untouched so far — v2.8 is SPA-only
-> until M46.
+> M43–M46 are committed and pushed: the SPA is fully EN/ES and the API now ships **codes, not prose**.
+> **M47 is next** — and it carries the one latent bug in this plan (`IsDistributed` matching an English
+> title), so it is not optional. Everything the next session needs is in
+> [build-plan-2.8.md](build-plan-2.8.md), whose per-milestone checklists are ticked through M46. The
+> deployed stack is untouched; **M47 adds the first migration of v2.8.**
 
 > ⚠️ **DB is Postgres (Neon) as of v2.5/M30.** Dev + prod both use `ConnectionStrings__Zmg` — **dev** via
 > `dotnet user-secrets` in `src/Zmg.Api` (never commit it), **prod** as an ACA secret. **Dev and tests
@@ -115,7 +116,7 @@ code change touches, so M41's 1.85s was invisible end-to-end and only M42 — sh
 of a blank page for the full ~17–22s — changed what a user actually experiences. ReadyToRun and an
 early `/api/health` wake were both measured and cut. See [build-plan-2.7.md](build-plan-2.7.md).
 
-**v2.8 (M43–M48) — multilingual EN/ES. IN PROGRESS: M43–M45 shipped on `feat/i18n-multilingual`.**
+**v2.8 (M43–M48) — multilingual EN/ES. IN PROGRESS: M43–M46 shipped on `feat/i18n-multilingual`.**
 react-i18next wired with both locales bundled (no HTTP backend — a round-trip would undo M42's edge
 first paint), language state mirroring `useTheme` including its persist-only-on-explicit-choice rule,
 `<html lang>` stamped pre-paint, and the language selector deferred from M37 finally in the navbar
@@ -123,8 +124,11 @@ first paint), language state mirroring `useTheme` including its persist-only-on-
 render (M44), catalog + artists + templates (M45). Web tests **32 → 50**. The design decision that
 shaped everything: `t()` is **typed off `en.json`**, so a missing key is a compile error, and pure
 helpers return *shapes* (`{ days: 3 }`) rather than sentences, because plural forms and word order
-differ per language. **Still English on purpose:** every server-minted string — pending-action labels,
-release warnings, API validation errors (M46) — and all checklist task text (M47–M48).
+differ per language. Then **M46 took the prose off the wire entirely**: every server-minted sentence —
+42 of them, across validation errors, release warnings and pending-action labels — became a
+culture-invariant `Message` code the SPA renders, which is what lets the container keep
+`InvariantGlobalization=true` while the user reads Spanish. API tests **158 → 204**. **Still English on
+purpose:** all checklist task text (M47–M48).
 
 ---
 
@@ -322,6 +326,32 @@ release warnings, API validation errors (M46) — and all checklist task text (M
   `aria-label`/`title`/`placeholder` translate; `KeyboardEvent` keys, `cva` variant keys, and the four
   `ReleaseStatus` wire codes do not. `eslint-plugin-i18next` was evaluated and **not** adopted — it
   false-positives on Tailwind class strings, and the parity test catches the failure it would.
+- **The API ships codes; the SPA owns every user-facing sentence (v2.8/M46).** No server-minted prose
+  reaches a user. `Zmg.Domain.Message(Code, Args?)` is the unit — `Code` is an i18next key path 1:1, so
+  rendering is `t(code, args)` with no translation table, and `args` values are already-formatted
+  strings so no culture is needed to produce them. The wire is `{"errors":[{"code","args"}]}` with
+  **no `message` field**: a parallel prose channel is exactly what drifts (same reason there are only
+  two warning channels). A raw `curl` gets a code instead of a sentence — acceptable with one consumer,
+  and better in logs. Five things that aren't obvious:
+  - **Codes are permanent identifiers.** Renaming one breaks both sides at once, same rule as the
+    integer enums. They live next to the rule that raises them (`Validation.*`,
+    `ReleaseWarnings.*`, `ReleaseMutability.ArchivedReadOnlyCode`, `CoverImage.*Code`) — except the
+    service-minted ones, which need the DB to detect and share one home in `Api/Services/ServiceErrors.cs`
+    because several fire from more than one service.
+  - **`Results.Problem` (500) keeps its prose.** It's developer-facing, rides in `Message.Code` by
+    convention, and is the one string on the wire M46 deliberately doesn't code.
+  - **`PendingActionDto.Label` is two things, switched on `Kind`** — a task *title* for `TaskDue` (user
+    content, verbatim) and a warning *code* for the three data kinds. No DTO change; the SPA branches.
+  - **`i18n/serverText.ts` is the only place `ParseKeys` typing gives way**, because a code is data at
+    runtime. `i18n.exists()` replaces the lost type safety and degrades to showing the raw code rather
+    than a blank if the API ever deploys ahead of the SPA. It has two entry points on purpose:
+    `translateMessage` off the module instance for `api/client.ts` (which builds `ApiError` outside any
+    React tree, translating at construction so `errorMessage(e, fallback)` is unchanged everywhere),
+    and a `useServerText()` hook bound to `useTranslation`'s `t` for components — codes arriving as
+    *data* must re-render on a language switch, and the module instance wouldn't.
+  - **`MessageCodeApiTests` is the guard that matters**: it reflects over every code constant in both
+    projects and asserts each has a key in `en.json` *and* `es.json`. A code with no key renders as its
+    own key path, in both languages, with every other test green — nothing else catches that.
 - **Prod runs Postgres (Neon); integration tests run SQLite in-memory (v2.5/M30).** Migrations are
   Postgres-specific. Keep query code **provider-agnostic** — e.g.
   title search lowercases both sides of `Like` rather than using Npgsql `ILike` — so SQLite tests stay
@@ -357,14 +387,11 @@ infra                    Terraform: azurerm + neon + cloudflare in one root modu
   edge-served SPA.
 - **In progress — v2.8 (M43–M48): multilingual EN/ES**, on `feat/i18n-multilingual` off `dev`.
   **Done:** M43 i18n foundation + language selector · M44 home/releases strings · M45
-  catalog/artists/templates strings. The SPA chrome is fully bilingual and each milestone is its own
-  pushed commit.
-  **Next up — M46: API messages as stable codes.** Read [build-plan-2.8.md](build-plan-2.8.md) first; its
-  checklists are ticked through M45 and M46–M48 carry the full design. Three things to know going in:
-  - M46 changes the error payload from `errors: string[]` to `[{ code, args? }]` with **no** prose field,
-    so it touches `Zmg.Domain` (`Validation`, `ReleaseWarnings`, `PendingActions`), `OperationResult`,
-    `Contracts/Dtos.cs`, five services, `api/client.ts`, and both test projects. First milestone needing
-    **full `dotnet test`**.
+  catalog/artists/templates strings · M46 API messages as stable codes. The SPA chrome is fully
+  bilingual, the API ships no prose, and each milestone is its own pushed commit.
+  **Next up — M47: DB-authored checklist translations (schema + resolution).** Read
+  [build-plan-2.8.md](build-plan-2.8.md) first; its checklists are ticked through M46 and M47–M48 carry
+  the full design. Two things to know going in:
   - **M47 fixes a real latent bug, and it is not optional:** `Release.IsDistributed` matches the literal
     English title `"Distribute to DSPs"` (`Release.cs:38`, `ReleaseService.cs:57,187`). One Spanish title
     and the UPC warning, the pending engine, and the past-date backfill all silently stop firing. The

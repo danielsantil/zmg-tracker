@@ -1,3 +1,4 @@
+import type { ServerMessage } from '@/i18n/serverText';
 import type { ReleaseType } from './enums';
 import type { PhaseGroup } from './task';
 import type { TrackDto, TrackInput } from './track';
@@ -42,7 +43,7 @@ export interface ReleaseListItem {
   totalTasks: number;
   status: ReleaseStatus;
   upc: string | null;
-  warnings: string[]; // soft advisories (e.g. "Missing UPC", "Album is empty")
+  warnings: string[]; // soft-advisory codes (M46) — `warning.missingUpc`, `warning.albumIsEmpty`
   canArchive: boolean; // M25: server-derived (upcoming & not archived); don't re-derive from the date
 }
 
@@ -61,12 +62,13 @@ export interface ReleaseDetail {
   phases: PhaseGroup[];
   tracks: TrackDto[];
   upc: string | null;
-  warnings: string[]; // soft advisories (e.g. "Missing UPC", "Album is empty")
+  warnings: string[]; // soft-advisory codes (M46) — `warning.missingUpc`, `warning.albumIsEmpty`
   isArchived: boolean;
   canArchive: boolean; // M25: server-derived (upcoming & not archived); don't re-derive from the date
 }
 
 export interface CreatedWithWarnings<T> {
   data: T;
-  warnings: string[];
+  /** Non-blocking create/update advisories as codes + args (M46); render via `useServerText`. */
+  warnings: ServerMessage[];
 }

@@ -22,26 +22,26 @@ public sealed class TrackService(ZmgDbContext db) : ITrackService
         var release = await db.Releases.FirstOrDefaultAsync(r => r.Id == releaseId, ct);
         if (release is null) return OperationResult<TrackDto>.NotFound();
         if (!ReleaseMutability.CanEdit(release.IsArchived))
-            return OperationResult<TrackDto>.Conflict(new[] { ReleaseMutability.ArchivedReadOnlyMessage });
+            return OperationResult<TrackDto>.Conflict([ReleaseMutability.ArchivedReadOnlyCode]);
 
         if (release.Type == ReleaseType.Single)
-            return OperationResult<TrackDto>.Conflict(new[] { "Singles carry exactly one track." });
+            return OperationResult<TrackDto>.Conflict([ServiceErrors.SingleIsFull]);
 
         var hasId = input.SongId is { } sid && sid != Guid.Empty;
         var hasTitle = !string.IsNullOrWhiteSpace(input.Title);
         if (hasId == hasTitle)
-            return OperationResult<TrackDto>.Invalid(new[] { "Each track must be either an existing song or a new title, not both or neither." });
+            return OperationResult<TrackDto>.Invalid([Validation.TrackSpecAmbiguousCode]);
 
         Guid songId;
         if (hasId)
         {
             var existingId = input.SongId!.Value;
             var song = await db.Songs.FirstOrDefaultAsync(s => s.Id == existingId, ct);
-            if (song is null) return OperationResult<TrackDto>.Invalid(new[] { "Selected song does not exist." });
-            if (song.IsArchived) return OperationResult<TrackDto>.Conflict(new[] { "Can't add an archived song to a release." });
+            if (song is null) return OperationResult<TrackDto>.Invalid([ServiceErrors.SongNotFound]);
+            if (song.IsArchived) return OperationResult<TrackDto>.Conflict([ServiceErrors.ArchivedSong]);
 
             if (await db.Tracks.AnyAsync(t => t.ReleaseId == releaseId && t.SongId == existingId, ct))
-                return OperationResult<TrackDto>.Conflict(new[] { "That song is already on this release." });
+                return OperationResult<TrackDto>.Conflict([ServiceErrors.SongAlreadyOnRelease]);
 
             songId = existingId;
         }
@@ -85,7 +85,7 @@ public sealed class TrackService(ZmgDbContext db) : ITrackService
         var track = await db.Tracks.FirstOrDefaultAsync(t => t.ReleaseId == releaseId && t.SongId == songId, ct);
         if (track is null) return OperationResult<TrackDto>.NotFound();
         if (await IsArchived(releaseId, ct))
-            return OperationResult<TrackDto>.Conflict(new[] { ReleaseMutability.ArchivedReadOnlyMessage });
+            return OperationResult<TrackDto>.Conflict([ReleaseMutability.ArchivedReadOnlyCode]);
 
         track.IsFocusTrack = !track.IsFocusTrack;
         await db.SaveChangesAsync(ct);
@@ -100,12 +100,12 @@ public sealed class TrackService(ZmgDbContext db) : ITrackService
             .ToListAsync(ct);
         if (tracks.Count == 0) return OperationResult.NotFound();
         if (await IsArchived(releaseId, ct))
-            return OperationResult.Conflict(new[] { ReleaseMutability.ArchivedReadOnlyMessage });
+            return OperationResult.Conflict([ReleaseMutability.ArchivedReadOnlyCode]);
 
         // Every track on the release must appear exactly once (keyed by songId); TrackNumber stays 1-based.
         var applied = Reorder.TryApply(tracks, input.OrderedSongIds, t => t.SongId, (t, i) => t.TrackNumber = i + 1);
         if (!applied)
-            return OperationResult.Invalid(new[] { "Reorder must list every track on the release exactly once." });
+            return OperationResult.Invalid([ServiceErrors.TrackReorderMismatch]);
 
         await db.SaveChangesAsync(ct);
         return OperationResult.Success();
@@ -118,9 +118,9 @@ public sealed class TrackService(ZmgDbContext db) : ITrackService
 
         var release = await db.Releases.FindAsync([releaseId], ct);
         if (release is not null && !ReleaseMutability.CanEdit(release.IsArchived))
-            return OperationResult.Conflict(new[] { ReleaseMutability.ArchivedReadOnlyMessage });
+            return OperationResult.Conflict([ReleaseMutability.ArchivedReadOnlyCode]);
         if (release is { Type: ReleaseType.Single })
-            return OperationResult.Conflict(new[] { "Singles carry exactly one track." });
+            return OperationResult.Conflict([ServiceErrors.SingleIsFull]);
 
         // Remove only the join — the Song survives (possibly as an orphan). Renumber the survivors.
         db.Tracks.Remove(track);
