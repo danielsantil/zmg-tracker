@@ -22,10 +22,9 @@ for where the project stands and the rules that span plans.
 Newer plan versions go in new `build-plan-N.N.md` files; older ones stay frozen.
 
 **Current state:** feature-complete through **v2.4**, **fully deployed**, and **bilingual EN/ES** as of
-**v2.8–v2.9 (M43–M52)** — complete on `feat/i18n-multilingual` but **not yet merged or deployed**.
-⚠️ **v2.9 squashed the schema to a single `InitialCreate`**, so the first deploy needs the prod public
-schema dropped (including `__EFMigrationsHistory`) by hand beforehand; the pipeline cannot migrate
-across it. The SPA serves
+**v2.8–v2.9 (M43–M52)** — merged to `main` and **deployed**. v2.9's squash to a single `InitialCreate`
+required the prod public schema (including `__EFMigrationsHistory`) to be dropped by hand first; that
+was done and verified, so prod is clean on the squashed baseline. The SPA serves
 from a **Cloudflare Worker** at the edge with `/api/*` proxied same-origin to **Azure Container Apps**
 over **Neon Postgres**; covers live in **Cloudflare R2**; the hosted stack is codified in Terraform
 under [`infra/`](../infra/README.md), with remote state in Azure Storage. A **GitHub Actions pipeline**
@@ -427,11 +426,11 @@ infra                    Terraform: azurerm + neon + cloudflare in one root modu
   catalog/artists/templates strings · API message codes · checklist translations · Spanish content.
 - **Shipped — v2.9 (M49–M52):** checklist text as two columns · code demoted to identity · squashed
   schema · one task-editor modal · locale plumbing deleted.
-- **Before the next deploy (one-time, destructive):** drop the **prod** public schema including
-  `__EFMigrationsHistory`, or reset the Neon branch. v2.9 squashed five migrations into one
-  `InitialCreate`, so the pipeline's EF bundle cannot migrate an existing prod database across it.
-  Every prod release/song/artist goes with it, and their R2 cover objects are orphaned (harmless, but
-  they linger). Dev was reset on 2026-07-27 and verified.
+- **Done — the v2.9 schema reset.** Dev was reset 2026-07-27; **prod** was reset (public schema
+  including `__EFMigrationsHistory`) and redeployed onto the squashed `InitialCreate`, verified
+  working. Later migrations are ordinary additive ones again.
+- **In progress — v2.10 (M53–M59):** custom domain · Google SSO + sessions · structured logging.
+  See [build-plan-2.10.md](build-plan-2.10.md), branch `feat/auth-and-logging`.
 - **Next: Phase 2 — DSP stats** (the reason this exists over Notion/Trello): hang streaming/revenue data
   off the stable Artist / Release / **Song** / Track ids and the UPC/ISRC columns; the v2.0 Song ids are
   its foundation. Also real-Postgres tests. No build plan yet — write `build-plan-3.0.md` when it starts.
@@ -441,7 +440,7 @@ infra                    Terraform: azurerm + neon + cloudflare in one root modu
   and further corrections go through the templates screen, not a migration.
 - **Per-track task fan-out** on albums: registrations that repeat per track are single "per track" tasks
   today. Decide after the first real album.
-- Deferred: un-archive/restore (archives are terminal by rule); auth for hosted deploys; absolute
-  per-task due dates (v1.1 only added timeframe *ranges*); a custom domain in front of the Worker.
+- Deferred: un-archive/restore (archives are terminal by rule); absolute per-task due dates (v1.1 only
+  added timeframe *ranges*). *(Auth and the custom domain moved out of Deferred into v2.10.)*
   (The **seed-data 3-way drift hazard** carried here since the M24 audit is **gone** — v2.9's squash to
   a single `InitialCreate` collapsed the three copies into one.)
