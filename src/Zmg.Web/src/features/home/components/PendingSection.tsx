@@ -1,5 +1,8 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { useServerText } from '@/i18n/serverText';
+import { useTaskText } from '@/hooks/useTaskText';
 import type { PendingAction } from '@/types';
 import { PendingKind } from '@/types';
 
@@ -19,7 +22,23 @@ function nextPage(p: PendingAction) {
  * Aggregate pending actions across all releases and songs (M10; reworked M14): task-due nearest-first,
  * then the data kinds by subject. Collapsible header (PhaseSection-style); the list scrolls past ~4 rows.
  */
+/**
+ * A pending row's text: the task's own title for `TaskDue` (user content, verbatim, in the language
+ * being read) and the advisory's code for the data kinds. Two fields, each meaning one thing — the
+ * single overloaded `label` this replaced had to be disambiguated at every render site (v2.9).
+ */
+function usePendingLabel(): (p: PendingAction) => string {
+  const server = useServerText();
+  const taskText = useTaskText();
+  return (p) =>
+    p.kind === PendingKind.TaskDue
+      ? taskText({ titleEn: p.taskTitleEn ?? '', titleEs: p.taskTitleEs })
+      : server.code(p.warningCode ?? '');
+}
+
 export function PendingSection({ pending }: { pending: PendingAction[] }) {
+  const { t } = useTranslation();
+  const label = usePendingLabel();
   const [open, setOpen] = useState(true);
 
   if (pending.length === 0) return null;
@@ -30,7 +49,7 @@ export function PendingSection({ pending }: { pending: PendingAction[] }) {
         onClick={() => setOpen((o) => !o)}
       >
         <span className="text-warnFg/60">{open ? '▾' : '▸'}</span>
-        Pending Tasks <span className="text-sm font-normal text-warnFg/70">({pending.length})</span>
+        {t('pending.title')} <span className="text-sm font-normal text-warnFg/70">({pending.length})</span>
       </button>
       {open && (
         <ul className="max-h-[11rem] overflow-y-auto border-t border-warn/20">
@@ -41,7 +60,9 @@ export function PendingSection({ pending }: { pending: PendingAction[] }) {
                 className="flex items-center justify-between gap-3 px-4 py-2.5 hover:bg-warn/[0.06]"
               >
                 <span className="min-w-0">
-                  <span className="text-sm text-strong">{p.label}</span>
+                  <span className="text-sm text-strong">
+                    {label(p)}
+                  </span>
                   <span className="ml-2 text-xs text-muted">
                     {p.subject} · {p.artistName}
                   </span>
@@ -49,10 +70,12 @@ export function PendingSection({ pending }: { pending: PendingAction[] }) {
                 <span className="shrink-0 text-xs">
                   {p.kind === PendingKind.TaskDue && p.daysToRelease != null ? (
                     <span className="whitespace-nowrap text-accent">
-                      {p.daysToRelease === 0 ? 'Releases today' : `${p.daysToRelease} days to release`}
+                      {p.daysToRelease === 0
+                        ? t('pending.releasesToday')
+                        : t('pending.daysToRelease', { count: p.daysToRelease })}
                     </span>
                   ) : (
-                    <span className="whitespace-nowrap text-warnFg">Data</span>
+                    <span className="whitespace-nowrap text-warnFg">{t('pending.data')}</span>
                   )}
                 </span>
               </Link>

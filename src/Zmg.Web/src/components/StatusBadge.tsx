@@ -1,5 +1,7 @@
 import { cva } from 'class-variance-authority';
+import { useTranslation } from 'react-i18next';
 import type { ReleaseStatus } from '@/types';
+import { statusLabelKeys } from '@/lib/status';
 
 const badge = cva('rounded-full px-2 py-0.5 text-xs font-medium ring-1', {
   variants: {
@@ -14,5 +16,6 @@ const badge = cva('rounded-full px-2 py-0.5 text-xs font-medium ring-1', {
 });
 
 export function StatusBadge({ status }: { status: ReleaseStatus }) {
-  return <span className={badge({ status })}>{status}</span>;
+  const { t } = useTranslation();
+  return <span className={badge({ status })}>{t(statusLabelKeys[status])}</span>;
 }

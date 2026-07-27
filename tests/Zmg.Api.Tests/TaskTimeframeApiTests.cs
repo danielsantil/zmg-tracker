@@ -33,7 +33,7 @@ public class TaskTimeframeApiTests : IDisposable
         var release = await CreateRelease(client, "Timeframe Artist", "Timeframe Song");
 
         var res = await client.PostAsJsonAsync($"/api/releases/{release.Id}/tasks",
-            new AddTaskInput("Distribute somewhere", Phase.Pre, MinDaysBefore: 7, MaxDaysBefore: 14));
+            new AddTaskInput("Distribute somewhere", null, Phase.Pre, MinDaysBefore: 7, MaxDaysBefore: 14));
         res.EnsureSuccessStatusCode();
         var created = (await res.Content.ReadFromJsonAsync<ReleaseTaskDto>())!;
 
@@ -54,7 +54,7 @@ public class TaskTimeframeApiTests : IDisposable
         var task = release.Phases.Single(p => p.Phase == Phase.Pre).Tasks.First();
 
         var set = await client.PutAsJsonAsync($"/api/tasks/{task.Id}",
-            new UpdateTaskInput(task.Title, task.Phase, null, MinDaysBefore: 3, MaxDaysBefore: 10));
+            new UpdateTaskInput(task.TitleEn, null, task.Phase, null, MinDaysBefore: 3, MaxDaysBefore: 10));
         set.EnsureSuccessStatusCode();
         var afterSet = (await set.Content.ReadFromJsonAsync<ReleaseTaskDto>())!;
         Assert.Equal(3, afterSet.MinDaysBefore);
@@ -62,7 +62,7 @@ public class TaskTimeframeApiTests : IDisposable
 
         // Omitting the timeframe (defaults null) clears it — the UI always sends the current value.
         var clear = await client.PutAsJsonAsync($"/api/tasks/{task.Id}",
-            new UpdateTaskInput(task.Title, task.Phase, null));
+            new UpdateTaskInput(task.TitleEn, null, task.Phase, null));
         clear.EnsureSuccessStatusCode();
         var afterClear = (await clear.Content.ReadFromJsonAsync<ReleaseTaskDto>())!;
         Assert.Null(afterClear.MinDaysBefore);
@@ -77,7 +77,7 @@ public class TaskTimeframeApiTests : IDisposable
         var single = templates!.Single(t => t.Type == ReleaseType.Single);
 
         var res = await client.PostAsJsonAsync($"/api/templates/{single.Id}/tasks",
-            new AddTemplateTaskInput("Custom pre with window", Phase.Pre, MinDaysBefore: 5, MaxDaysBefore: 21));
+            new AddTemplateTaskInput("Custom pre with window", null, Phase.Pre, MinDaysBefore: 5, MaxDaysBefore: 21));
         res.EnsureSuccessStatusCode();
         var created = (await res.Content.ReadFromJsonAsync<TemplateTaskDto>())!;
 
@@ -100,7 +100,7 @@ public class TaskTimeframeApiTests : IDisposable
         var task = single.Phases.Single(p => p.Phase == Phase.Pre).Tasks.First();
 
         var res = await client.PutAsJsonAsync($"/api/template-tasks/{task.Id}",
-            new UpdateTemplateTaskInput(task.Title, task.Phase, MinDaysBefore: 2, MaxDaysBefore: 9));
+            new UpdateTemplateTaskInput(task.TitleEn, null, task.Phase, MinDaysBefore: 2, MaxDaysBefore: 9));
         res.EnsureSuccessStatusCode();
         var updated = (await res.Content.ReadFromJsonAsync<TemplateTaskDto>())!;
 

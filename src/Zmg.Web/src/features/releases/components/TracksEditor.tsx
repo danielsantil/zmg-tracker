@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Artist, SongArtistInput, TrackInput } from '@/types';
 import { ReleaseType } from '@/types';
 import { Button, Field, inputClass } from '@/components';
@@ -47,6 +48,7 @@ export function TracksEditor({
   artists: Artist[];
   mainArtistId: string;
 }) {
+  const { t } = useTranslation();
   const isAlbum = type === ReleaseType.Album;
   const [rows, setRows] = useState<EditorRow[]>(() => (isAlbum ? [] : [blankRow()]));
   const [singlePickerOpen, setSinglePickerOpen] = useState(false);
@@ -80,13 +82,13 @@ export function TracksEditor({
           className={inputClass}
           value={row.title}
           onChange={(e) => update(row.key, { title: e.target.value })}
-          placeholder="Song title"
+          placeholder={t('tracks.songTitle')}
         />
         <input
           className={`${inputClass} max-w-[16rem]`}
           value={row.isrc}
           onChange={(e) => update(row.key, { isrc: e.target.value })}
-          placeholder="ISRC (optional)"
+          placeholder={t('tracks.isrcOptional')}
         />
         <SongArtistsEditor
           artists={artists}
@@ -101,35 +103,35 @@ export function TracksEditor({
   if (!isAlbum) {
     const row = rows[0];
     return (
-      <Field label="Track" hint="A single has exactly one song">
+      <Field label={t('tracks.track')} hint={t('tracks.singleHint')}>
         <div className="rounded-lg border border-edge bg-panel p-3">
           {row.songId ? (
             <div className="flex items-center gap-2">
               <span className="flex-1 text-sm text-strong">{row.title}</span>
-              <span className="text-xs text-subtle">from catalog</span>
+              <span className="text-xs text-subtle">{t('tracks.fromCatalog')}</span>
               <button
                 type="button"
                 className="text-xs text-muted hover:text-accent"
                 onClick={() => update(row.key, { songId: null, title: '' })}
               >
-                Change
+                {t('common.change')}
               </button>
             </div>
           ) : (
             <>
               {newSongFields(row)}
               <div className="mt-2">
-                <span className="mr-2 text-xs text-subtle">or</span>
+                <span className="mr-2 text-xs text-subtle">{t('common.or')}</span>
                 <Button
                   type="button"
                   variant="ghost"
                   disabled={!mainArtistId}
                   onClick={() => setSinglePickerOpen(true)}
                 >
-                  Add existing song
+                  {t('tracks.addExistingShort')}
                 </Button>
                 {!mainArtistId && (
-                  <span className="ml-2 text-xs text-subtle">Pick a main artist first</span>
+                  <span className="ml-2 text-xs text-subtle">{t('tracks.pickArtistFirst')}</span>
                 )}
               </div>
             </>
@@ -153,14 +155,14 @@ export function TracksEditor({
   const tracklistRows: TracklistRow[] = rows.map((r, i) => ({
     key: r.key,
     trackNumber: i + 1,
-    title: r.title || 'Untitled song',
+    title: r.title || t('tracks.untitled'),
     // A new song's ISRC is edited in its disclosure below, so don't echo it on the row too.
     isrc: null,
     songId: r.songId,
     details: r.songId ? undefined : (
       <details className="text-sm">
         <summary className="cursor-pointer text-xs text-subtle hover:text-body">
-          Details (optional)
+          {t('tracks.detailsOptional')}
         </summary>
         <div className="mt-2">{newSongFields(r)}</div>
       </details>
@@ -168,12 +170,12 @@ export function TracksEditor({
   }));
 
   return (
-    <Field label="Tracks" hint="Add the songs on this album">
+    <Field label={t('tracks.tracks')} hint={t('tracks.albumHint')}>
       <Tracklist
         rows={tracklistRows}
         mainArtistId={mainArtistId}
         excludeIds={chosenIds}
-        emptyText="No tracks yet — an album can be created empty and filled in later."
+        emptyText={t('tracks.albumEmpty')}
         onMove={(row, dir) => move(row.key, dir)}
         onRemove={(row) => commit(rows.filter((r) => r.key !== row.key))}
         onAddNew={(draft) => commit([...rows, { ...blankRow(), title: draft.title }])}

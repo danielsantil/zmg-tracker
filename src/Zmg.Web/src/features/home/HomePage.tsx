@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { Trans, useTranslation } from 'react-i18next';
 import { api } from '@/api';
 import { useReleases, useArtists, usePending, queryKeys } from '@/api/queries';
 import type { ReleaseListItem } from '@/types';
@@ -13,6 +14,7 @@ import { archiveReleaseConfirm } from '../releases/archiveConfirm';
 
 export default function HomePage() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { toast, toastVariant, showToast } = useToast();
 
   const [artistId, setArtistId] = useState('');
@@ -34,7 +36,7 @@ export default function HomePage() {
     confirm: (r) => archiveReleaseConfirm(r.id, r.title),
     mutate: (r) => api.releases.archive(r.id),
     invalidate: [queryKeys.releases(), queryKeys.pending],
-    errorFallback: 'Failed to archive.',
+    errorFallback: t('releases.archiveFailed'),
     showToast,
   });
 
@@ -42,10 +44,10 @@ export default function HomePage() {
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold text-strong">Home</h1>
-          <p className="text-sm text-muted">Upcoming releases and what needs your attention.</p>
+          <h1 className="text-2xl font-semibold text-strong">{t('home.title')}</h1>
+          <p className="text-sm text-muted">{t('home.subtitle')}</p>
         </div>
-        <Button onClick={() => navigate('/releases/new')}>+ New release</Button>
+        <Button onClick={() => navigate('/releases/new')}>{t('releases.newRelease')}</Button>
       </div>
 
       <PendingSection pending={pending} />
@@ -56,25 +58,27 @@ export default function HomePage() {
         <StatusSelect value={status} onChange={setStatus} options={['Upcoming', 'Complete']} />
       </FilterBar>
 
-      <ErrorBanner error={error ? 'Failed to load home.' : null} />
+      <ErrorBanner error={error ? t('home.loadFailed') : null} />
 
       {isLoading ? (
         <Loading />
       ) : releases.length === 0 ? (
         <EmptyState>
-          <p className="text-body">No upcoming releases.</p>
+          <p className="text-body">{t('home.empty.title')}</p>
           <p className="mt-1 text-sm text-subtle">
             {artists.length > 0 ? (
-              <>
-                Create one from the{' '}
-                <Link to="/releases/new" className="text-accent underline">New release</Link> form, or browse{' '}
-                <Link to="/releases" className="text-accent underline">All Releases</Link>.
-              </>
+              <Trans
+                i18nKey="home.empty.createHint"
+                components={{
+                  newRelease: <Link to="/releases/new" className="text-accent underline" />,
+                  all: <Link to="/releases" className="text-accent underline" />,
+                }}
+              />
             ) : (
-              <>
-                Start by adding an artist on the{' '}
-                <Link to="/artists" className="text-accent underline">Artists</Link> page.
-              </>
+              <Trans
+                i18nKey="home.empty.artistHint"
+                components={{ artists: <Link to="/artists" className="text-accent underline" /> }}
+              />
             )}
           </p>
         </EmptyState>

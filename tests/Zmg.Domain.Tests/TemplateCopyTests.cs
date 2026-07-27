@@ -11,11 +11,16 @@ public class TemplateCopyTests
         Type = ReleaseType.Single,
         Tasks =
         {
-            new TemplateTask { Id = Guid.NewGuid(), Title = "Mix/master", Phase = Phase.Pre, SortOrder = 0 },
-            new TemplateTask { Id = Guid.NewGuid(), Title = "Design cover", Phase = Phase.Pre, SortOrder = 1 },
-            new TemplateTask { Id = Guid.NewGuid(), Title = "Distribute to DSPs", Phase = Phase.Pre, SortOrder = 2, MinDaysBefore = 7, MaxDaysBefore = 14 },
-            new TemplateTask { Id = Guid.NewGuid(), Title = "Smart link", Phase = Phase.Release, SortOrder = 0 },
-            new TemplateTask { Id = Guid.NewGuid(), Title = "Meta ads", Phase = Phase.Post, SortOrder = 0 },
+            new TemplateTask
+            {
+                Id = Guid.NewGuid(), Code = TaskCodes.MixMaster,
+                TitleEn = "Mix/master", TitleEs = "Mezcla/master", Phase = Phase.Pre, SortOrder = 0,
+            },
+            new TemplateTask { Id = Guid.NewGuid(), TitleEn = "Design cover", Phase = Phase.Pre, SortOrder = 1 },
+            new TemplateTask { Id = Guid.NewGuid(), Code = TaskCodes.DistributeToDsps, TitleEn = "Distribute to DSPs", TitleEs = "Distribuir a los DSPs", Phase = Phase.Pre, SortOrder = 2, MinDaysBefore = 7, MaxDaysBefore = 14 },
+            // No Spanish: a user-added task, and the state that means "reads the same in both languages".
+            new TemplateTask { Id = Guid.NewGuid(), TitleEn = "Smart link", Phase = Phase.Release, SortOrder = 0 },
+            new TemplateTask { Id = Guid.NewGuid(), TitleEn = "Meta ads", Phase = Phase.Post, SortOrder = 0 },
         }
     };
 
@@ -39,7 +44,7 @@ public class TemplateCopyTests
         var tasks = TemplateCopy.CopyToRelease(template, Guid.NewGuid());
 
         var pre = tasks.Where(t => t.Phase == Phase.Pre).OrderBy(t => t.SortOrder).ToList();
-        Assert.Equal(new[] { "Mix/master", "Design cover", "Distribute to DSPs" }, pre.Select(t => t.Title));
+        Assert.Equal(new[] { "Mix/master", "Design cover", "Distribute to DSPs" }, pre.Select(t => t.TitleEn));
         Assert.Equal(new[] { 0, 1, 2 }, pre.Select(t => t.SortOrder));
     }
 
@@ -85,13 +90,45 @@ public class TemplateCopyTests
 
         var tasks = TemplateCopy.CopyToRelease(template, Guid.NewGuid());
 
-        var distribute = tasks.Single(t => t.Title == "Distribute to DSPs");
+        var distribute = tasks.Single(t => t.SourceCode == TaskCodes.DistributeToDsps);
         Assert.Equal(7, distribute.MinDaysBefore);
         Assert.Equal(14, distribute.MaxDaysBefore);
 
         // Tasks without a timeframe stay null.
-        var mix = tasks.Single(t => t.Title == "Mix/master");
+        var mix = tasks.Single(t => t.SourceCode == TaskCodes.MixMaster);
         Assert.Null(mix.MinDaysBefore);
         Assert.Null(mix.MaxDaysBefore);
+    }
+
+    [Fact]
+    public void CopyToRelease_stamps_the_stable_source_code()
+    {
+        // The code is the lineage that survives — SourceTemplateTaskId alone doesn't outlive the
+        // template task being deleted or renumbered, and IsDistributed keys off it.
+        var template = SampleTemplate();
+
+        var tasks = TemplateCopy.CopyToRelease(template, Guid.NewGuid());
+
+        Assert.Equal(TaskCodes.MixMaster, tasks.Single(t => t.TitleEn == "Mix/master").SourceCode);
+        Assert.Equal(TaskCodes.DistributeToDsps, tasks.Single(t => t.TitleEn == "Distribute to DSPs").SourceCode);
+        // A template task with no code (one the user added in the editor) copies as user content.
+        Assert.Null(tasks.Single(t => t.TitleEn == "Smart link").SourceCode);
+    }
+
+    [Fact]
+    public void CopyToRelease_copies_both_languages_down_onto_the_release()
+    {
+        // The snapshot rule has to hold in every language, not just English: a release owns its
+        // checklist text outright, so a later template edit must not be able to reach it.
+        var template = SampleTemplate();
+
+        var tasks = TemplateCopy.CopyToRelease(template, Guid.NewGuid());
+
+        var mix = tasks.Single(t => t.SourceCode == TaskCodes.MixMaster);
+        Assert.Equal("Mix/master", mix.TitleEn);
+        Assert.Equal("Mezcla/master", mix.TitleEs);
+
+        // A template task with no Spanish copies none — null still means "show the English".
+        Assert.Null(tasks.Single(t => t.TitleEn == "Smart link").TitleEs);
     }
 }

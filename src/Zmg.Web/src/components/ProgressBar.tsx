@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next';
+
 /**
  * `slim` + `label` are the compact-card dressing (M21): a thinner bar under a
  * "X / Y tasks" caption. Left alone, it keeps the fuller "N/M done · P%" default.
@@ -13,6 +15,7 @@ export function ProgressBar({
   slim?: boolean;
   label?: string;
 }) {
+  const { t } = useTranslation();
   const pct = total === 0 ? 0 : Math.round((done / total) * 100);
   return (
     <div>
@@ -23,7 +26,7 @@ export function ProgressBar({
         />
       </div>
       <div className="mt-1 text-xs text-muted">
-        {label ?? `${done}/${total} done · ${pct}%`}
+        {label ?? t('progress.donePercent', { done, total, pct })}
       </div>
     </div>
   );

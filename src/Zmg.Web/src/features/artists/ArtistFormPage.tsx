@@ -2,6 +2,11 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import clsx from 'clsx';
+import { useTranslation } from 'react-i18next';
+// The load effect translates off the i18n instance rather than the hook's `t`: adding `t` to its
+// deps would re-fetch the artist on every language switch, and this message is produced once, at
+// throw time. Same precedent as `releases/archiveConfirm.tsx`.
+import i18n from '@/i18n';
 import { api, ApiError } from '@/api';
 import { queryKeys } from '@/api/queries';
 import { Button, ErrorBanner, Field, Loading, inputClass, inputErrorClass } from '@/components';
@@ -14,6 +19,7 @@ import { useBackNavigation } from '@/hooks/useBackNavigation';
  */
 export default function ArtistFormPage() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const goBack = useBackNavigation();
   const queryClient = useQueryClient();
   const { id } = useParams();
@@ -35,7 +41,7 @@ export default function ArtistFormPage() {
         setName(artist.name);
         setNotes(artist.notes ?? '');
       } catch (err) {
-        setErrors(err instanceof ApiError ? err.errors : ['Failed to load artist.']);
+        setErrors(err instanceof ApiError ? err.messages : [i18n.t('artists.form.loadFailed')]);
       } finally {
         setLoading(false);
       }
@@ -48,7 +54,7 @@ export default function ArtistFormPage() {
     setFieldErrors({});
 
     if (!name.trim()) {
-      setFieldErrors({ name: 'Artist name is required.' });
+      setFieldErrors({ name: t('artists.form.nameRequired') });
       return;
     }
 
@@ -65,7 +71,7 @@ export default function ArtistFormPage() {
         void navigate('/artists');
       }
     } catch (err) {
-      setErrors(err instanceof ApiError ? err.errors : ['Failed to save artist.']);
+      setErrors(err instanceof ApiError ? err.messages : [t('artists.form.saveFailed')]);
     } finally {
       setSaving(false);
     }
@@ -75,20 +81,20 @@ export default function ArtistFormPage() {
 
   return (
     <div className="mx-auto max-w-xl">
-      <h1 className="mb-6 text-2xl font-semibold text-strong">{editing ? 'Edit artist' : 'New artist'}</h1>
+      <h1 className="mb-6 text-2xl font-semibold text-strong">{editing ? t('artists.form.editTitle') : t('artists.form.createTitle')}</h1>
 
       <form onSubmit={submit} className="space-y-4">
-        <Field label="Name" error={fieldErrors.name}>
+        <Field label={t('artists.form.name')} error={fieldErrors.name}>
           <input
             className={clsx(inputClass, fieldErrors.name && inputErrorClass)}
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. Zaie"
+            placeholder={t('artists.form.namePlaceholder')}
             autoFocus
           />
         </Field>
 
-        <Field label="Notes" hint="Optional">
+        <Field label={t('releases.form.fields.notes')} hint={t('common.optional')}>
           <textarea className={inputClass} rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
         </Field>
 
@@ -96,10 +102,10 @@ export default function ArtistFormPage() {
 
         <div className="flex gap-2">
           <Button type="submit" disabled={saving}>
-            {saving ? 'Saving…' : editing ? 'Save' : 'Create artist'}
+            {saving ? t('common.saving') : editing ? t('common.save') : t('artists.form.createArtist')}
           </Button>
           <Button type="button" variant="ghost" onClick={goBack}>
-            Cancel
+            {t('common.cancel')}
           </Button>
         </div>
       </form>

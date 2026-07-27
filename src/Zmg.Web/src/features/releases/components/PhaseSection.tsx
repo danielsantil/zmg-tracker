@@ -1,14 +1,18 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Phase } from '@/types';
-import { InlineAddForm } from '@/components';
-import { phaseLabels } from '@/lib/phase';
-import { TaskRow, type ChecklistTask, type TaskPatch } from './TaskRow';
+import { Button } from '@/components';
+import { phaseLabelKeys } from '@/lib/phase';
+import { TaskRow, type ChecklistTask } from './TaskRow';
 
 /**
- * A phase's task list plus its inline add form, generic over release and template tasks (M24.5).
+ * A phase's task list plus its add button, generic over release and template tasks (M24.5).
  * The release-only behaviour is opt-in via `getIsDone` (+ `onToggle`): it turns on the done count,
  * the ✓ / collapse-when-complete header, and per-row checkboxes. Templates omit it and render a
  * plain, always-open section with a bare task count.
+ *
+ * Adding goes through the same modal as editing (v2.9), so the old inline add form is gone from here:
+ * a task is born with both languages rather than acquiring the second one later.
  */
 export function PhaseSection<T extends ChecklistTask>({
   phase,
@@ -18,7 +22,7 @@ export function PhaseSection<T extends ChecklistTask>({
   getIsDone,
   getNotes,
   onAdd,
-  onUpdate,
+  onEdit,
   onDelete,
   onMove,
 }: {
@@ -28,11 +32,12 @@ export function PhaseSection<T extends ChecklistTask>({
   onToggle?: (t: T) => void;
   getIsDone?: (t: T) => boolean;
   getNotes?: (t: T) => string | null;
-  onAdd: (title: string) => void;
-  onUpdate: (t: T, patch: TaskPatch) => void;
+  onAdd: (phase: Phase) => void;
+  onEdit: (t: T) => void;
   onDelete: (t: T) => void;
   onMove: (t: T, dir: -1 | 1) => void;
 }) {
+  const { t } = useTranslation();
   const total = tasks.length;
   const done = getIsDone ? tasks.filter(getIsDone).length : 0;
   const tracksProgress = !!getIsDone;
@@ -44,7 +49,7 @@ export function PhaseSection<T extends ChecklistTask>({
   const header = (
     <span className="flex items-center gap-2 font-semibold text-strong">
       {collapsible && <span className="text-subtle">{open ? '▾' : '▸'}</span>}
-      {phaseLabels[phase].toUpperCase()}
+      {t(phaseLabelKeys[phase]).toUpperCase()}
       <span className="text-sm font-normal text-muted">
         {tracksProgress ? `(${done}/${total})` : `(${total})`}
       </span>
@@ -68,21 +73,21 @@ export function PhaseSection<T extends ChecklistTask>({
       {open && (
         <div className="border-t border-edge">
           {tasks.length === 0 ? (
-            <p className="px-4 py-3 text-sm text-subtle">No tasks in this phase.</p>
+            <p className="px-4 py-3 text-sm text-subtle">{t('tasks.emptyPhase')}</p>
           ) : (
             <ul>
-              {tasks.map((t, i) => (
+              {tasks.map((task, i) => (
                 <TaskRow
-                  key={t.id}
-                  task={t}
+                  key={task.id}
+                  task={task}
                   isFirst={i === 0}
                   isLast={i === tasks.length - 1}
                   readOnly={readOnly}
                   onToggle={onToggle}
-                  isDone={getIsDone?.(t) ?? false}
+                  isDone={getIsDone?.(task) ?? false}
                   supportsNotes={!!getNotes}
-                  notes={getNotes?.(t) ?? null}
-                  onUpdate={onUpdate}
+                  notes={getNotes?.(task) ?? null}
+                  onEdit={onEdit}
                   onDelete={onDelete}
                   onMove={onMove}
                 />
@@ -90,7 +95,13 @@ export function PhaseSection<T extends ChecklistTask>({
             </ul>
           )}
 
-          {!readOnly && <InlineAddForm addLabel="+ Add task" placeholder="New task title" onAdd={onAdd} />}
+          {!readOnly && (
+            <div className="border-t border-edge/50 px-4 py-2.5">
+              <Button variant="ghost" onClick={() => onAdd(phase)}>
+                {t('tasks.addTask')}
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </section>

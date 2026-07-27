@@ -4,7 +4,7 @@ Per-release checklist tracker for Zion Music Group. Turns the repeatable pre/rel
 into per-release progress tracking across artists, for singles and albums.
 
 **Live:** https://zmg-app.mangohill-c8bd3207.eastus.azurecontainerapps.io
-· **Status:** v2.5 complete — feature-complete through v2.4, fully deployed and on CI/CD.
+· **Status:** v2.8 complete — feature-complete through v2.4, fully deployed on CI/CD, and **bilingual EN/ES**.
 
 The source of truth for project state is [plans/PROGRESS.md](plans/PROGRESS.md); per-milestone briefs
 are in [plans/build-plan-*.md](plans/). Working conventions are in [CLAUDE.md](CLAUDE.md).
@@ -16,6 +16,7 @@ are in [plans/build-plan-*.md](plans/). Working conventions are in [CLAUDE.md](C
 | Backend | ASP.NET Core (.NET 8) minimal API + EF Core |
 | Domain | pure C# (no I/O) — template-copy, progress, derived status, warnings, validation |
 | Frontend | React 19 + Vite + Tailwind SPA (served from a **Cloudflare Worker** at the edge, and from the API's `wwwroot` as a fallback) |
+| Languages | **English + Spanish** — react-i18next bundles for UI text, stable codes for API messages, DB rows for checklist text |
 | Database | **Neon Postgres** (prod + dev); **SQLite in-memory** for tests |
 | Image storage | **Cloudflare R2** (release covers, normalized to a 1000px WebP on ingest) |
 | Hosting | **Azure Container Apps** (Consumption, scale-to-zero) |
@@ -30,6 +31,12 @@ and a **Song** (title, main artist, ISRC, feats/collabs) are separate first-clas
 through a pure **`Track`** join, so one song can sit on a single *and* an album. A release copies a
 seeded **ChecklistTemplate** into concrete tasks at creation; status and warnings are **derived**, never
 stored. See [CLAUDE.md](CLAUDE.md) for the full model.
+
+The app is **bilingual (EN/ES)** in three layers, each with its own mechanism: UI text is i18next JSON
+bundled into the SPA; API errors and warnings ship as culture-invariant **codes** the SPA renders (the
+server stays culture-free, `InvariantGlobalization=true`); and checklist task text is **data** — a
+stable `Code` per seeded task resolving a per-locale row at read time, editable in the templates screen
+without a deploy.
 
 ```
 src/Zmg.Domain   Entities, enums, and business rules as pure static classes. No I/O, no EF.
@@ -109,6 +116,85 @@ pnpm build         # tsc -b && vite build
 **Scope verification to the blast radius** — SPA-only changes need `pnpm lint`/`pnpm build`;
 domain-only needs `dotnet test tests/Zmg.Domain.Tests`; anything touching a DTO, endpoint, or migration
 needs full `dotnet test`. See [CLAUDE.md](CLAUDE.md) for the rules.
+
+## Adding translated text
+
+The app holds **three separate bodies of text**, each with its own mechanism. Pick the layer first —
+using the wrong one is the common mistake. Full rules in [plans/PROGRESS.md](plans/PROGRESS.md)
+→ Cross-cutting decisions.
+
+| The text is… | Layer | Lives in |
+|---|---|---|
+| UI chrome — labels, buttons, headings, `aria-label`, placeholders, confirm copy | i18next JSON | `src/Zmg.Web/src/i18n/locales/{en,es}.json` |
+| An API error or warning the user sees | a stable **code** the SPA renders | code constant in C# + a key in both locale files |
+| A seeded checklist task title | **data** — a per-locale DB row | `SeedData.cs` + a migration |
+
+### 1. UI chrome — a new i18next key
+
+1. Add the key to **both** `en.json` and `es.json`, nested by feature (`releases.detail.someLabel`).
+   The parity test in `src/i18n/i18n.test.ts` fails if either is missing, blank, or has mismatched
+   `{{placeholders}}`.
+2. Use it as `t('releases.detail.someLabel')`. `t()` is typed off `en.json`, so a typo won't compile.
+3. **Never build a sentence by concatenation** — use interpolation, or `_one`/`_other` plural keys.
+   Pure helpers return *shapes* (`{ days: 3 }`); `hooks/useFormatters` supplies the words.
+
+```bash
+cd src/Zmg.Web && pnpm test && pnpm build
+```
+
+### 2. API errors and warnings — a new code
+
+The API ships **no user-facing prose**. Add a code, then the text the SPA renders for it.
+
+1. Add the constant next to the rule that raises it — `Validation`, `ReleaseWarnings`, `CoverImage`,
+   `ReleaseMutability` — or to `Api/Services/ServiceErrors.cs` if a *service* raises it. Name it
+   `error.<area>.<rule>` or `warning.<name>`; that string **is** the i18next key path.
+2. Raise it: `result.Error(MyCodes.Something)`, or `Message.With(code, ("name", value))` when it
+   interpolates.
+3. Add the matching key under `error.` / `warning.` in **both** locale files.
+4. Codes are **permanent identifiers** — renaming one is a breaking change on both sides at once.
+
+`MessageCodeApiTests` reflects over every code constant and fails if either locale lacks its key.
+
+```bash
+dotnet test && cd src/Zmg.Web && pnpm test
+```
+
+### 3. Checklist task text — a new seeded task or a translation fix
+
+Both languages are plain columns on the task row — `TitleEn` and `TitleEs` on `TemplateTask` and
+`ReleaseTask`. A null `TitleEs` shows the English, which is a valid state rather than a missing
+translation. The API ships both columns and never resolves a locale; the SPA picks one in
+`lib/taskText.ts`, which is why switching language costs no request.
+
+**To fix existing copy — no code, no deploy:** open **Templates**, use a task's kebab → **Edit**, and
+type both languages in the dialog. It edits the template you're looking at (Single or Album), not both.
+
+**To add a new seeded task:**
+
+1. Add a slug to `TaskCodes.cs`, then the seed in `SeedData.BaseTasks` / `AlbumExtraTasks` with that
+   code and **both** titles — they sit on the same line, so a missing translation shows up in the diff.
+   `SeedDataTests` fails if any seeded task lacks either one.
+2. Generate a migration (`HasData` picks up both columns).
+3. **Never key a rule off a task title** — use the code, as `Release.IsDistributed` does. Titles are
+   display copy in two languages that the user can reword at will; the code is the identity.
+
+The reviewed copy of record is [`plans/seed-checklist-text.md`](plans/seed-checklist-text.md) — edit
+there, then transcribe. Domain jargon stays English by rule: DSP/BMI/MLC/SoundExchange/Musixmatch,
+"smart link", "pre-save", "waterfall", "multitracks", "splits", "focus tracks".
+
+```bash
+dotnet ef migrations add <Name> --project src/Zmg.Infra --startup-project src/Zmg.Api
+dotnet test
+```
+
+### Adding a whole new language
+
+Add `src/i18n/locales/<code>.json` and a name in `src/i18n/language.ts` for the UI chrome. Checklist
+text needs a **third column** (`TitleFr`), one line in `lib/taskText.ts` and one field in
+`TaskEditorModal` — a deliberate trade for two languages being the real requirement, and the reason
+v2.9 dropped the normalized translation tables. No other component code changes; the two-language
+toggle becomes a popover (which must portal to `<body>`, per the standing popover rule).
 
 ## Common tasks
 

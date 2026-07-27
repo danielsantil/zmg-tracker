@@ -52,13 +52,13 @@ public class TrackApiTests(ZmgApiFactory factory) : IClassFixture<ZmgApiFactory>
         var client = factory.CreateClient();
         var album = await CreateAlbum(client, "Empty Album Advisory Artist", "Empty Album Advisory");
 
-        // Fresh album with no tracks → "Album is empty", on the detail and in the list.
+        // Fresh album with no tracks → the album-is-empty warning code, on the detail and in the list.
         Assert.Contains(ReleaseWarnings.AlbumIsEmpty, album.Warnings);
         var listed = (await client.GetFromJsonAsync<List<ReleaseListItemDto>>("/api/releases?scope=all"))!
             .Single(r => r.Id == album.Id);
         Assert.Contains(ReleaseWarnings.AlbumIsEmpty, listed.Warnings);
 
-        // One track → "Album has only 1 track".
+        // One track → the one-track warning code.
         await AddTrack(client, album.Id, NewTrack("First Track"));
         var oneTrack = await client.GetFromJsonAsync<ReleaseDetailDto>($"/api/releases/{album.Id}");
         Assert.Contains(ReleaseWarnings.AlbumHasOneTrack, oneTrack!.Warnings);

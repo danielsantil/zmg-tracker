@@ -29,7 +29,7 @@ public sealed class TemplateService(ZmgDbContext db) : ITemplateService
         if (!await db.ChecklistTemplates.AnyAsync(t => t.Id == templateId, ct))
             return OperationResult<TemplateTaskDto>.NotFound();
 
-        var validation = Validation.ValidateTaskTitle(input.Title);
+        var validation = Validation.ValidateTaskTitle(input.TitleEn);
         if (!validation.IsValid)
             return OperationResult<TemplateTaskDto>.Invalid(validation.Errors);
 
@@ -39,7 +39,8 @@ public sealed class TemplateService(ZmgDbContext db) : ITemplateService
         {
             Id = Guid.NewGuid(),
             ChecklistTemplateId = templateId,
-            Title = input.Title.Trim(),
+            TitleEn = input.TitleEn.Trim(),
+            TitleEs = Clean(input.TitleEs),
             Phase = input.Phase,
             SortOrder = nextOrder,
             MinDaysBefore = input.MinDaysBefore,
@@ -56,7 +57,7 @@ public sealed class TemplateService(ZmgDbContext db) : ITemplateService
         var task = await db.TemplateTasks.FindAsync([id], ct);
         if (task is null) return OperationResult<TemplateTaskDto>.NotFound();
 
-        var validation = Validation.ValidateTaskTitle(input.Title);
+        var validation = Validation.ValidateTaskTitle(input.TitleEn);
         if (!validation.IsValid)
             return OperationResult<TemplateTaskDto>.Invalid(validation.Errors);
 
@@ -67,7 +68,14 @@ public sealed class TemplateService(ZmgDbContext db) : ITemplateService
             task.Phase = input.Phase;
         }
 
-        task.Title = input.Title.Trim();
+        // A plain field write, in both languages, on this row only (v2.9). The editor sends both texts
+        // explicitly, so there is nothing left to infer: no "did they really edit this, or is it the
+        // title round-tripped by a phase move?", no per-locale branch, and no fan-out to the other
+        // template's copy of the same task. Editing the Single template changes the Single template,
+        // which is what its two tabs have always implied. The Code is untouched — it is identity, not
+        // a text key, and that is what keeps a reworded task still recognisable to the rules.
+        task.TitleEn = input.TitleEn.Trim();
+        task.TitleEs = Clean(input.TitleEs);
         task.MinDaysBefore = input.MinDaysBefore;
         task.MaxDaysBefore = input.MaxDaysBefore;
         await db.SaveChangesAsync(ct);
@@ -84,7 +92,7 @@ public sealed class TemplateService(ZmgDbContext db) : ITemplateService
 
         var applied = Reorder.TryApply(tasks, input.OrderedTaskIds, t => t.Id, (t, i) => t.SortOrder = i);
         if (!applied)
-            return OperationResult.Invalid(new[] { "Reorder must list every task in the phase exactly once." });
+            return OperationResult.Invalid([ServiceErrors.TaskReorderMismatch]);
 
         await db.SaveChangesAsync(ct);
         return OperationResult.Success();
@@ -128,6 +136,12 @@ public sealed class TemplateService(ZmgDbContext db) : ITemplateService
         return new TemplateDto(template.Id, template.Type, phases);
     }
 
+    // Both texts as stored; the SPA picks the column. Mutation responses go through the same mapper, so
+    // the row the SPA swaps into its local state is shaped exactly like the one it loaded.
     private static TemplateTaskDto ToDto(TemplateTask t) =>
-        new(t.Id, t.Title, t.Phase, t.SortOrder, t.MinDaysBefore, t.MaxDaysBefore);
+        new(t.Id, t.TitleEn, t.TitleEs, t.Phase, t.SortOrder, t.MinDaysBefore, t.MaxDaysBefore);
+
+    // Blank Spanish is stored as null — "show the English" is one state, not two.
+    private static string? Clean(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

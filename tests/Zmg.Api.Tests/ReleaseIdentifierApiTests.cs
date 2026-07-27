@@ -27,7 +27,7 @@ public class ReleaseIdentifierApiTests(ZmgApiFactory factory) : IClassFixture<Zm
     }
 
     private static ReleaseTaskDto DistributeTask(ReleaseDetailDto detail) =>
-        detail.Phases.SelectMany(p => p.Tasks).Single(t => t.Title == SeedData.DistributeToDspsTitle);
+        detail.Phases.SelectMany(p => p.Tasks).Single(t => t.TitleEn == SeedData.DistributeToDspsEn);
 
     [Fact]
     public async Task Upc_round_trips_on_create_and_update()

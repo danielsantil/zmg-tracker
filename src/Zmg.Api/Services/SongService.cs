@@ -92,12 +92,12 @@ public sealed class SongService(ZmgDbContext db) : ISongService
         var song = await db.Songs.Include(s => s.Artists).FirstOrDefaultAsync(s => s.Id == id, ct);
         if (song is null) return OperationResult<SongDetailDto>.NotFound();
         if (song.IsArchived)
-            return OperationResult<SongDetailDto>.Conflict(new[] { "Archived songs are read-only." });
+            return OperationResult<SongDetailDto>.Conflict([ServiceErrors.SongArchivedReadOnly]);
 
         // Main artist is immutable after creation: the song may already be on releases under the
         // original artist, so re-pointing it would create cross-artist data inconsistency.
         if (input.MainArtistId != song.MainArtistId)
-            return OperationResult<SongDetailDto>.Conflict(new[] { "A song's main artist can't be changed after creation." });
+            return OperationResult<SongDetailDto>.Conflict([ServiceErrors.SongMainArtistImmutable]);
 
         var otherTitles = await db.Songs.AsNoTracking()
             .Where(s => s.MainArtistId == song.MainArtistId && s.Id != id && s.ArchivedAt == null)
@@ -133,7 +133,7 @@ public sealed class SongService(ZmgDbContext db) : ISongService
             .Include(s => s.ReleaseLinks).ThenInclude(t => t.Release)
             .FirstOrDefaultAsync(s => s.Id == id, ct);
         if (song is null) return OperationResult.NotFound();
-        if (song.IsArchived) return OperationResult.Conflict(new[] { "Song is already archived." });
+        if (song.IsArchived) return OperationResult.Conflict([ServiceErrors.SongAlreadyArchived]);
 
         // A link to *any* non-archived release (past or future) blocks manual archive — archive flows
         // through that release instead. That's the whole guard now (M38): a song whose only links are to
@@ -141,7 +141,7 @@ public sealed class SongService(ZmgDbContext db) : ISongService
         // "ReleaseDate == null ⟺ archivable" equivalence. (The old extra "already-released" guard also
         // blocked archived-past-release songs, contradicting that and 409ing a row the UI offered Archive.)
         if (song.ReleaseLinks.Any(t => t.Release is { ArchivedAt: null }))
-            return OperationResult.Conflict(new[] { "Song is on an active release — archive flows through the release." });
+            return OperationResult.Conflict([ServiceErrors.SongOnActiveRelease]);
 
         song.ArchivedAt = DateTime.UtcNow;
         await db.SaveChangesAsync(ct);
@@ -160,7 +160,7 @@ public sealed class SongService(ZmgDbContext db) : ISongService
 
         var isOrphan = song.ReleaseLinks.Count == 0;
         if (!song.IsArchived && !isOrphan)
-            return OperationResult.Conflict(new[] { "Only archived or never-released songs can be removed." });
+            return OperationResult.Conflict([ServiceErrors.SongDeleteNotArchived]);
 
         db.Tracks.RemoveRange(song.ReleaseLinks);
         db.Songs.Remove(song);

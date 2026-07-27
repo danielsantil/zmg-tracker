@@ -115,14 +115,17 @@ public record ArchivePreviewDto(List<string> SongsToArchive);
 
 public record PhaseGroupDto(Phase Phase, int Done, int Total, List<ReleaseTaskDto> Tasks);
 
+// Both languages go on the wire and the SPA reads the column matching what the user is reading (v2.9),
+// so the API never resolves a locale and switching language needs no refetch. TitleEs is nullable —
+// null means "show the English", which is a legitimate answer, not a missing translation.
 public record ReleaseTaskDto(
-    Guid Id, string Title, Phase Phase, int SortOrder,
+    Guid Id, string TitleEn, string? TitleEs, Phase Phase, int SortOrder,
     bool IsDone, DateTime? CompletedAt, string? Notes,
     int? MinDaysBefore, int? MaxDaysBefore);
 
 // ---- Release task mutations (M2 checklist engine; timeframe fields added in M8) ----
-public record AddTaskInput(string Title, Phase Phase, int? MinDaysBefore = null, int? MaxDaysBefore = null);
-public record UpdateTaskInput(string Title, Phase Phase, string? Notes, int? MinDaysBefore = null, int? MaxDaysBefore = null);
+public record AddTaskInput(string TitleEn, string? TitleEs, Phase Phase, int? MinDaysBefore = null, int? MaxDaysBefore = null);
+public record UpdateTaskInput(string TitleEn, string? TitleEs, Phase Phase, string? Notes, int? MinDaysBefore = null, int? MaxDaysBefore = null);
 public record ReorderTasksInput(Phase Phase, List<Guid> OrderedTaskIds);
 
 // ---- Tracks (v2.0: a Release↔Song join) ----
@@ -137,10 +140,10 @@ public record ReorderTracksInput(List<Guid> OrderedSongIds);
 // ---- Templates (M3 template management) ----
 public record TemplateDto(Guid Id, ReleaseType Type, List<TemplatePhaseGroupDto> Phases);
 public record TemplatePhaseGroupDto(Phase Phase, List<TemplateTaskDto> Tasks);
-public record TemplateTaskDto(Guid Id, string Title, Phase Phase, int SortOrder, int? MinDaysBefore, int? MaxDaysBefore);
+public record TemplateTaskDto(Guid Id, string TitleEn, string? TitleEs, Phase Phase, int SortOrder, int? MinDaysBefore, int? MaxDaysBefore);
 
-public record AddTemplateTaskInput(string Title, Phase Phase, int? MinDaysBefore = null, int? MaxDaysBefore = null);
-public record UpdateTemplateTaskInput(string Title, Phase Phase, int? MinDaysBefore = null, int? MaxDaysBefore = null);
+public record AddTemplateTaskInput(string TitleEn, string? TitleEs, Phase Phase, int? MinDaysBefore = null, int? MaxDaysBefore = null);
+public record UpdateTemplateTaskInput(string TitleEn, string? TitleEs, Phase Phase, int? MinDaysBefore = null, int? MaxDaysBefore = null);
 public record ReorderTemplateTasksInput(Phase Phase, List<Guid> OrderedTaskIds);
 
 // ---- Cover uploads (M31) ----
@@ -149,5 +152,9 @@ public record CoverUrlInput(string? Url);
 public record UploadedCoverDto(string Url);
 
 // ---- Validation envelope ----
-public record ValidationErrorResponse(string[] Errors);
-public record CreatedWithWarnings<T>(T Data, string[] Warnings);
+// Errors/warnings ship as culture-invariant Message codes, never prose (M46): each Code is an
+// i18next key path the SPA renders with t(code, args). There is deliberately no `message` field —
+// a parallel prose channel is the thing that drifts. A raw curl therefore gets
+// {"errors":[{"code":"error.song.duplicateTitle"}]}, which is strictly better in logs anyway.
+public record ValidationErrorResponse(Message[] Errors);
+public record CreatedWithWarnings<T>(T Data, Message[] Warnings);

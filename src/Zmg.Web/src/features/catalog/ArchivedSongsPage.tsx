@@ -1,4 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { api } from '@/api';
 import { useSongs, queryKeys } from '@/api/queries';
 import type { SongListItem } from '@/types';
@@ -13,19 +14,20 @@ import { useConfirmDelete } from '@/hooks/useConfirmDelete';
  */
 export default function ArchivedSongsPage() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { toast, toastVariant, showToast } = useToast();
   const { data: songs = [], isLoading, error } = useSongs({ scope: 'archived' });
 
   const remove = useConfirmDelete<SongListItem>({
     confirm: (s) => ({
-      title: `Delete "${s.title}"?`,
-      body: <p>This can't be undone.</p>,
-      confirmLabel: 'Delete',
+      title: t('releases.deleteConfirm.title', { title: s.title }),
+      body: <p>{t('common.cannotBeUndone')}</p>,
+      confirmLabel: t('common.delete'),
       confirmVariant: 'danger',
     }),
     mutate: (s) => api.songs.delete(s.id),
     invalidate: [queryKeys.songs(), queryKeys.artists],
-    errorFallback: 'Failed to delete.',
+    errorFallback: t('releases.deleteFailed'),
     showToast,
   });
 
@@ -33,23 +35,23 @@ export default function ArchivedSongsPage() {
     <div>
       <div className="mb-6">
         <Link to="/catalog" className="text-sm text-muted hover:text-body">
-          ‹ Catalog
+          {t('songs.archived.back')}
         </Link>
-        <h1 className="mt-2 text-2xl font-semibold text-strong">Archived Songs</h1>
-        <p className="text-sm text-muted">Archived songs are read-only and can't be restored.</p>
+        <h1 className="mt-2 text-2xl font-semibold text-strong">{t('songs.archived.title')}</h1>
+        <p className="text-sm text-muted">{t('songs.archived.subtitle')}</p>
       </div>
 
-      <ErrorBanner error={error ? 'Failed to load archived songs.' : null} />
+      <ErrorBanner error={error ? t('songs.archived.loadFailed') : null} />
 
       {isLoading ? (
         <Loading />
       ) : songs.length === 0 ? (
-        <EmptyState>No archived songs.</EmptyState>
+        <EmptyState>{t('songs.archived.empty')}</EmptyState>
       ) : (
         <DataTable
           headers={[
-            { label: 'Name' },
-            { label: 'Main Artist' },
+            { label: t('songs.table.name') },
+            { label: t('songs.table.mainArtist') },
             { label: '', className: 'text-right' },
           ]}
         >
@@ -73,7 +75,7 @@ export default function ArchivedSongsPage() {
                     void remove(s);
                   }}
                 >
-                  Delete
+                  {t('common.delete')}
                 </Button>
               </td>
             </tr>

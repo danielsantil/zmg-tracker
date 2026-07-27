@@ -1,6 +1,7 @@
+import { useTranslation } from 'react-i18next';
 import type { ReleaseListItem } from '@/types';
 import { MenuItem, ProgressBar, RowMenu, SoftWarning, StatusBadge, TypeBadge } from '@/components';
-import { formatCountdown, formatReleaseDate } from '@/lib/format';
+import { useFormatters } from '@/hooks/useFormatters';
 
 /**
  * The compact release card. Actions live in the kebab so it stays short enough to stack in a modal.
@@ -22,7 +23,9 @@ export function ReleaseCard({
   showCover?: boolean;
   showOpenLink?: boolean;
 }) {
-  const countdown = formatCountdown(r.releaseDate);
+  const { t } = useTranslation();
+  const format = useFormatters();
+  const countdown = format.countdown(r.releaseDate);
 
   return (
     <div className="flex flex-col overflow-hidden rounded-xl border border-edge bg-panel">
@@ -46,7 +49,7 @@ export function ReleaseCard({
             <div className="flex shrink-0 items-center gap-1.5">
               <SoftWarning warnings={r.warnings} />
               <StatusBadge status={r.status} />
-              <RowMenu label="Release actions">
+              <RowMenu label={t('releases.rowActions')}>
                 {(close) => (
                   <>
                     <MenuItem
@@ -55,7 +58,7 @@ export function ReleaseCard({
                         onEdit();
                       }}
                     >
-                      Edit
+                      {t('common.edit')}
                     </MenuItem>
                     {/* Archive affordance follows the server's canArchive (upcoming & not archived). */}
                     {r.canArchive && (
@@ -66,7 +69,7 @@ export function ReleaseCard({
                           onArchive();
                         }}
                       >
-                        Archive
+                        {t('common.archive')}
                       </MenuItem>
                     )}
                   </>
@@ -78,7 +81,7 @@ export function ReleaseCard({
         </div>
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
           <TypeBadge type={r.type} />
-          <span>{formatReleaseDate(r.releaseDate)}</span>
+          <span>{format.releaseDate(r.releaseDate)}</span>
           {countdown && <span className="text-accent">· {countdown}</span>}
         </div>
         <div className="mt-auto">
@@ -86,12 +89,12 @@ export function ReleaseCard({
             done={r.doneTasks}
             total={r.totalTasks}
             slim
-            label={`${r.doneTasks} / ${r.totalTasks} tasks`}
+            label={t('progress.tasks', { done: r.doneTasks, total: r.totalTasks })}
           />
         </div>
         {showOpenLink && (
           <button onClick={onOpen} className="w-fit text-left text-sm text-accent hover:underline">
-            Open release →
+            {t('releases.openRelease')}
           </button>
         )}
       </div>

@@ -24,4 +24,4 @@ export const api = {
 };
 
 export { ApiError, errorMessage } from './client';
-export { DUPLICATE_SONG_TITLE_MESSAGE } from './serverMessages';
+export { ServerErrors } from './serverErrors';

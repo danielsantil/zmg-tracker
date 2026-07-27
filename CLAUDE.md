@@ -102,3 +102,23 @@ compute them via the domain classes rather than persisting them.
 - Put business rules in `Zmg.Domain` static classes (unit-tested), not in endpoints or services.
 - Soft warnings (e.g. missing UPC/ISRC, empty album) are non-blocking — surfaced via
   `ReleaseWarnings`, never enforced as validation errors.
+- **The API ships codes, never user-facing prose (v2.8/M46).** Every error/warning is a
+  `Zmg.Domain.Message(Code, Args?)` whose `Code` is an i18next key path (`error.song.duplicateTitle`),
+  rendered by the SPA. A new code needs a key in **both** `en.json` and `es.json` — `MessageCodeApiTests`
+  reflects over the constants and fails otherwise. Codes are permanent identifiers; keep them next to
+  the rule that raises them (`Validation`, `ReleaseWarnings`, `CoverImage`), or in
+  `Api/Services/ServiceErrors.cs` for the ones a service mints. Full rules in PROGRESS.md.
+- **Checklist task text is two columns; a task's identity is its `Code` (v2.9/M49–M52).** `TemplateTask`
+  and `ReleaseTask` each carry `TitleEn` + `TitleEs` (nullable — null means "shows the English", a valid
+  state). `TemplateCopy` copies both down, so a release owns its checklist in every language and a
+  template edit can never reach it. The API **never resolves a locale**: it ships both columns and the
+  SPA picks one via `lib/taskText.ts`. **Never key a rule off a task title** — `Release.IsDistributed`
+  uses `SourceCode`, and anything new must too; text edits leave the code alone, which is what lets ZMG
+  reword a task without silencing the rules. These two columns are the **only** dual-language fields in
+  the app; song titles, artist names and notes stay single-value. Full rules in PROGRESS.md.
+- **The SPA is EN/ES (v2.8).** No user-facing literal in `src/features/**` or `src/components/**` —
+  everything goes through `t()`, keyed in `src/i18n/locales/{en,es}.json` (add to **both**; the parity
+  test in `src/i18n/i18n.test.ts` fails otherwise). `t()` is typed off `en.json`, so a wrong key won't
+  compile. Never build a sentence by concatenation — use interpolation or `_one`/`_other` plurals; pure
+  helpers return shapes and `hooks/useFormatters` supplies the words. Full rules in PROGRESS.md's
+  Cross-cutting decisions.

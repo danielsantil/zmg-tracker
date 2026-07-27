@@ -9,8 +9,8 @@ namespace Zmg.Domain;
 /// </summary>
 public static class ReleaseMutability
 {
-    /// <summary>Conflict message for any write against an archived release.</summary>
-    public const string ArchivedReadOnlyMessage = "Archived releases are read-only.";
+    /// <summary>Conflict code for any write against an archived release (M46).</summary>
+    public const string ArchivedReadOnlyCode = "error.release.archivedReadOnly";
 
     /// <summary>Whether a release accepts edits. False once archived (terminal, non-restorable).</summary>
     public static bool CanEdit(bool isArchived) => !isArchived;

@@ -8,9 +8,23 @@ namespace Zmg.Domain;
 /// An action is owned by either a release (<see cref="ReleaseId"/>) or a song (<see cref="SongId"/>);
 /// <see cref="Subject"/> is that owner's display name (release title / song title).
 /// </summary>
+/// <remarks>
+/// The text fields are split by <see cref="Kind"/> and each means exactly one thing (v2.9). The three
+/// data kinds carry a <see cref="WarningCode"/> the SPA runs through <c>t()</c>;
+/// <see cref="PendingKind.TaskDue"/> carries the task's own text in
+/// <see cref="TaskTitleEn"/>/<see cref="TaskTitleEs"/> — user content, rendered verbatim in whichever
+/// language the reader has selected. Exactly one of the two groups is populated on any given action.
+/// <para>
+/// This replaces M46's single <c>Label</c>, which was those two things overloaded onto one field. The
+/// server no longer picks the language: both texts go on the wire and the SPA reads the column it
+/// wants, so nothing here needs a locale, a culture, or a refetch when the user switches.
+/// </para>
+/// </remarks>
 public record PendingAction(
     PendingKind Kind,
-    string Label,
+    string? WarningCode,
+    string? TaskTitleEn,
+    string? TaskTitleEs,
     string Subject,
     string ArtistName,
     Guid? ReleaseId,
@@ -26,6 +40,9 @@ public record PendingAction(
 /// </summary>
 public static class PendingActions
 {
+    /// <summary>The one advisory code this engine owns; the other two come from <see cref="ReleaseWarnings"/>.</summary>
+    public const string MissingIsrc = "warning.missingIsrc";
+
     /// <summary>
     /// Release-owned pending actions: task-due items (in phase order), a missing-UPC nag once distributed,
     /// and an empty-album nag. Song-owned ISRC actions come from <see cref="ComputeForSong"/>. The aggregate
@@ -47,8 +64,10 @@ public static class PendingActions
             if (today >= windowOpens && release.ReleaseDate >= today)
             {
                 result.Add(new PendingAction(
-                    PendingKind.TaskDue, t.Title, release.Title, artistName,
-                    release.Id, null, t.Id, daysToRelease));
+                    // Both texts, straight off the release's own snapshot columns, so this row reads
+                    // exactly like the checklist does in whichever language the reader picks.
+                    PendingKind.TaskDue, null, t.TitleEn, t.TitleEs,
+                    release.Title, artistName, release.Id, null, t.Id, daysToRelease));
             }
         }
 
@@ -56,7 +75,7 @@ public static class PendingActions
         if (release.IsDistributed && string.IsNullOrWhiteSpace(release.Upc))
         {
             result.Add(new PendingAction(
-                PendingKind.MissingUpc, "Missing UPC", release.Title, artistName,
+                PendingKind.MissingUpc, ReleaseWarnings.MissingUpc, null, null, release.Title, artistName,
                 release.Id, null, null, null));
         }
 
@@ -64,9 +83,9 @@ public static class PendingActions
         // the nag persists until the tracks exist. Singles never qualify (they carry exactly one track).
         if (release is { Type: ReleaseType.Album, IsArchived: false } && release.Tracks.Count < 2)
         {
-            var label = release.Tracks.Count == 0 ? ReleaseWarnings.AlbumIsEmpty : ReleaseWarnings.AlbumHasOneTrack;
+            var code = release.Tracks.Count == 0 ? ReleaseWarnings.AlbumIsEmpty : ReleaseWarnings.AlbumHasOneTrack;
             result.Add(new PendingAction(
-                PendingKind.EmptyAlbum, label, release.Title, artistName,
+                PendingKind.EmptyAlbum, code, null, null, release.Title, artistName,
                 release.Id, null, null, null));
         }
 
@@ -75,7 +94,8 @@ public static class PendingActions
 
     /// <summary>
     /// Song-owned pending action: a missing ISRC once the song is distributed. A song counts as distributed
-    /// when any linked, non-deleted, non-archived release has its "Distribute to DSPs" task checked — the
+    /// when any linked, non-deleted, non-archived release has its DSP-distribution task checked (by code,
+    /// not title, since M47) — the
     /// caller precomputes that flag, so this yields exactly one action per song, never per release.
     /// </summary>
     public static List<PendingAction> ComputeForSong(Song song, bool hasDistributedRelease)
@@ -85,7 +105,7 @@ public static class PendingActions
         if (hasDistributedRelease && !song.IsArchived && string.IsNullOrWhiteSpace(song.Isrc))
         {
             result.Add(new PendingAction(
-                PendingKind.MissingIsrc, "Missing ISRC", song.Title,
+                PendingKind.MissingIsrc, MissingIsrc, null, null, song.Title,
                 song.MainArtist?.Name ?? string.Empty,
                 null, song.Id, null, null));
         }

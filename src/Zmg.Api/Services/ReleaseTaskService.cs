@@ -23,9 +23,9 @@ public sealed class ReleaseTaskService(ZmgDbContext db) : IReleaseTaskService
             .FirstOrDefaultAsync(ct);
         if (archived is null) return OperationResult<ReleaseTaskDto>.NotFound();
         if (!ReleaseMutability.CanEdit(archived.Value))
-            return OperationResult<ReleaseTaskDto>.Conflict(new[] { ReleaseMutability.ArchivedReadOnlyMessage });
+            return OperationResult<ReleaseTaskDto>.Conflict([ReleaseMutability.ArchivedReadOnlyCode]);
 
-        var validation = Validation.ValidateTaskTitle(input.Title);
+        var validation = Validation.ValidateTaskTitle(input.TitleEn);
         if (!validation.IsValid)
             return OperationResult<ReleaseTaskDto>.Invalid(validation.Errors);
 
@@ -33,7 +33,8 @@ public sealed class ReleaseTaskService(ZmgDbContext db) : IReleaseTaskService
         {
             Id = Guid.NewGuid(),
             ReleaseId = releaseId,
-            Title = input.Title.Trim(),
+            TitleEn = input.TitleEn.Trim(),
+            TitleEs = Clean(input.TitleEs),
             Phase = input.Phase,
             SortOrder = await NextSortOrder(releaseId, input.Phase, ct: ct),
             IsDone = false,
@@ -51,9 +52,9 @@ public sealed class ReleaseTaskService(ZmgDbContext db) : IReleaseTaskService
         var task = await db.ReleaseTasks.FindAsync([id], ct);
         if (task is null) return OperationResult<ReleaseTaskDto>.NotFound();
         if (await IsArchived(task.ReleaseId, ct))
-            return OperationResult<ReleaseTaskDto>.Conflict(new[] { ReleaseMutability.ArchivedReadOnlyMessage });
+            return OperationResult<ReleaseTaskDto>.Conflict([ReleaseMutability.ArchivedReadOnlyCode]);
 
-        var validation = Validation.ValidateTaskTitle(input.Title);
+        var validation = Validation.ValidateTaskTitle(input.TitleEn);
         if (!validation.IsValid)
             return OperationResult<ReleaseTaskDto>.Invalid(validation.Errors);
 
@@ -64,7 +65,14 @@ public sealed class ReleaseTaskService(ZmgDbContext db) : IReleaseTaskService
             task.Phase = input.Phase;
         }
 
-        task.Title = input.Title.Trim();
+        // A plain field write, in both languages (v2.9) — and note what is *not* here: SourceCode is no
+        // longer cleared. While the code doubled as a translation key it had to be, which meant
+        // rewording "Distribute to DSPs" on a release silently switched off IsDistributed, and with it
+        // the missing-UPC warning, the pending engine and the past-date backfill. Text and identity are
+        // separate now, so a user can word their checklist however they like and the rules still hold.
+        task.TitleEn = input.TitleEn.Trim();
+        task.TitleEs = Clean(input.TitleEs);
+
         task.Notes = string.IsNullOrWhiteSpace(input.Notes) ? null : input.Notes.Trim();
         task.MinDaysBefore = input.MinDaysBefore;
         task.MaxDaysBefore = input.MaxDaysBefore;
@@ -78,7 +86,7 @@ public sealed class ReleaseTaskService(ZmgDbContext db) : IReleaseTaskService
         var task = await db.ReleaseTasks.FindAsync([id], ct);
         if (task is null) return OperationResult<ReleaseTaskDto>.NotFound();
         if (await IsArchived(task.ReleaseId, ct))
-            return OperationResult<ReleaseTaskDto>.Conflict(new[] { ReleaseMutability.ArchivedReadOnlyMessage });
+            return OperationResult<ReleaseTaskDto>.Conflict([ReleaseMutability.ArchivedReadOnlyCode]);
 
         task.IsDone = !task.IsDone;
         task.CompletedAt = task.IsDone ? DateTime.UtcNow : null;
@@ -94,11 +102,11 @@ public sealed class ReleaseTaskService(ZmgDbContext db) : IReleaseTaskService
             .ToListAsync(ct);
         if (tasks.Count == 0) return OperationResult.NotFound();
         if (await IsArchived(releaseId, ct))
-            return OperationResult.Conflict(new[] { ReleaseMutability.ArchivedReadOnlyMessage });
+            return OperationResult.Conflict([ReleaseMutability.ArchivedReadOnlyCode]);
 
         var applied = Reorder.TryApply(tasks, input.OrderedTaskIds, t => t.Id, (t, i) => t.SortOrder = i);
         if (!applied)
-            return OperationResult.Invalid(new[] { "Reorder must list every task in the phase exactly once." });
+            return OperationResult.Invalid([ServiceErrors.TaskReorderMismatch]);
 
         await db.SaveChangesAsync(ct);
         return OperationResult.Success();
@@ -109,7 +117,7 @@ public sealed class ReleaseTaskService(ZmgDbContext db) : IReleaseTaskService
         var task = await db.ReleaseTasks.FindAsync([id], ct);
         if (task is null) return OperationResult.NotFound();
         if (await IsArchived(task.ReleaseId, ct))
-            return OperationResult.Conflict(new[] { ReleaseMutability.ArchivedReadOnlyMessage });
+            return OperationResult.Conflict([ReleaseMutability.ArchivedReadOnlyCode]);
 
         db.ReleaseTasks.Remove(task);
         await db.SaveChangesAsync(ct);
@@ -127,6 +135,13 @@ public sealed class ReleaseTaskService(ZmgDbContext db) : IReleaseTaskService
             .Select(t => (int?)t.SortOrder)
             .MaxAsync(ct) ?? -1) + 1;
 
+    // Both texts as stored — the SPA replaces its local row with this and picks the column matching
+    // what the reader has selected, so no mutation can flip a title's language.
     private static ReleaseTaskDto ToDto(ReleaseTask t) =>
-        new(t.Id, t.Title, t.Phase, t.SortOrder, t.IsDone, t.CompletedAt, t.Notes, t.MinDaysBefore, t.MaxDaysBefore);
+        new(t.Id, t.TitleEn, t.TitleEs, t.Phase, t.SortOrder,
+            t.IsDone, t.CompletedAt, t.Notes, t.MinDaysBefore, t.MaxDaysBefore);
+
+    // Blank Spanish is stored as null — "show the English" is one state, not two.
+    private static string? Clean(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

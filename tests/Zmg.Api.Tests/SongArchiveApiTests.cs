@@ -215,7 +215,7 @@ public class SongArchiveApiTests(ZmgApiFactory factory) : IClassFixture<ZmgApiFa
         var single = await CreateSingle(client, artist, "Upcoming Distributed", Today.AddDays(30));
         var songId = single.Tracks.Single().SongId;
         var distribute = single.Phases.SelectMany(p => p.Tasks)
-            .Single(t => t.Title == SeedData.DistributeToDspsTitle);
+            .Single(t => t.TitleEn == SeedData.DistributeToDspsEn);
         (await client.PatchAsync($"/api/tasks/{distribute.Id}/toggle", null)).EnsureSuccessStatusCode();
 
         Assert.Contains((await client.GetFromJsonAsync<List<PendingAction>>("/api/pending"))!,

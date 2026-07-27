@@ -1,17 +1,22 @@
 import { useEffect, useRef, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Menu, Moon, Sun, X } from 'lucide-react';
 import { useTheme, type Theme } from '../hooks/useTheme';
+import { useLanguage } from '../i18n/useLanguage';
+import { LanguageToggle } from './LanguageToggle';
 import Logo from './Logo';
 
 // One source for both the desktop row and the mobile sheet, so a destination can't drift between them.
-const NAV_LINKS: { to: string; label: string; end?: boolean }[] = [
-  { to: '/', label: 'Home', end: true },
-  { to: '/releases', label: 'Releases' },
-  { to: '/catalog', label: 'Catalog' },
-  { to: '/artists', label: 'Artists' },
-  { to: '/templates', label: 'Templates' },
-];
+// `as const` keeps the key literals narrow enough for the typed `t()` to check them at compile time —
+// which is also why `end` is spelled out on every row rather than left optional on all but Home.
+const NAV_LINKS = [
+  { to: '/', labelKey: 'nav.home', end: true },
+  { to: '/releases', labelKey: 'nav.releases', end: false },
+  { to: '/catalog', labelKey: 'nav.catalog', end: false },
+  { to: '/artists', labelKey: 'nav.artists', end: false },
+  { to: '/templates', labelKey: 'nav.templates', end: false },
+] as const;
 
 const desktopLink = ({ isActive }: { isActive: boolean }) =>
   `rounded-lg px-3 py-1.5 text-sm font-medium transition ${
@@ -27,12 +32,13 @@ const mobileLink = ({ isActive }: { isActive: boolean }) =>
 // Presentational: theme/toggle come from NavBar's single useTheme so the logo and this button never
 // disagree (useTheme is per-caller local state — two independent calls would diverge on toggle).
 function ThemeToggle({ theme, toggle }: { theme: Theme; toggle: () => void }) {
+  const { t } = useTranslation();
   const Icon = theme === 'dark' ? Sun : Moon;
   return (
     <button
       type="button"
       onClick={toggle}
-      aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+      aria-label={theme === 'dark' ? t('theme.toLight') : t('theme.toDark')}
       className="grid h-8 w-8 place-items-center rounded-lg text-muted transition hover:bg-edge hover:text-body"
     >
       <Icon className="h-4 w-4" aria-hidden />
@@ -54,7 +60,9 @@ export default function NavBar() {
   const [open, setOpen] = useState(false);
   const headerRef = useRef<HTMLElement>(null);
   const location = useLocation();
+  const { t } = useTranslation();
   const { theme, toggle } = useTheme();
+  const { language, setLanguage } = useLanguage();
 
   // Close on navigation — tapping a sheet link should land on the page, not leave the sheet hanging.
   useEffect(() => setOpen(false), [location]);
@@ -72,7 +80,7 @@ export default function NavBar() {
   return (
     <header ref={headerRef} className="sticky top-0 z-10 border-b border-edge bg-ink/80 backdrop-blur">
       <div className="mx-auto flex max-w-5xl items-center gap-x-2 px-4 py-3">
-        <NavLink to="/" className="mr-2 flex items-center" aria-label="Zion Music Group — home">
+        <NavLink to="/" className="mr-2 flex items-center" aria-label={t('nav.brandHome')}>
           {/* Inline SVG wordmark; text-strong makes it near-black in light / near-white in dark. */}
           <Logo className="h-7 w-auto text-strong" />
         </NavLink>
@@ -81,19 +89,20 @@ export default function NavBar() {
         <nav className="hidden items-center gap-x-2 sm:flex">
           {NAV_LINKS.map((l) => (
             <NavLink key={l.to} to={l.to} end={l.end} className={desktopLink}>
-              {l.label}
+              {t(l.labelKey)}
             </NavLink>
           ))}
         </nav>
 
-        {/* Always-visible controls, right-aligned. The theme toggle stays; the v2.7 language selector
-            will slot in just before it. The hamburger is mobile-only. */}
+        {/* Always-visible controls, right-aligned. Language then theme (M43); the hamburger is
+            mobile-only. */}
         <div className="ml-auto flex items-center gap-x-1">
+          <LanguageToggle language={language} setLanguage={setLanguage} />
           <ThemeToggle theme={theme} toggle={toggle} />
           <button
             type="button"
             className="grid h-8 w-8 place-items-center rounded-lg text-muted transition hover:bg-edge hover:text-body sm:hidden"
-            aria-label={open ? 'Close menu' : 'Open menu'}
+            aria-label={open ? t('nav.closeMenu') : t('nav.openMenu')}
             aria-expanded={open}
             onClick={() => setOpen((o) => !o)}
           >
@@ -110,7 +119,7 @@ export default function NavBar() {
           <div className="mx-auto flex max-w-5xl flex-col gap-y-1 px-4 py-3">
             {NAV_LINKS.map((l) => (
               <NavLink key={l.to} to={l.to} end={l.end} className={mobileLink}>
-                {l.label}
+                {t(l.labelKey)}
               </NavLink>
             ))}
           </div>

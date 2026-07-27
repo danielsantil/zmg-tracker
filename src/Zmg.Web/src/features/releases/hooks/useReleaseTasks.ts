@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { api, errorMessage } from '@/api';
 import { queryKeys } from '@/api/queries';
-import type { Phase, ReleaseTaskDto } from '@/types';
+import type { ReleaseTaskDto } from '@/types';
 import { byPhase } from '@/lib/phase';
 import { useConfirm } from '@/hooks/useConfirm';
-import type { TaskPatch } from '../components/TaskRow';
+import { taskText } from '@/lib/taskText';
+import { useLanguage } from '@/i18n/useLanguage';
+import type { TaskDraft } from '../components/taskDraft';
 
 /**
  * The task half of the release detail (M24.7): a flat, optimistically-mutated task array seeded from
@@ -19,6 +22,8 @@ export function useReleaseTasks(
   initial: ReleaseTaskDto[],
   showToast: (msg: string) => void,
 ) {
+  const { t } = useTranslation();
+  const { language } = useLanguage();
   const confirm = useConfirm();
   const queryClient = useQueryClient();
   const [tasks, setTasks] = useState<ReleaseTaskDto[]>(initial);
@@ -44,41 +49,50 @@ export function useReleaseTasks(
       refreshPending();
     } catch (e) {
       setTasks((ts) => ts.map((t) => (t.id === task.id ? task : t)));
-      showToast(errorMessage(e, 'Could not save — reverted.'));
+      showToast(errorMessage(e, t('tasks.errors.saveReverted')));
     }
   }
 
-  async function addTask(phase: Phase, title: string) {
+  // Add and edit share one payload shape, because they share one editor (v2.9): the modal always
+  // hands back every editable field, so there is no patch to merge and no field that can be dropped
+  // by forgetting to carry it. Blank Spanish is sent as null — "show the English" is one state.
+  function payload(draft: TaskDraft) {
+    return {
+      titleEn: draft.titleEn,
+      titleEs: draft.titleEs || null,
+      phase: draft.phase,
+      notes: draft.notes || null,
+      minDaysBefore: draft.minDaysBefore,
+      maxDaysBefore: draft.maxDaysBefore,
+    };
+  }
+
+  async function addTask(draft: TaskDraft) {
     try {
-      const created = await api.tasks.add(id, { title, phase });
+      const created = await api.tasks.add(id, payload(draft));
       setTasks((ts) => [...ts, created]);
+      refreshPending();
     } catch (e) {
-      showToast(errorMessage(e, 'Could not add task.'));
+      showToast(errorMessage(e, t('tasks.errors.add')));
     }
   }
 
-  async function updateTask(task: ReleaseTaskDto, patch: TaskPatch) {
+  async function updateTask(task: ReleaseTaskDto, draft: TaskDraft) {
     try {
-      // Update is a full replace of editable fields, so always send the task's current
-      // timeframe/notes unless the patch overrides them (else a rename would wipe them).
-      const saved = await api.tasks.update(task.id, {
-        title: patch.title ?? task.title,
-        phase: patch.phase ?? task.phase,
-        notes: patch.notes !== undefined ? patch.notes : task.notes,
-        minDaysBefore: patch.minDaysBefore !== undefined ? patch.minDaysBefore : task.minDaysBefore,
-        maxDaysBefore: patch.maxDaysBefore !== undefined ? patch.maxDaysBefore : task.maxDaysBefore,
-      });
+      const saved = await api.tasks.update(task.id, payload(draft));
       setTasks((ts) => ts.map((t) => (t.id === saved.id ? saved : t)));
+      // A timeframe change can open or close a pending window, so this is not toggle-only.
+      refreshPending();
     } catch (e) {
-      showToast(errorMessage(e, 'Could not save task.'));
+      showToast(errorMessage(e, t('tasks.errors.save')));
     }
   }
 
   async function removeTask(task: ReleaseTaskDto) {
     if (
       !(await confirm({
-        title: `Delete task "${task.title}"?`,
-        confirmLabel: 'Delete',
+        title: t('tasks.deleteConfirm', { title: taskText(language, task) }),
+        confirmLabel: t('common.delete'),
         confirmVariant: 'danger',
       }))
     )
@@ -87,9 +101,10 @@ export function useReleaseTasks(
     setTasks((ts) => ts.filter((t) => t.id !== task.id));
     try {
       await api.tasks.delete(task.id);
+      refreshPending();
     } catch (e) {
       setTasks(prev);
-      showToast(errorMessage(e, 'Could not delete task.'));
+      showToast(errorMessage(e, t('tasks.errors.delete')));
     }
   }
 
@@ -108,7 +123,7 @@ export function useReleaseTasks(
       await api.tasks.reorder(id, { phase: task.phase, orderedTaskIds: list.map((t) => t.id) });
     } catch (e) {
       setTasks(prev);
-      showToast(errorMessage(e, 'Could not reorder.'));
+      showToast(errorMessage(e, t('tasks.errors.reorder')));
     }
   }
 

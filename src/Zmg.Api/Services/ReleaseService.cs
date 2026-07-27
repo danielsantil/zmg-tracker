@@ -54,7 +54,7 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
                 Done = r.Tasks.Count(x => x.IsDone),
                 Total = r.Tasks.Count,
                 TrackCount = r.Tracks.Count,
-                Distributed = r.Tasks.Any(x => x.IsDone && x.Title == SeedData.DistributeToDspsTitle),
+                Distributed = r.Tasks.Any(x => x.IsDone && x.SourceCode == TaskCodes.DistributeToDsps),
             })
             .ToListAsync(ct);
 
@@ -110,7 +110,8 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
         await db.SaveChangesAsync(ct);
 
         var created = await db.Releases.AsNoTracking().WithDetailIncludes().FirstAsync(r => r.Id == release.Id, ct);
-        return OperationResult<ReleaseDetailDto>.Success(ToDetail(created), validation.Warnings);
+        return OperationResult<ReleaseDetailDto>.Success(
+            ToDetail(created), validation.Warnings);
     }
 
     // Structural + per-artist title rules for a create. The title-clash rule (incl. within-request
@@ -156,9 +157,9 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
             .ToListAsync(ct);
 
         if (existingIds.Any(id => existingSongs.All(s => s.Id != id)))
-            return OperationResult<ReleaseDetailDto>.Invalid(new[] { "One or more selected songs do not exist." });
+            return OperationResult<ReleaseDetailDto>.Invalid([ServiceErrors.SongsNotFound]);
         if (existingSongs.Any(s => s.IsArchived))
-            return OperationResult<ReleaseDetailDto>.Conflict(new[] { "Can't add an archived song to a release." });
+            return OperationResult<ReleaseDetailDto>.Conflict([ServiceErrors.ArchivedSong]);
 
         return null;
     }
@@ -180,11 +181,11 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
         foreach (var task in release.Tasks) task.ReleaseId = release.Id;
 
         // Backfill (v2.0 simplified): a release dated in the past was, by definition, already
-        // distributed — auto-check its "Distribute to DSPs" task. Identifiers no longer imply
-        // distribution (the ISRC branch moved to the song).
+        // distributed — auto-check its DSP-distribution task. Identifiers no longer imply distribution
+        // (the ISRC branch moved to the song). Keyed off the stable code, not the title (M47).
         if (release.ReleaseDate < today)
         {
-            var distribute = release.Tasks.FirstOrDefault(t => t.Title == SeedData.DistributeToDspsTitle);
+            var distribute = release.Tasks.FirstOrDefault(t => t.SourceCode == TaskCodes.DistributeToDsps);
             if (distribute is not null)
             {
                 distribute.IsDone = true;
@@ -232,12 +233,12 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
 
         // Archived releases are terminal and read-only — the whole read side already assumes this (M25 defect 1).
         if (!ReleaseMutability.CanEdit(release.IsArchived))
-            return OperationResult<ReleaseDetailDto>.Conflict(new[] { ReleaseMutability.ArchivedReadOnlyMessage });
+            return OperationResult<ReleaseDetailDto>.Conflict([ReleaseMutability.ArchivedReadOnlyCode]);
 
         // Type is fixed at create (it determines the checklist template). Tracks mutate only via the
         // track endpoints, so input.Tracks is ignored on PUT.
         if (input.Type != release.Type)
-            return OperationResult<ReleaseDetailDto>.Conflict(new[] { "Release type can't change after creation." });
+            return OperationResult<ReleaseDetailDto>.Conflict([ServiceErrors.ReleaseTypeImmutable]);
 
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
         var mainArtistExists = input.MainArtistId != Guid.Empty
@@ -266,7 +267,8 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
         if (release.MainArtist?.Id != release.MainArtistId)
             await db.Entry(release).Reference(r => r.MainArtist).LoadAsync(ct);
 
-        return OperationResult<ReleaseDetailDto>.Success(ToDetail(release), validation.Warnings);
+        return OperationResult<ReleaseDetailDto>.Success(
+            ToDetail(release), validation.Warnings);
     }
 
     // Preview the archive cascade (2.0 improvement): the titles of the songs that would archive alongside
@@ -304,11 +306,11 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
         if (release is null) return OperationResult.NotFound();
 
         if (release.IsArchived)
-            return OperationResult.Conflict(new[] { "Release is already archived." });
+            return OperationResult.Conflict([ServiceErrors.ReleaseAlreadyArchived]);
 
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
         if (release.ReleaseDate < today)
-            return OperationResult.Conflict(new[] { "Only releases dated today or later can be archived." });
+            return OperationResult.Conflict([ServiceErrors.ReleaseArchiveTooLate]);
 
         var now = DateTime.UtcNow;
         release.ArchivedAt = now;
@@ -332,7 +334,7 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
         if (release is null) return OperationResult.NotFound();
 
         if (!release.IsArchived)
-            return OperationResult.Conflict(new[] { "Only archived releases can be removed." });
+            return OperationResult.Conflict([ServiceErrors.ReleaseDeleteNotArchived]);
 
         db.Releases.Remove(release);
         await db.SaveChangesAsync(ct);
@@ -348,6 +350,8 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
             .Include(t => t.Tasks)
             .FirstOrDefaultAsync(t => t.Type == type, ct);
 
+    // Both task texts go out as stored: the release owns its own columns, so a later template edit
+    // can't reach a live checklist, and the SPA renders whichever language the reader has selected.
     private static ReleaseDetailDto ToDetail(Release release)
     {
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
@@ -361,8 +365,8 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
                     .Where(t => t.Phase == phase)
                     .OrderBy(t => t.SortOrder)
                     .Select(t => new ReleaseTaskDto(
-                        t.Id, t.Title, t.Phase, t.SortOrder, t.IsDone, t.CompletedAt, t.Notes,
-                        t.MinDaysBefore, t.MaxDaysBefore))
+                        t.Id, t.TitleEn, t.TitleEs, t.Phase, t.SortOrder,
+                        t.IsDone, t.CompletedAt, t.Notes, t.MinDaysBefore, t.MaxDaysBefore))
                     .ToList();
                 return new PhaseGroupDto(phase, count.Done, count.Total, tasks);
             })

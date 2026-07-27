@@ -2,7 +2,10 @@ import { useEffect, useReducer, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import clsx from 'clsx';
+import { useTranslation } from 'react-i18next';
+import type { ParseKeys } from 'i18next';
 import { api, ApiError } from '@/api';
+import { useServerText, type ServerMessage } from '@/i18n/serverText';
 import { useArtists, useRelease, useTemplates, queryKeys } from '@/api/queries';
 import type { TrackInput } from '@/types';
 import { ReleaseType } from '@/types';
@@ -56,21 +59,30 @@ function formReducer(state: FormState, action: FormAction): FormState {
   }
 }
 
-/** Client-side validation, lifted out of submit. Mirrors the API 400s (track guards are create-only). */
-function validateForm(state: FormState, isEdit: boolean): { fieldErrors: { title?: string; releaseDate?: string }; formErrors: string[] } {
-  const fieldErrors: { title?: string; releaseDate?: string } = {};
-  if (!state.title.trim()) fieldErrors.title = 'Release title is required.';
-  if (!state.releaseDate) fieldErrors.releaseDate = 'Release date is required.';
+/**
+ * Client-side validation, lifted out of submit. Mirrors the API 400s (track guards are create-only).
+ * Returns **translation keys**, not sentences, so it stays pure and language-agnostic — the caller
+ * runs them through `t()` at render (M44).
+ */
+interface FormFieldErrors {
+  title?: ParseKeys;
+  releaseDate?: ParseKeys;
+}
+
+function validateForm(state: FormState, isEdit: boolean): { fieldErrors: FormFieldErrors; formErrors: ParseKeys[] } {
+  const fieldErrors: FormFieldErrors = {};
+  if (!state.title.trim()) fieldErrors.title = 'releases.form.errors.titleRequired';
+  if (!state.releaseDate) fieldErrors.releaseDate = 'releases.form.errors.dateRequired';
   if (fieldErrors.title || fieldErrors.releaseDate) return { fieldErrors, formErrors: [] };
 
-  const formErrors: string[] = [];
+  const formErrors: ParseKeys[] = [];
   if (!isEdit) {
     // A row is valid if it's an existing catalog song (songId) or a new title.
     const filled = state.tracks.filter((t) => t.songId || (t.title ?? '').trim());
     if (state.type === ReleaseType.Single && filled.length !== 1) {
-      formErrors.push('A single must have exactly one track.');
+      formErrors.push('releases.form.errors.singleOneTrack');
     } else if (state.tracks.some((t) => !t.songId && !(t.title ?? '').trim())) {
-      formErrors.push('Every new track needs a title (or pick an existing song).');
+      formErrors.push('releases.form.errors.trackNeedsTitle');
     }
   }
   return { fieldErrors, formErrors };
@@ -80,8 +92,10 @@ export default function ReleaseFormPage() {
   const { id } = useParams();
   const isEdit = Boolean(id);
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const goBack = useBackNavigation();
   const queryClient = useQueryClient();
+  const server = useServerText();
 
   const { data: artists = [], isLoading: artistsLoading } = useArtists();
   const { data: templates = [] } = useTemplates();
@@ -89,10 +103,10 @@ export default function ReleaseFormPage() {
 
   const [form, dispatch] = useReducer(formReducer, initialForm);
   const [errors, setErrors] = useState<string[]>([]);
-  const [warnings, setWarnings] = useState<string[]>([]);
+  const [warnings, setWarnings] = useState<ServerMessage[]>([]);
   const [saving, setSaving] = useState(false);
   const [coverUploading, setCoverUploading] = useState(false);
-  const [fieldErrors, setFieldErrors] = useState<{ title?: string; releaseDate?: string }>({});
+  const [fieldErrors, setFieldErrors] = useState<FormFieldErrors>({});
 
   // Hydrate the form from the release being edited, once it arrives.
   useEffect(() => {
@@ -136,7 +150,7 @@ export default function ReleaseFormPage() {
     setFieldErrors(fe);
     if (fe.title || fe.releaseDate) return;
     if (formErrors.length > 0) {
-      setErrors(formErrors);
+      setErrors(formErrors.map((key) => t(key)));
       return;
     }
 
@@ -177,7 +191,7 @@ export default function ReleaseFormPage() {
         goBack();
       }
     } catch (err) {
-      setErrors(err instanceof ApiError ? err.errors : ['Failed to save release.']);
+      setErrors(err instanceof ApiError ? err.messages : [t('releases.form.saveFailed')]);
     } finally {
       setSaving(false);
     }
@@ -188,9 +202,9 @@ export default function ReleaseFormPage() {
   if (artists.length === 0) {
     return (
       <EmptyState>
-        <p className="text-body">You need at least one artist before creating a release.</p>
+        <p className="text-body">{t('releases.form.needArtist')}</p>
         <Button className="mt-4" onClick={() => navigate('/artists')}>
-          Go to Artists
+          {t('releases.form.goToArtists')}
         </Button>
       </EmptyState>
     );
@@ -198,20 +212,20 @@ export default function ReleaseFormPage() {
 
   return (
     <div className="mx-auto max-w-xl">
-      <h1 className="mb-6 text-2xl font-semibold text-strong">{isEdit ? 'Edit release' : 'New release'}</h1>
+      <h1 className="mb-6 text-2xl font-semibold text-strong">{isEdit ? t('releases.form.editTitle') : t('releases.form.createTitle')}</h1>
 
       <form onSubmit={submit} className="space-y-4">
-        <Field label="Title" error={fieldErrors.title}>
+        <Field label={t('releases.form.fields.title')} error={fieldErrors.title && t(fieldErrors.title)}>
           <input
             className={clsx(inputClass, fieldErrors.title && inputErrorClass)}
             value={form.title}
             onChange={set('title')}
-            placeholder="e.g. Luz"
+            placeholder={t('releases.form.placeholders.title')}
             autoFocus
           />
         </Field>
 
-        <Field label="Main artist">
+        <Field label={t('releases.form.fields.mainArtist')}>
           <select className={inputClass} value={form.mainArtistId} onChange={set('mainArtistId')}>
             {artists.map((a) => (
               <option key={a.id} value={a.id}>
@@ -222,18 +236,18 @@ export default function ReleaseFormPage() {
         </Field>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Release type">
+          <Field label={t('releases.form.fields.releaseType')}>
             <select
               className={inputClass}
               value={form.type}
               onChange={(e) => dispatch({ kind: 'setType', value: Number(e.target.value) as ReleaseType })}
               disabled={isEdit}
             >
-              <option value={ReleaseType.Single}>Single</option>
-              <option value={ReleaseType.Album}>Album</option>
+              <option value={ReleaseType.Single}>{t('releaseType.single')}</option>
+              <option value={ReleaseType.Album}>{t('releaseType.album')}</option>
             </select>
           </Field>
-          <Field label="Release date" error={fieldErrors.releaseDate}>
+          <Field label={t('releases.form.fields.releaseDate')} error={fieldErrors.releaseDate && t(fieldErrors.releaseDate)}>
             <input
               type="date"
               className={clsx(inputClass, fieldErrors.releaseDate && inputErrorClass)}
@@ -245,8 +259,11 @@ export default function ReleaseFormPage() {
 
         {!isEdit && templateTaskCount !== undefined && (
           <p className="rounded-lg bg-accent/10 px-3 py-2 text-sm text-accent">
-            Checklist will start from the {form.type === ReleaseType.Album ? 'Album' : 'Single'} template (
-            {templateTaskCount} tasks).
+            {t('releases.form.templateHint', {
+              count: templateTaskCount,
+              template:
+                form.type === ReleaseType.Album ? t('releaseType.album') : t('releaseType.single'),
+            })}
           </p>
         )}
 
@@ -258,11 +275,11 @@ export default function ReleaseFormPage() {
           onUploadingChange={setCoverUploading}
         />
 
-        <Field label="UPC" hint="Optional — blank until DSP distribution">
-          <input className={`${inputClass} max-w-[16rem]`} value={form.upc} onChange={set('upc')} placeholder="e.g. 0123456789012" />
+        <Field label={t('releases.form.fields.upc')} hint={t('releases.form.hints.upc')}>
+          <input className={`${inputClass} max-w-[16rem]`} value={form.upc} onChange={set('upc')} placeholder={t('releases.form.placeholders.upc')} />
         </Field>
 
-        <Field label="Notes" hint="Optional">
+        <Field label={t('releases.form.fields.notes')} hint={t('common.optional')}>
           <textarea className={inputClass} rows={3} value={form.notes} onChange={set('notes')} />
         </Field>
 
@@ -281,20 +298,20 @@ export default function ReleaseFormPage() {
 
         {warnings.length > 0 && (
           <div className="mb-4 rounded-lg bg-warn/10 px-4 py-3 text-sm text-warnFg">
-            <p className="font-medium">Saved with warnings:</p>
+            <p className="font-medium">{t('releases.form.savedWithWarnings')}</p>
             <ul className="ml-4 list-disc">
-              {warnings.map((msg) => (
-                <li key={msg}>{msg}</li>
+              {warnings.map((w) => (
+                <li key={w.code}>{server.message(w)}</li>
               ))}
             </ul>
             {/* Both live inside the <form>, so they need an explicit type — the HTML default
                 is `submit`, which re-fired the create POST and duplicated the release. */}
             <div className="mt-3 flex gap-2">
               <Button type="button" variant="ghost" onClick={goBack}>
-                Go back
+                {t('common.goBack')}
               </Button>
               <Button type="button" variant="ghost" onClick={() => setWarnings([])}>
-                Keep editing
+                {t('releases.form.keepEditing')}
               </Button>
             </div>
           </div>
@@ -302,10 +319,10 @@ export default function ReleaseFormPage() {
 
         <div className="flex gap-2">
           <Button type="submit" disabled={saving || coverUploading}>
-            {saving ? 'Saving…' : isEdit ? 'Save changes' : 'Create release'}
+            {saving ? t('common.saving') : isEdit ? t('common.saveChanges') : t('releases.form.createRelease')}
           </Button>
           <Button type="button" variant="ghost" onClick={goBack}>
-            Cancel
+            {t('common.cancel')}
           </Button>
         </div>
       </form>

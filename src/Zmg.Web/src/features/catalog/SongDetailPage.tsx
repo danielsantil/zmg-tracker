@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
+import { Trans, useTranslation } from 'react-i18next';
 import { api, ApiError } from '@/api';
 import { useSong, useArtists, queryKeys } from '@/api/queries';
 import type { SongArtistInput } from '@/types';
@@ -18,6 +19,7 @@ import { SongArtistsEditor } from './components/SongArtistsEditor';
  */
 export default function SongDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const { t } = useTranslation();
   const goBack = useBackNavigation();
   const queryClient = useQueryClient();
   const { toast, toastVariant, showToast } = useToast();
@@ -57,16 +59,16 @@ export default function SongDetailPage() {
       void queryClient.invalidateQueries({ queryKey: queryKeys.songs() });
       void queryClient.invalidateQueries({ queryKey: queryKeys.pending });
       void queryClient.invalidateQueries({ queryKey: queryKeys.artists });
-      showToast('Saved.', 'success');
+      showToast(t('common.saved'), 'success');
     } catch (e) {
-      setErrors(e instanceof ApiError ? e.errors : ['Failed to save song.']);
+      setErrors(e instanceof ApiError ? e.messages : [t('songs.form.saveFailed')]);
     } finally {
       setSaving(false);
     }
   }
 
   if (isLoading) return <Loading />;
-  if (error) return <ErrorBanner error="Failed to load song." />;
+  if (error) return <ErrorBanner error={t('songs.detail.loadFailed')} />;
   if (!song) return null;
 
   // Drift is intentional (compilations, collab albums) — informational only, never blocks.
@@ -76,23 +78,23 @@ export default function SongDetailPage() {
   return (
     <div className="mx-auto max-w-xl">
       <button onClick={goBack} className="mb-4 text-sm text-muted hover:text-body">
-        ‹ Back
+        {t('common.back')}
       </button>
 
-      <h1 className="mb-6 text-2xl font-semibold text-strong">Song</h1>
+      <h1 className="mb-6 text-2xl font-semibold text-strong">{t('releases.detail.song')}</h1>
 
       {archived && (
         <div className="mb-4 rounded-lg border border-edge bg-panel/50 px-4 py-2.5 text-sm text-body">
-          Archived — read only. This song can't be edited or restored.
+          {t('songs.detail.archivedNote')}
         </div>
       )}
 
       <div className="space-y-4">
-        <Field label="Name">
+        <Field label={t('artists.form.name')}>
           <input className={inputClass} value={title} disabled={archived} onChange={(e) => setTitle(e.target.value)} />
         </Field>
 
-        <Field label="Main artist">
+        <Field label={t('releases.form.fields.mainArtist')}>
           <p className={`${inputClass} bg-panel/50 text-muted`}>
             {artists.find((a) => a.id === mainArtistId)?.name ?? song.mainArtistName}
           </p>
@@ -102,23 +104,27 @@ export default function SongDetailPage() {
           <div className="rounded-lg border border-edge bg-panel/50 px-3 py-2 text-xs text-muted">
             {drifts.map((r) => (
               <p key={r.releaseId}>
-                Main artist differs from release <span className="text-body">{r.title}</span> ({r.mainArtistName}).
+                <Trans
+                  i18nKey="songs.detail.artistDrift"
+                  values={{ release: r.title, artist: r.mainArtistName }}
+                  components={{ releaseTitle: <span className="text-body" /> }}
+                />
               </p>
             ))}
           </div>
         )}
 
-        <Field label="ISRC" hint="Optional — blank until DSP distribution">
+        <Field label={t('songs.form.isrc')} hint={t('songs.form.isrcHint')}>
           <input
             className={`${inputClass} max-w-[16rem]`}
             value={isrc}
             disabled={archived}
             onChange={(e) => setIsrc(e.target.value)}
-            placeholder="e.g. US-XXX-YY-NNNNN"
+            placeholder={t('songs.detail.isrcPlaceholder')}
           />
         </Field>
 
-        <Field label="Featured / collab artists" hint="Optional">
+        <Field label={t('songs.detail.feats')} hint={t('common.optional')}>
           <SongArtistsEditor
             artists={artists}
             value={songArtists}
@@ -133,7 +139,7 @@ export default function SongDetailPage() {
         {!archived && (
           <div className="flex gap-2">
             <Button onClick={save} disabled={saving}>
-              {saving ? 'Saving…' : 'Save changes'}
+              {saving ? t('common.saving') : t('common.saveChanges')}
             </Button>
           </div>
         )}
@@ -142,11 +148,11 @@ export default function SongDetailPage() {
       {/* Read-only: every release this song is on. The song's UPCs derive from here. */}
       <section className="mt-8 overflow-hidden rounded-xl border border-edge bg-panel">
         <div className="px-4 py-3 font-semibold text-strong">
-          Releases <span className="text-sm font-normal text-muted">({song.releases.length})</span>
+          {t('songs.detail.releases')} <span className="text-sm font-normal text-muted">({song.releases.length})</span>
         </div>
         <div className="border-t border-edge">
           {song.releases.length === 0 ? (
-            <p className="px-4 py-3 text-sm text-subtle">Not on any release yet.</p>
+            <p className="px-4 py-3 text-sm text-subtle">{t('songs.detail.noReleases')}</p>
           ) : (
             <ul>
               {song.releases.map((r) => (
@@ -158,11 +164,11 @@ export default function SongDetailPage() {
                     <span className="flex min-w-0 items-center gap-2">
                       <span className="truncate text-sm text-strong">{r.title}</span>
                       <TypeBadge type={r.type} />
-                      {r.isArchived && <span className="text-xs text-subtle">archived</span>}
+                      {r.isArchived && <span className="text-xs text-subtle">{t('tracks.archived')}</span>}
                     </span>
                     <span className="shrink-0 text-xs text-muted">
                       {r.releaseDate}
-                      {r.upc && <span className="ml-2"><b>UPC: {r.upc}</b></span>}
+                      {r.upc && <span className="ml-2"><b>{t('songs.detail.upcValue', { upc: r.upc })}</b></span>}
                     </span>
                   </Link>
                 </li>

@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import type { Artist, SongArtistInput } from '@/types';
 import { ArtistRole } from '@/types';
 import { inputClass } from '@/components';
@@ -20,6 +21,7 @@ export function SongArtistsEditor({
   mainArtistId: string;
   disabled?: boolean;
 }) {
+  const { t } = useTranslation();
   const otherArtists = artists.filter((a) => a.id !== mainArtistId);
   if (otherArtists.length === 0) return null;
 
@@ -57,8 +59,8 @@ export function SongArtistsEditor({
                 disabled={disabled}
                 onChange={(e) => setRole(a.id, Number(e.target.value) as ArtistRole)}
               >
-                <option value={ArtistRole.Featured}>Featured</option>
-                <option value={ArtistRole.Collab}>Collab</option>
+                <option value={ArtistRole.Featured}>{t('artistRole.featured')}</option>
+                <option value={ArtistRole.Collab}>{t('artistRole.collab')}</option>
               </select>
             )}
           </div>

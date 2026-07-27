@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { ImagePlus, Loader2 } from 'lucide-react';
 import clsx from 'clsx';
+import { Trans, useTranslation } from 'react-i18next';
 import { api, errorMessage } from '@/api';
 import { Button, inputClass } from '@/components';
 
@@ -24,6 +25,7 @@ export function CoverField({
       previous coverUrl (or none) and silently orphan the image being stored. */
   onUploadingChange?: (uploading: boolean) => void;
 }) {
+  const { t } = useTranslation();
   const fileInput = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,7 +47,7 @@ export function CoverField({
       setUrl('');
     } catch (e) {
       // The form stays usable — a failed cover never blocks saving the release.
-      setError(errorMessage(e, 'Could not upload that image.'));
+      setError(errorMessage(e, t('cover.uploadFailed')));
     } finally {
       setBusy(false);
     }
@@ -57,11 +59,11 @@ export function CoverField({
     e.target.value = ''; // so re-picking the same file still fires change
     if (!file) return;
     if (!ALLOWED_TYPES.includes(file.type)) {
-      setError('Cover must be a PNG, JPEG or WebP image.');
+      setError(t('cover.badType'));
       return;
     }
     if (file.size > MAX_BYTES) {
-      setError('Cover image must be 5 MB or smaller.');
+      setError(t('cover.tooLarge'));
       return;
     }
     void upload(() => api.uploads.cover(file));
@@ -74,14 +76,14 @@ export function CoverField({
 
   return (
     <div className="block">
-      <span className="mb-1 block text-sm font-medium text-body">Cover</span>
+      <span className="mb-1 block text-sm font-medium text-body">{t('cover.label')}</span>
 
       <div className="flex items-start gap-3">
         <button
           type="button"
           onClick={() => fileInput.current?.click()}
           disabled={uploading}
-          aria-label={value ? 'Replace cover image' : 'Upload cover image'}
+          aria-label={value ? t('cover.replaceAria') : t('cover.uploadAria')}
           className={clsx(
             'grid h-24 w-24 shrink-0 place-items-center overflow-hidden rounded-lg border border-edge bg-panel transition',
             !uploading && 'hover:border-accent',
@@ -101,7 +103,7 @@ export function CoverField({
           {value ? (
             <div className="flex flex-wrap gap-2">
               <Button type="button" variant="ghost" onClick={() => fileInput.current?.click()} disabled={uploading}>
-                Replace
+                {t('cover.replace')}
               </Button>
               <Button
                 type="button"
@@ -112,7 +114,7 @@ export function CoverField({
                 }}
                 disabled={uploading}
               >
-                Remove
+                {t('cover.remove')}
               </Button>
             </div>
           ) : urlOpen ? (
@@ -131,20 +133,23 @@ export function CoverField({
                 autoFocus
               />
               <Button type="button" onClick={submitUrl} disabled={uploading || !url.trim()}>
-                Use
+                {t('cover.use')}
               </Button>
             </div>
           ) : (
             <p className="text-xs text-subtle">
-              PNG, JPEG or WebP, up to 5 MB — or{' '}
-              <button
-                type="button"
-                className="text-accent underline underline-offset-2"
-                onClick={() => setUrlOpen(true)}
-              >
-                paste an image URL
-              </button>
-              .
+              <Trans
+                i18nKey="cover.hint"
+                components={{
+                  pasteUrl: (
+                    <button
+                      type="button"
+                      className="text-accent underline underline-offset-2"
+                      onClick={() => setUrlOpen(true)}
+                    />
+                  ),
+                }}
+              />
             </p>
           )}
 

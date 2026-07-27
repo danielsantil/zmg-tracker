@@ -77,7 +77,9 @@ public class ZmgDbContext(DbContextOptions<ZmgDbContext> options) : DbContext(op
         b.Entity<ReleaseTask>(e =>
         {
             e.HasKey(x => x.Id);
-            e.Property(x => x.Title).IsRequired();
+            // English is required and is the fallback; Spanish is nullable, and null legitimately means
+            // "reads the same in both languages" rather than "not translated yet".
+            e.Property(x => x.TitleEn).IsRequired();
             e.HasOne(x => x.Release)
                 .WithMany(r => r.Tasks)
                 .HasForeignKey(x => x.ReleaseId)
@@ -96,7 +98,12 @@ public class ZmgDbContext(DbContextOptions<ZmgDbContext> options) : DbContext(op
         b.Entity<TemplateTask>(e =>
         {
             e.HasKey(x => x.Id);
-            e.Property(x => x.Title).IsRequired();
+            e.Property(x => x.TitleEn).IsRequired();
+            // Code is the stable identity of a seeded task, null for user-added ones. Unique per
+            // template — a filtered index would exclude the nulls, but SQLite and Postgres disagree on
+            // filtered-index syntax and the tests run SQLite, so uniqueness stays an app-level invariant
+            // of SeedData and the index exists for lookup.
+            e.HasIndex(x => new { x.ChecklistTemplateId, x.Code });
         });
 
         // Seed both templates and their tasks (build-plan.md section 5.4).
@@ -110,7 +117,9 @@ public class ZmgDbContext(DbContextOptions<ZmgDbContext> options) : DbContext(op
             {
                 Id = task.Id,
                 ChecklistTemplateId = task.ChecklistTemplateId,
-                Title = task.Title,
+                Code = task.Code,
+                TitleEn = task.TitleEn,
+                TitleEs = task.TitleEs,
                 Phase = task.Phase,
                 SortOrder = task.SortOrder,
                 MinDaysBefore = task.MinDaysBefore,

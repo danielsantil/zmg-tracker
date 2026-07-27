@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom';
 import { cva } from 'class-variance-authority';
 import { EllipsisVertical } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 /**
  * The `⋮` row-actions button plus its dropdown. The menu renders with `fixed`
@@ -17,11 +18,12 @@ import { EllipsisVertical } from 'lucide-react';
  */
 export function RowMenu({
   children,
-  label = 'Task actions',
+  label,
 }: {
   children: (close: () => void) => ReactNode;
   label?: string;
 }) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<React.CSSProperties | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
@@ -60,7 +62,7 @@ export function RowMenu({
     <>
       <button
         ref={btnRef}
-        aria-label={label}
+        aria-label={label ?? t('common.taskActions')}
         className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-edge hover:text-body"
         onClick={() => (open ? setOpen(false) : openMenu())}
       >

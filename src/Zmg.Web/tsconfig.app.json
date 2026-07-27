@@ -6,6 +6,8 @@
     "module": "esnext",
     "types": ["vite/client"],
     "allowArbitraryExtensions": true,
+    /* Locale bundles are imported as modules, and `t()` is typed off en.json (src/i18n). */
+    "resolveJsonModule": true,
     "skipLibCheck": true,
 
     /* Path alias */

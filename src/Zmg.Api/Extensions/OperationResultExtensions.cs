@@ -35,7 +35,9 @@ public static class OperationResultExtensions
         ResultStatus.NotFound => Results.NotFound(),
         ResultStatus.ValidationFailed => Results.BadRequest(new ValidationErrorResponse(result.Errors.ToArray())),
         ResultStatus.Conflict => Results.Conflict(new ValidationErrorResponse(result.Errors.ToArray())),
-        ResultStatus.Problem => Results.Problem(result.Errors.FirstOrDefault() ?? "Unexpected error."),
+        // Problem detail stays developer-facing prose (it rides in Message.Code by convention, since
+        // a 500 is never rendered to the user) — the one string on the wire M46 doesn't code.
+        ResultStatus.Problem => Results.Problem(result.Errors.Select(e => e.Code).FirstOrDefault() ?? "Unexpected error."),
         _ => Results.Problem("Unexpected operation result."),
     };
 }

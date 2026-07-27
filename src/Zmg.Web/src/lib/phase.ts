@@ -3,11 +3,16 @@ import { Phase } from '@/types';
 /** Canonical phase ordering used everywhere phases are listed. */
 export const PHASE_ORDER: Phase[] = [Phase.Pre, Phase.Release, Phase.Post];
 
-export const phaseLabels: Record<Phase, string> = {
-  [Phase.Pre]: 'Pre',
-  [Phase.Release]: 'Release',
-  [Phase.Post]: 'Post',
-};
+/**
+ * Translation keys for the three phases (M43) — a `t()` call away from a label. Kept as a static
+ * map rather than a template literal so a renamed key is a compile error, not a key path rendered
+ * raw on screen.
+ */
+export const phaseLabelKeys = {
+  [Phase.Pre]: 'phase.pre',
+  [Phase.Release]: 'phase.release',
+  [Phase.Post]: 'phase.post',
+} as const satisfies Record<Phase, string>;
 
 /**
  * Group a flat task list into a phase→tasks map in canonical order, each phase sorted by sortOrder.

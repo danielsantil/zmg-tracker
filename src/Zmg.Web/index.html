@@ -11,8 +11,11 @@
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <script>
-      // Set data-theme before first paint so a light-mode reload never flashes dark. A saved choice
-      // (zmg.theme, JSON) wins, else follow the OS. Mirrors resolveInitialTheme() in hooks/useTheme.ts.
+      // Stamp theme and language onto <html> before first paint. Theme: a light-mode reload must
+      // never flash dark. Language: screen readers and spellcheck read `lang` at first paint, before
+      // React mounts. Both take a saved choice (zmg.theme / zmg.lang, JSON) first, else follow the
+      // OS / browser. Mirrors resolveInitialTheme() in hooks/useTheme.ts and resolveInitialLanguage()
+      // in i18n/language.ts — keep them in sync.
       (function () {
         try {
           var raw = localStorage.getItem('zmg.theme');
@@ -23,6 +26,17 @@
           document.documentElement.dataset.theme = t;
         } catch (e) {
           document.documentElement.dataset.theme = 'dark';
+        }
+        try {
+          var savedLang = localStorage.getItem('zmg.lang');
+          var l = savedLang ? JSON.parse(savedLang) : null;
+          if (l !== 'en' && l !== 'es') {
+            l = (navigator.language || 'en').split('-')[0];
+            if (l !== 'es') l = 'en';
+          }
+          document.documentElement.lang = l;
+        } catch (e) {
+          document.documentElement.lang = 'en';
         }
       })();
     </script>
