@@ -11,9 +11,9 @@ public class TemplateCopyTests
         Type = ReleaseType.Single,
         Tasks =
         {
-            new TemplateTask { Id = Guid.NewGuid(), Title = "Mix/master", Phase = Phase.Pre, SortOrder = 0 },
+            new TemplateTask { Id = Guid.NewGuid(), Code = TaskCodes.MixMaster, Title = "Mix/master", Phase = Phase.Pre, SortOrder = 0 },
             new TemplateTask { Id = Guid.NewGuid(), Title = "Design cover", Phase = Phase.Pre, SortOrder = 1 },
-            new TemplateTask { Id = Guid.NewGuid(), Title = "Distribute to DSPs", Phase = Phase.Pre, SortOrder = 2, MinDaysBefore = 7, MaxDaysBefore = 14 },
+            new TemplateTask { Id = Guid.NewGuid(), Code = TaskCodes.DistributeToDsps, Title = "Distribute to DSPs", Phase = Phase.Pre, SortOrder = 2, MinDaysBefore = 7, MaxDaysBefore = 14 },
             new TemplateTask { Id = Guid.NewGuid(), Title = "Smart link", Phase = Phase.Release, SortOrder = 0 },
             new TemplateTask { Id = Guid.NewGuid(), Title = "Meta ads", Phase = Phase.Post, SortOrder = 0 },
         }
@@ -93,5 +93,20 @@ public class TemplateCopyTests
         var mix = tasks.Single(t => t.Title == "Mix/master");
         Assert.Null(mix.MinDaysBefore);
         Assert.Null(mix.MaxDaysBefore);
+    }
+
+    [Fact]
+    public void CopyToRelease_stamps_the_stable_source_code()
+    {
+        // M47: the code is the lineage that survives — SourceTemplateTaskId alone doesn't outlive the
+        // template task being deleted or renumbered, and IsDistributed plus translation both key off it.
+        var template = SampleTemplate();
+
+        var tasks = TemplateCopy.CopyToRelease(template, Guid.NewGuid());
+
+        Assert.Equal(TaskCodes.MixMaster, tasks.Single(t => t.Title == "Mix/master").SourceCode);
+        Assert.Equal(TaskCodes.DistributeToDsps, tasks.Single(t => t.Title == "Distribute to DSPs").SourceCode);
+        // A template task with no code (one the user added in the editor) copies as user content.
+        Assert.Null(tasks.Single(t => t.Title == "Smart link").SourceCode);
     }
 }

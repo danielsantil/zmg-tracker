@@ -13,7 +13,7 @@ namespace Zmg.Api.Services;
 /// small and single-purpose; the frontend recomputes progress from the task list.
 /// Every write is gated on <see cref="ReleaseMutability"/> — archived releases are read-only (M25).
 /// </summary>
-public sealed class ReleaseTaskService(ZmgDbContext db) : IReleaseTaskService
+public sealed class ReleaseTaskService(ZmgDbContext db, ITaskTranslationService translations) : IReleaseTaskService
 {
     public async Task<OperationResult<ReleaseTaskDto>> AddAsync(Guid releaseId, AddTaskInput input, CancellationToken ct = default)
     {
@@ -43,7 +43,7 @@ public sealed class ReleaseTaskService(ZmgDbContext db) : IReleaseTaskService
         db.ReleaseTasks.Add(task);
         await db.SaveChangesAsync(ct);
 
-        return OperationResult<ReleaseTaskDto>.Success(ToDto(task));
+        return OperationResult<ReleaseTaskDto>.Success(ToDto(task, await translations.ForRequestLocaleAsync(ct)));
     }
 
     public async Task<OperationResult<ReleaseTaskDto>> UpdateAsync(Guid id, UpdateTaskInput input, CancellationToken ct = default)
@@ -64,13 +64,27 @@ public sealed class ReleaseTaskService(ZmgDbContext db) : IReleaseTaskService
             task.Phase = input.Phase;
         }
 
-        task.Title = input.Title.Trim();
+        // A real title edit makes the task custom: store the new text and drop the code, so a language
+        // switch can never silently revert what the user typed (M47).
+        //
+        // "Real" is measured against the text they were *shown*, not the stored English one. The SPA
+        // sends the whole editable row back on any edit — a phase move round-trips the title verbatim —
+        // so comparing against the column would let a Spanish reader's phase move overwrite the English
+        // title with its own translation and orphan the code, for every task, silently.
+        var text = await translations.ForRequestLocaleAsync(ct);
+        var newTitle = input.Title.Trim();
+        if (!string.Equals(newTitle, TaskText.Resolve(task.SourceCode, task.Title, text), StringComparison.Ordinal))
+        {
+            task.Title = newTitle;
+            task.SourceCode = null;
+        }
+
         task.Notes = string.IsNullOrWhiteSpace(input.Notes) ? null : input.Notes.Trim();
         task.MinDaysBefore = input.MinDaysBefore;
         task.MaxDaysBefore = input.MaxDaysBefore;
         await db.SaveChangesAsync(ct);
 
-        return OperationResult<ReleaseTaskDto>.Success(ToDto(task));
+        return OperationResult<ReleaseTaskDto>.Success(ToDto(task, text));
     }
 
     public async Task<OperationResult<ReleaseTaskDto>> ToggleAsync(Guid id, CancellationToken ct = default)
@@ -84,7 +98,7 @@ public sealed class ReleaseTaskService(ZmgDbContext db) : IReleaseTaskService
         task.CompletedAt = task.IsDone ? DateTime.UtcNow : null;
         await db.SaveChangesAsync(ct);
 
-        return OperationResult<ReleaseTaskDto>.Success(ToDto(task));
+        return OperationResult<ReleaseTaskDto>.Success(ToDto(task, await translations.ForRequestLocaleAsync(ct)));
     }
 
     public async Task<OperationResult> ReorderAsync(Guid releaseId, ReorderTasksInput input, CancellationToken ct = default)
@@ -127,6 +141,10 @@ public sealed class ReleaseTaskService(ZmgDbContext db) : IReleaseTaskService
             .Select(t => (int?)t.SortOrder)
             .MaxAsync(ct) ?? -1) + 1;
 
-    private static ReleaseTaskDto ToDto(ReleaseTask t) =>
-        new(t.Id, t.Title, t.Phase, t.SortOrder, t.IsDone, t.CompletedAt, t.Notes, t.MinDaysBefore, t.MaxDaysBefore);
+    // Mutation responses replace the row in the SPA's local state, so they must answer in the request's
+    // locale (M47) — otherwise toggling a task while reading Spanish would flip its title to English.
+    // After a title edit SourceCode is null, so this correctly echoes the user's own text.
+    private static ReleaseTaskDto ToDto(ReleaseTask t, IReadOnlyDictionary<string, string> text) =>
+        new(t.Id, TaskText.Resolve(t.SourceCode, t.Title, text), t.Phase, t.SortOrder,
+            t.IsDone, t.CompletedAt, t.Notes, t.MinDaysBefore, t.MaxDaysBefore);
 }

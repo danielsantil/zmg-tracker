@@ -14,8 +14,12 @@ public class PendingActionsTests
         Builders.Release(date, title, upc, type, tasks: tasks);
 
     private static ReleaseTask Task(string title, Phase phase = Phase.Pre, bool done = false,
-        int? min = null, int? max = null, int sort = 0) =>
-        Builders.Task(title, phase, done, min, max, sort);
+        int? min = null, int? max = null, int sort = 0, string? sourceCode = null) =>
+        Builders.Task(title, phase, done, min, max, sort, sourceCode);
+
+    /// <summary>The seeded DSP-distribution task — identified by its code, not its title (M47).</summary>
+    private static ReleaseTask DistributeTask(bool done) =>
+        Task(SeedData.DistributeToDspsTitle, done: done, sourceCode: TaskCodes.DistributeToDsps);
 
     [Fact]
     public void Task_with_no_timeframe_never_pends()
@@ -60,12 +64,12 @@ public class PendingActionsTests
     {
         // Distribute not done → no missing-UPC action even with blank UPC.
         var notDist = Rel(Today.AddDays(-5),
-            tasks: Task(SeedData.DistributeToDspsTitle, done: false));
+            tasks: DistributeTask(done: false));
         Assert.Empty(PendingActions.Compute(notDist, Today));
 
         // Distribute done, UPC blank → one missing-UPC action (release-owned).
         var dist = Rel(Today.AddDays(-5),
-            tasks: Task(SeedData.DistributeToDspsTitle, done: true));
+            tasks: DistributeTask(done: true));
         var action = Assert.Single(PendingActions.Compute(dist, Today));
         Assert.Equal(PendingKind.MissingUpc, action.Kind);
         Assert.Equal(ReleaseWarnings.MissingUpc, action.Label);
@@ -75,7 +79,7 @@ public class PendingActionsTests
 
         // UPC filled → no missing-UPC action.
         var filled = Rel(Today.AddDays(-5), upc: "u",
-            tasks: Task(SeedData.DistributeToDspsTitle, done: true));
+            tasks: DistributeTask(done: true));
         Assert.Empty(PendingActions.Compute(filled, Today));
     }
 
@@ -151,7 +155,7 @@ public class PendingActionsTests
         var far = Rel(Today.AddDays(12), title: "Far", tasks: Task("Pitch to Spotify", min: 7, max: 14));
         var near = Rel(Today.AddDays(3), title: "Near", tasks: Task("Distribute to DSPs", min: 7, max: 14));
         var missing = Rel(Today.AddDays(-2), title: "Missing",
-            tasks: Task(SeedData.DistributeToDspsTitle, done: true));
+            tasks: DistributeTask(done: true));
 
         var all = new[] { far, near, missing }
             .SelectMany(r => PendingActions.Compute(r, Today));

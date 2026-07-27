@@ -17,7 +17,7 @@ namespace Zmg.Api.Services;
 /// <see cref="ReleaseStatus"/>, <see cref="ReleaseArchival"/>, <see cref="ReleaseMutability"/>,
 /// <see cref="PendingActions"/>); this loads/persists and maps to DTOs.
 /// </summary>
-public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
+public sealed class ReleaseService(ZmgDbContext db, ITaskTranslationService translations) : IReleaseService
 {
     // List with progress counts (done/total) and derived status. Filterable.
     // scope=home returns only forward-looking active releases (releaseDate >= today) ordered nearest-first;
@@ -54,7 +54,7 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
                 Done = r.Tasks.Count(x => x.IsDone),
                 Total = r.Tasks.Count,
                 TrackCount = r.Tracks.Count,
-                Distributed = r.Tasks.Any(x => x.IsDone && x.Title == SeedData.DistributeToDspsTitle),
+                Distributed = r.Tasks.Any(x => x.IsDone && x.SourceCode == TaskCodes.DistributeToDsps),
             })
             .ToListAsync(ct);
 
@@ -80,7 +80,7 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
         var release = await db.Releases.AsNoTracking().WithDetailIncludes().FirstOrDefaultAsync(r => r.Id == id, ct);
         if (release is null) return OperationResult<ReleaseDetailDto>.NotFound();
 
-        return OperationResult<ReleaseDetailDto>.Success(ToDetail(release));
+        return OperationResult<ReleaseDetailDto>.Success(ToDetail(release, await translations.ForRequestLocaleAsync(ct)));
     }
 
     // Create; copies the default template for the type onto the release and materialises the inline
@@ -110,7 +110,8 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
         await db.SaveChangesAsync(ct);
 
         var created = await db.Releases.AsNoTracking().WithDetailIncludes().FirstAsync(r => r.Id == release.Id, ct);
-        return OperationResult<ReleaseDetailDto>.Success(ToDetail(created), validation.Warnings);
+        return OperationResult<ReleaseDetailDto>.Success(
+            ToDetail(created, await translations.ForRequestLocaleAsync(ct)), validation.Warnings);
     }
 
     // Structural + per-artist title rules for a create. The title-clash rule (incl. within-request
@@ -180,11 +181,11 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
         foreach (var task in release.Tasks) task.ReleaseId = release.Id;
 
         // Backfill (v2.0 simplified): a release dated in the past was, by definition, already
-        // distributed — auto-check its "Distribute to DSPs" task. Identifiers no longer imply
-        // distribution (the ISRC branch moved to the song).
+        // distributed — auto-check its DSP-distribution task. Identifiers no longer imply distribution
+        // (the ISRC branch moved to the song). Keyed off the stable code, not the title (M47).
         if (release.ReleaseDate < today)
         {
-            var distribute = release.Tasks.FirstOrDefault(t => t.Title == SeedData.DistributeToDspsTitle);
+            var distribute = release.Tasks.FirstOrDefault(t => t.SourceCode == TaskCodes.DistributeToDsps);
             if (distribute is not null)
             {
                 distribute.IsDone = true;
@@ -266,7 +267,8 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
         if (release.MainArtist?.Id != release.MainArtistId)
             await db.Entry(release).Reference(r => r.MainArtist).LoadAsync(ct);
 
-        return OperationResult<ReleaseDetailDto>.Success(ToDetail(release), validation.Warnings);
+        return OperationResult<ReleaseDetailDto>.Success(
+            ToDetail(release, await translations.ForRequestLocaleAsync(ct)), validation.Warnings);
     }
 
     // Preview the archive cascade (2.0 improvement): the titles of the songs that would archive alongside
@@ -348,7 +350,9 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
             .Include(t => t.Tasks)
             .FirstOrDefaultAsync(t => t.Type == type, ct);
 
-    private static ReleaseDetailDto ToDetail(Release release)
+    // `text` is the request-locale checklist map (M47); each task resolves through its SourceCode
+    // and falls back to the stored English title, so an edited or user-added task stays verbatim.
+    private static ReleaseDetailDto ToDetail(Release release, IReadOnlyDictionary<string, string> text)
     {
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
         var progress = ProgressCalculator.Calculate(release.Tasks);
@@ -361,8 +365,8 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
                     .Where(t => t.Phase == phase)
                     .OrderBy(t => t.SortOrder)
                     .Select(t => new ReleaseTaskDto(
-                        t.Id, t.Title, t.Phase, t.SortOrder, t.IsDone, t.CompletedAt, t.Notes,
-                        t.MinDaysBefore, t.MaxDaysBefore))
+                        t.Id, TaskText.Resolve(t.SourceCode, t.Title, text), t.Phase, t.SortOrder,
+                        t.IsDone, t.CompletedAt, t.Notes, t.MinDaysBefore, t.MaxDaysBefore))
                     .ToList();
                 return new PhaseGroupDto(phase, count.Done, count.Total, tasks);
             })

@@ -32,7 +32,10 @@ public static class TemplateCopy
                 Notes = null,
                 MinDaysBefore = t.MinDaysBefore,
                 MaxDaysBefore = t.MaxDaysBefore,
-                SourceTemplateTaskId = t.Id
+                SourceTemplateTaskId = t.Id,
+                // Stable lineage (M47): the GUID alone doesn't survive a deleted or renumbered
+                // template task, and per-locale text plus IsDistributed both key off this.
+                SourceCode = t.Code
             })
             .ToList();
     }

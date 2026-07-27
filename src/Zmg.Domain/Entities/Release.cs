@@ -34,8 +34,13 @@ public class Release
     public List<ReleaseTask> Tasks { get; set; } = new();
     public List<Track> Tracks { get; set; } = new();
 
-    /// <summary>True once the release's "Distribute to DSPs" task is checked.</summary>
-    public bool IsDistributed => Tasks.Any(t => t is { Title: SeedData.DistributeToDspsTitle, IsDone: true });
+    /// <summary>
+    /// True once the release's DSP-distribution task is checked. Keys off the stable
+    /// <see cref="ReleaseTask.SourceCode"/>, never the title (M47) — matching the literal English
+    /// <c>"Distribute to DSPs"</c> meant one Spanish title would have silently stopped the UPC warning,
+    /// the pending engine and the past-date backfill from firing.
+    /// </summary>
+    public bool IsDistributed => Tasks.Any(t => t is { SourceCode: TaskCodes.DistributeToDsps, IsDone: true });
 
     /// <summary>
     /// Whether a soft identifier warning should show: distributed, and the UPC still blank (v2.0 —

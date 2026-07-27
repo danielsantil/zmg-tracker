@@ -14,6 +14,7 @@ public class ZmgDbContext(DbContextOptions<ZmgDbContext> options) : DbContext(op
     public DbSet<ReleaseTask> ReleaseTasks => Set<ReleaseTask>();
     public DbSet<ChecklistTemplate> ChecklistTemplates => Set<ChecklistTemplate>();
     public DbSet<TemplateTask> TemplateTasks => Set<TemplateTask>();
+    public DbSet<TemplateTaskTranslation> TemplateTaskTranslations => Set<TemplateTaskTranslation>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -97,6 +98,22 @@ public class ZmgDbContext(DbContextOptions<ZmgDbContext> options) : DbContext(op
         {
             e.HasKey(x => x.Id);
             e.Property(x => x.Title).IsRequired();
+            // Code is the stable identity of a seeded task (M47), null for user-added ones. Unique per
+            // template — a filtered index would exclude the nulls, but SQLite and Postgres disagree on
+            // filtered-index syntax and the tests run SQLite, so uniqueness stays an app-level invariant
+            // of SeedData and the index exists for lookup.
+            e.HasIndex(x => new { x.ChecklistTemplateId, x.Code });
+            e.HasMany(x => x.Translations)
+                .WithOne(t => t.TemplateTask!)
+                .HasForeignKey(t => t.TemplateTaskId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<TemplateTaskTranslation>(e =>
+        {
+            e.HasKey(x => new { x.TemplateTaskId, x.Locale });
+            e.Property(x => x.Locale).IsRequired().HasMaxLength(8);
+            e.Property(x => x.Text).IsRequired();
         });
 
         // Seed both templates and their tasks (build-plan.md section 5.4).
@@ -110,6 +127,7 @@ public class ZmgDbContext(DbContextOptions<ZmgDbContext> options) : DbContext(op
             {
                 Id = task.Id,
                 ChecklistTemplateId = task.ChecklistTemplateId,
+                Code = task.Code,
                 Title = task.Title,
                 Phase = task.Phase,
                 SortOrder = task.SortOrder,

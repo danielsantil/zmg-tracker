@@ -20,7 +20,14 @@ public static class ServiceRegistrationExtensions
         services.AddScoped<ITrackService, TrackService>();
         services.AddScoped<ITemplateService, TemplateService>();
         services.AddScoped<IReleaseTaskService, ReleaseTaskService>();
-        
+
+        // Checklist translations (M47). LocaleAccessor reads the request headers, so it needs the
+        // accessor; both are scoped because the locale — and the map it selects — is per request.
+        services.AddHttpContextAccessor();
+        services.AddScoped<ILocaleAccessor, LocaleAccessor>();
+        services.AddScoped<ITaskTranslationService, TaskTranslationService>();
+
+
         // Cover images (M31). R2 is required at startup (M35) — the env-var validator fails the boot if any
         // R2:* setting is missing, so the eagerly-built S3 client always has real credentials to work with.
         services.Configure<R2Options>(configuration.GetSection(R2Options.SectionName));

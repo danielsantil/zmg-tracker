@@ -11,11 +11,14 @@ namespace Zmg.Domain.Tests;
 internal static class Builders
 {
     public static ReleaseTask Task(string title = "Task", Phase phase = Phase.Pre, bool done = false,
-        int? min = null, int? max = null, int sort = 0) =>
+        int? min = null, int? max = null, int sort = 0, string? sourceCode = null) =>
         new()
         {
             Id = Guid.NewGuid(),
             Title = title,
+            // Null by default — that's a user-added task, which is exactly right for most fixtures.
+            // Tests that exercise a *seeded* task (IsDistributed, translation) pass the code (M47).
+            SourceCode = sourceCode,
             Phase = phase,
             SortOrder = sort,
             IsDone = done,

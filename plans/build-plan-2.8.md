@@ -312,14 +312,36 @@ release-create warning, in both languages.
 ## M47 — DB-authored checklist translations (schema + resolution)
 
 ```
-[ ] 1. TemplateTask.Code + ReleaseTask.SourceCode          ← Code change
-[ ] 2. TemplateTaskTranslation entity + DbContext config   ← Code change
-[ ] 3. Migration + backfill of both columns                ← Code change
-[ ] 4. IsDistributed off Code, not Title                   ← Code change  (see locked decisions)
-[ ] 5. X-Lang header + locale resolution in the services   ← Code change
-[ ] 6. Editing a task title clears SourceCode              ← Code change
-[ ] 7. Tests: copy, resolution, fallback, backfill         ← Code change
+[x] 1. TemplateTask.Code + ReleaseTask.SourceCode          ← Code change  (+ TaskCodes.cs, 41 slugs)
+[x] 2. TemplateTaskTranslation entity + DbContext config   ← Code change
+[x] 3. Migration + backfill of both columns                ← Code change  (applied to dev Neon, verified)
+[x] 4. IsDistributed off Code, not Title                   ← Code change  (see locked decisions)
+[x] 5. X-Lang header + locale resolution in the services   ← Code change  (+ query invalidation)
+[x] 6. Editing a task title clears SourceCode              ← Code change  (see the trap below)
+[x] 7. Tests: copy, resolution, fallback, backfill         ← Code change  (domain 134, API 213)
 ```
+
+**Landed.** Four things the plan didn't anticipate, each now covered by a test:
+
+- **A title "edit" must be measured against the text the user was *shown*, not the stored column.**
+  The SPA sends the whole editable row back on any change, so a phase move round-trips the title
+  verbatim — in Spanish, that's the *translation*. Comparing against `Title` would have read every
+  Spanish phase move as an edit, overwriting the English column and orphaning the code, silently and
+  for every task. Both update paths compare against `TaskText.Resolve(...)` instead.
+- **Mutation responses have to be locale-resolved too.** `useReleaseTasks` replaces its local row with
+  whatever the server returns, so an English echo would flip a task's title mid-list for a Spanish
+  reader on every toggle. `ReleaseTaskService`/`TemplateService` run their responses through the same
+  mapper as the reads; after a title edit the code is null, so the user's own text still wins.
+- **A language switch has to invalidate the query cache.** Chrome text re-renders on its own, but every
+  cached API payload is now in the previous language. `useLanguage` calls
+  `queryClient.invalidateQueries()`, and the task hooks already reseed from the refetch.
+- **The backfill SQL is hand-written, so it has to be provider-portable.** Migrations are
+  Postgres-specific by rule, but the API tests get their SQLite schema by *running* them — so
+  `UPDATE…FROM` was replaced with a correlated subquery, which is standard on both.
+
+`PendingActions.Compute` takes the text map as an optional argument rather than reading it, keeping the
+engine pure; `TaskTranslationService` memoizes per request and short-circuits `en` to an empty map,
+since English is the `Title` column and never a translation row.
 
 The mechanism, shipped with English-only rows. M48 fills in Spanish. Splitting them keeps a schema
 migration and a content review out of the same commit.

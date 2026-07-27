@@ -12,7 +12,7 @@ namespace Zmg.Api.Services;
 /// Template management (M3). Edits here only shape *future* releases — existing releases
 /// own a snapshot copy taken on create, so nothing here touches live checklists.
 /// </summary>
-public sealed class TemplateService(ZmgDbContext db) : ITemplateService
+public sealed class TemplateService(ZmgDbContext db, ITaskTranslationService translations) : ITemplateService
 {
     public async Task<IReadOnlyList<TemplateDto>> ListAsync(CancellationToken ct = default)
     {
@@ -21,7 +21,8 @@ public sealed class TemplateService(ZmgDbContext db) : ITemplateService
             .OrderBy(t => t.Type)
             .ToListAsync(ct);
 
-        return templates.Select(ToDto).ToList();
+        var text = await translations.ForRequestLocaleAsync(ct);
+        return templates.Select(t => ToDto(t, text)).ToList();
     }
 
     public async Task<OperationResult<TemplateTaskDto>> AddTaskAsync(Guid templateId, AddTemplateTaskInput input, CancellationToken ct = default)
@@ -48,7 +49,7 @@ public sealed class TemplateService(ZmgDbContext db) : ITemplateService
         db.TemplateTasks.Add(task);
         await db.SaveChangesAsync(ct);
 
-        return OperationResult<TemplateTaskDto>.Success(ToDto(task));
+        return OperationResult<TemplateTaskDto>.Success(ToDto(task, await translations.ForRequestLocaleAsync(ct)));
     }
 
     public async Task<OperationResult<TemplateTaskDto>> UpdateTaskAsync(Guid id, UpdateTemplateTaskInput input, CancellationToken ct = default)
@@ -67,12 +68,22 @@ public sealed class TemplateService(ZmgDbContext db) : ITemplateService
             task.Phase = input.Phase;
         }
 
-        task.Title = input.Title.Trim();
+        // Same rule as a release task (M47): a real title edit makes the task custom — new text stored,
+        // code dropped — and "real" is measured against the text the user was shown, not the English
+        // column, so a phase move in Spanish doesn't overwrite the title with its own translation.
+        var text = await translations.ForRequestLocaleAsync(ct);
+        var newTitle = input.Title.Trim();
+        if (!string.Equals(newTitle, TaskText.Resolve(task.Code, task.Title, text), StringComparison.Ordinal))
+        {
+            task.Title = newTitle;
+            task.Code = null;
+        }
+
         task.MinDaysBefore = input.MinDaysBefore;
         task.MaxDaysBefore = input.MaxDaysBefore;
         await db.SaveChangesAsync(ct);
 
-        return OperationResult<TemplateTaskDto>.Success(ToDto(task));
+        return OperationResult<TemplateTaskDto>.Success(ToDto(task, text));
     }
 
     public async Task<OperationResult> ReorderTasksAsync(Guid templateId, ReorderTemplateTasksInput input, CancellationToken ct = default)
@@ -114,7 +125,7 @@ public sealed class TemplateService(ZmgDbContext db) : ITemplateService
             .Select(t => (int?)t.SortOrder)
             .MaxAsync(ct) ?? -1) + 1;
 
-    private static TemplateDto ToDto(ChecklistTemplate template)
+    private static TemplateDto ToDto(ChecklistTemplate template, IReadOnlyDictionary<string, string> text)
     {
         var phases = Enum.GetValues<Phase>()
             .Select(phase => new TemplatePhaseGroupDto(
@@ -122,12 +133,17 @@ public sealed class TemplateService(ZmgDbContext db) : ITemplateService
                 template.Tasks
                     .Where(t => t.Phase == phase)
                     .OrderBy(t => t.SortOrder)
-                    .Select(ToDto)
+                    .Select(t => ToDto(t, text))
                     .ToList()))
             .ToList();
         return new TemplateDto(template.Id, template.Type, phases);
     }
 
-    private static TemplateTaskDto ToDto(TemplateTask t) =>
-        new(t.Id, t.Title, t.Phase, t.SortOrder, t.MinDaysBefore, t.MaxDaysBefore);
+    // Title is resolved per locale at read time (M47) — the stored row never changes, so a user's edit
+    // is never silently reverted and English is always the fallback. Mutation responses go through the
+    // same mapper: the SPA replaces its local row with what comes back, so English there would flip the
+    // list mid-edit for a Spanish reader.
+    private static TemplateTaskDto ToDto(TemplateTask t, IReadOnlyDictionary<string, string> text) =>
+        new(t.Id, TaskText.Resolve(t.Code, t.Title, text), t.Phase, t.SortOrder, t.MinDaysBefore, t.MaxDaysBefore);
+
 }

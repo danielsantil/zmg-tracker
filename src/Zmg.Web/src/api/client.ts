@@ -1,3 +1,4 @@
+import i18n from '@/i18n';
 import { translateMessage, type ServerMessage } from '@/i18n/serverText';
 
 /**
@@ -35,11 +36,16 @@ export function errorMessage(e: unknown, fallback: string): string {
 
 export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   // FormData sets its own multipart Content-Type *with the boundary* — forcing JSON here would make
-  // the server unable to parse the parts (cover upload, M31).
+  // the server unable to parse the parts (cover upload, M31). X-Lang rides on *both* branches: the
+  // API resolves checklist text per locale (M47), and a request that skips the header silently
+  // answers in English.
   const isFormData = init?.body instanceof FormData;
+  const localeHeader = { 'X-Lang': i18n.language };
   const res = await fetch(path, {
     ...init,
-    headers: isFormData ? init?.headers : { 'Content-Type': 'application/json', ...init?.headers },
+    headers: isFormData
+      ? { ...localeHeader, ...init?.headers }
+      : { 'Content-Type': 'application/json', ...localeHeader, ...init?.headers },
   });
 
   if (!res.ok) {

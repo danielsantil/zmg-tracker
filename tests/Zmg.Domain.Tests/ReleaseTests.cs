@@ -12,8 +12,12 @@ public class ReleaseTests
         {
             Tasks =
             [
+                // Identity is the code, not the title (M47) — a Spanish title must not change this.
                 new ReleaseTask
-                    { Id = Guid.NewGuid(), Title = SeedData.DistributeToDspsTitle, Phase = Phase.Pre, IsDone = false }
+                {
+                    Id = Guid.NewGuid(), Title = SeedData.DistributeToDspsTitle,
+                    SourceCode = TaskCodes.DistributeToDsps, Phase = Phase.Pre, IsDone = false,
+                }
             ]
         };
         Assert.False(release.IsDistributed);

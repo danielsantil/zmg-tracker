@@ -28,4 +28,14 @@ public class ReleaseTask
 
     /// <summary>Lineage back to the template task it was copied from. Nothing depends on it in v1.</summary>
     public Guid? SourceTemplateTaskId { get; set; }
+
+    /// <summary>
+    /// The <see cref="TaskCodes"/> slug this task was stamped with at copy time (v2.8/M47) — the
+    /// lineage that actually survives, unlike <see cref="SourceTemplateTaskId"/>, which the seed-data
+    /// renumbering hazard can invalidate and a deleted template task orphans outright. Drives
+    /// per-locale text resolution and <see cref="Release.IsDistributed"/>.
+    /// <b>Cleared when the user edits the title</b>: they have overridden the standard text, and a
+    /// translation silently reverting their edit on a language switch would be a bug.
+    /// </summary>
+    public string? SourceCode { get; set; }
 }

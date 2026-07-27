@@ -16,7 +16,7 @@ for where the project stands and the rules that span plans.
 - [build-plan-2.5.md](build-plan-2.5.md) — deployment · ACA/Neon/R2/Terraform/CI-CD (M29–M34). Shipped.
 - [build-plan-2.6.md](build-plan-2.6.md) — hardening · hard-delete · navbar · catalog fixes (M35–M38). Shipped.
 - [build-plan-2.7.md](build-plan-2.7.md) — infra hardening · remote state · cold start (M39–M42). Shipped.
-- [build-plan-2.8.md](build-plan-2.8.md) — multilingual EN/ES (M43–M48). **In progress: M43–M46 done.**
+- [build-plan-2.8.md](build-plan-2.8.md) — multilingual EN/ES (M43–M48). **In progress: M43–M47 done.**
 
 Newer plan versions go in new `build-plan-N.N.md` files; older ones stay frozen.
 
@@ -25,16 +25,17 @@ Newer plan versions go in new `build-plan-N.N.md` files; older ones stay frozen.
 to **Azure Container Apps** over **Neon Postgres**; covers live in **Cloudflare R2**; the hosted stack is
 codified in Terraform under [`infra/`](../infra/README.md), with remote state in Azure Storage. A
 **GitHub Actions pipeline** tests, builds a SHA-tagged image, applies migrations, deploys to ACA over
-OIDC, then ships the SPA to Cloudflare. Backend **domain 119 / API 204** (158 before M46), SPA **50
+OIDC, then ships the SPA to Cloudflare. Backend **domain 134 / API 213** (119/158 before v2.8), SPA **50
 Vitest** (32 before v2.8) — the pipeline gates on these. **Phase 2** (DSP stats, real-Postgres tests)
 follows v2.8 and starts a new `build-plan-3.0.md`.
 
 > 🚧 **v2.8 is in flight on `feat/i18n-multilingual`, branched off `dev` — not merged, not deployed.**
-> M43–M46 are committed and pushed: the SPA is fully EN/ES and the API now ships **codes, not prose**.
-> **M47 is next** — and it carries the one latent bug in this plan (`IsDistributed` matching an English
-> title), so it is not optional. Everything the next session needs is in
-> [build-plan-2.8.md](build-plan-2.8.md), whose per-milestone checklists are ticked through M46. The
-> deployed stack is untouched; **M47 adds the first migration of v2.8.**
+> M43–M47 are committed and pushed: the SPA is fully EN/ES, the API ships **codes, not prose**, and
+> checklist text now resolves **per locale off a stable task code**. **M48 is next** — it seeds the
+> Spanish task text and is the one milestone that **needs the user** (a review pass over the 41 titles).
+> Everything the next session needs is in [build-plan-2.8.md](build-plan-2.8.md), ticked through M47.
+> **M47 added a migration** (`TaskCodesAndTranslations`) — the first of v2.8, additive-only, already
+> applied to the dev Neon branch; prod gets it through the pipeline's EF bundle on merge.
 
 > ⚠️ **DB is Postgres (Neon) as of v2.5/M30.** Dev + prod both use `ConnectionStrings__Zmg` — **dev** via
 > `dotnet user-secrets` in `src/Zmg.Api` (never commit it), **prod** as an ACA secret. **Dev and tests
@@ -116,7 +117,7 @@ code change touches, so M41's 1.85s was invisible end-to-end and only M42 — sh
 of a blank page for the full ~17–22s — changed what a user actually experiences. ReadyToRun and an
 early `/api/health` wake were both measured and cut. See [build-plan-2.7.md](build-plan-2.7.md).
 
-**v2.8 (M43–M48) — multilingual EN/ES. IN PROGRESS: M43–M46 shipped on `feat/i18n-multilingual`.**
+**v2.8 (M43–M48) — multilingual EN/ES. IN PROGRESS: M43–M47 shipped on `feat/i18n-multilingual`.**
 react-i18next wired with both locales bundled (no HTTP backend — a round-trip would undo M42's edge
 first paint), language state mirroring `useTheme` including its persist-only-on-explicit-choice rule,
 `<html lang>` stamped pre-paint, and the language selector deferred from M37 finally in the navbar
@@ -127,8 +128,15 @@ helpers return *shapes* (`{ days: 3 }`) rather than sentences, because plural fo
 differ per language. Then **M46 took the prose off the wire entirely**: every server-minted sentence —
 42 of them, across validation errors, release warnings and pending-action labels — became a
 culture-invariant `Message` code the SPA renders, which is what lets the container keep
-`InvariantGlobalization=true` while the user reads Spanish. API tests **158 → 204**. **Still English on
-purpose:** all checklist task text (M47–M48).
+`InvariantGlobalization=true` while the user reads Spanish. API tests **158 → 204**. Then **M47** gave
+the checklist itself a per-locale identity: a stable `TaskCodes` slug on every seeded task
+(`TemplateTask.Code`, stamped onto `ReleaseTask.SourceCode` at copy time), a
+`TemplateTaskTranslation` child table, and `X-Lang` resolution at read time — so translating never
+rewrites a row and a user's edit is never reverted by a language switch. It also fixed the latent bug
+the plan flagged: `Release.IsDistributed` matched the literal English `"Distribute to DSPs"`, so one
+Spanish title would have silently stopped the UPC warning, the pending engine and the past-date
+backfill. Tests **domain 119 → 134, API 204 → 213**. **Still English:** the Spanish task text itself
+(M48 seeds it).
 
 ---
 
@@ -352,6 +360,31 @@ purpose:** all checklist task text (M47–M48).
   - **`MessageCodeApiTests` is the guard that matters**: it reflects over every code constant in both
     projects and asserts each has a key in `en.json` *and* `es.json`. A code with no key renders as its
     own key path, in both languages, with every other test green — nothing else catches that.
+- **A checklist task's identity is its `Code`, never its title (v2.8/M47).** `TaskCodes` holds a stable
+  slug per seeded task; `TemplateTask.Code` carries it, `TemplateCopy` stamps it onto
+  `ReleaseTask.SourceCode`, and both are **null for user-added tasks** — which is correct, since those
+  are user content and are never translated. Codes are permanent identifiers: renaming one orphans
+  every translation row and every already-stamped release task. Consequences that bit, or would have:
+  - **`Release.IsDistributed` keys off `SourceCode`**, not `Title` (plus the two `ReleaseService`
+    comparisons). Matching English prose meant one Spanish title would have taken the UPC warning, the
+    pending engine and the past-date backfill down together, **silently**. Any future "is this the X
+    task?" rule keys off the code — never the title.
+  - **Translation is lookup, never a rewrite.** `TemplateTaskTranslation(TemplateTaskId, Locale, Text)`
+    — a child table, not `jsonb`, because tests run SQLite. **English is the `Title` column**, so `en`
+    has no rows and every miss (null code, unknown locale, absent row, blank text) falls back to it via
+    pure `TaskText.Resolve`. It must never render a raw slug.
+  - **A title "edit" is measured against the text the user was *shown*.** The SPA round-trips the whole
+    editable row, so a phase move sends back the *translated* title; comparing it to the stored English
+    column would read that as an edit, overwrite the column with Spanish and orphan the code, for every
+    moved task. Both update paths compare against `TaskText.Resolve(...)`, and a real edit stores the
+    new text and nulls the code.
+  - **Mutation responses resolve too, and a language switch invalidates the query cache.** The task
+    hooks replace their local row with the server's DTO, so an English echo would flip a title mid-list
+    on every toggle; and cached payloads are in the *previous* language after a switch, so
+    `useLanguage` calls `queryClient.invalidateQueries()`.
+  - **Locale comes from `X-Lang`** (set by `client.ts` on both the JSON and FormData branches), then
+    `Accept-Language`, then `en`. Resolution is `Ordinal` string matching over a dictionary — no
+    `CultureInfo` anywhere, so `InvariantGlobalization=true` still holds.
 - **Prod runs Postgres (Neon); integration tests run SQLite in-memory (v2.5/M30).** Migrations are
   Postgres-specific. Keep query code **provider-agnostic** — e.g.
   title search lowercases both sides of `Like` rather than using Npgsql `ILike` — so SQLite tests stay
@@ -387,18 +420,25 @@ infra                    Terraform: azurerm + neon + cloudflare in one root modu
   edge-served SPA.
 - **In progress — v2.8 (M43–M48): multilingual EN/ES**, on `feat/i18n-multilingual` off `dev`.
   **Done:** M43 i18n foundation + language selector · M44 home/releases strings · M45
-  catalog/artists/templates strings · M46 API messages as stable codes. The SPA chrome is fully
-  bilingual, the API ships no prose, and each milestone is its own pushed commit.
-  **Next up — M47: DB-authored checklist translations (schema + resolution).** Read
-  [build-plan-2.8.md](build-plan-2.8.md) first; its checklists are ticked through M46 and M47–M48 carry
-  the full design. Two things to know going in:
-  - **M47 fixes a real latent bug, and it is not optional:** `Release.IsDistributed` matches the literal
-    English title `"Distribute to DSPs"` (`Release.cs:38`, `ReleaseService.cs:57,187`). One Spanish title
-    and the UPC warning, the pending engine, and the past-date backfill all silently stop firing. The
-    stable `Code`/`SourceCode` columns are the fix, with a backfill for existing rows.
+  catalog/artists/templates strings · M46 API messages as stable codes · M47 DB-authored checklist
+  translations (schema, resolution, and the `IsDistributed` fix). The SPA chrome is fully bilingual, the
+  API ships no prose, the checklist mechanism is proven with English-only rows, and each milestone is
+  its own pushed commit.
+  **Next up — M48: Spanish checklist content + per-locale editing.** Read
+  [build-plan-2.8.md](build-plan-2.8.md) first; its checklists are ticked through M47. Three things to
+  know going in:
   - **M48 needs the user**, and only for reviewing the 41 Spanish task titles. Per the user (v2.8 kickoff)
     the bar is a first pass, **not** perfect copy: leave anything genuinely ambiguous in English rather
-    than guessing, and they'll finish it on the running site.
+    than guessing, and they'll finish it on the running site. The domain jargon
+    (DSP/BMI/MLC/SoundExchange/Musixmatch/Canvas/Artist Pick, "smart link", "pre-save", "waterfall",
+    "multitracks") stays English on purpose.
+  - **The rows seed through `SeedData` + `HasData`**, keyed `(TemplateTaskId, Locale)` — deterministic
+    ids already, so none of the `DeterministicTaskId` renumbering hazard applies. The base checklist is
+    seeded into *both* templates, so each shared title needs a row per template task (72 rows for 41
+    titles), translated once in the source.
+  - **Step 4 (the templates editor's per-locale field) is explicitly droppable.** Seeded Spanish with no
+    in-app editor is a complete, coherent state; the editor is convenience, not correctness. If M48 runs
+    long, ship steps 1–3 + 5 and carry step 4 into the backlog.
   Keep the server culture-free throughout — see Cross-cutting decisions. Nothing in v2.8 needs infra,
   secrets, or money.
 - **Then: Phase 2 — DSP stats** (the reason this exists over Notion/Trello): hang streaming/revenue data

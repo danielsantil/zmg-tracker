@@ -40,7 +40,8 @@ public static class PendingActions
     /// and an empty-album nag. Song-owned ISRC actions come from <see cref="ComputeForSong"/>. The aggregate
     /// ordering across owners is applied by <see cref="Order"/>.
     /// </summary>
-    public static List<PendingAction> Compute(Release release, DateOnly today)
+    public static List<PendingAction> Compute(
+        Release release, DateOnly today, IReadOnlyDictionary<string, string>? taskText = null)
     {
         var artistName = release.MainArtist?.Name ?? string.Empty;
         var daysToRelease = release.ReleaseDate.DayNumber - today.DayNumber;
@@ -56,8 +57,10 @@ public static class PendingActions
             if (today >= windowOpens && release.ReleaseDate >= today)
             {
                 result.Add(new PendingAction(
-                    PendingKind.TaskDue, t.Title, release.Title, artistName,
-                    release.Id, null, t.Id, daysToRelease));
+                    // TaskDue's label is the task's own text, so it translates like the checklist does
+                    // (M47) — falling back to the stored English title for edited/user-added tasks.
+                    PendingKind.TaskDue, TaskText.Resolve(t.SourceCode, t.Title, taskText),
+                    release.Title, artistName, release.Id, null, t.Id, daysToRelease));
             }
         }
 
@@ -84,7 +87,8 @@ public static class PendingActions
 
     /// <summary>
     /// Song-owned pending action: a missing ISRC once the song is distributed. A song counts as distributed
-    /// when any linked, non-deleted, non-archived release has its "Distribute to DSPs" task checked — the
+    /// when any linked, non-deleted, non-archived release has its DSP-distribution task checked (by code,
+    /// not title, since M47) — the
     /// caller precomputes that flag, so this yields exactly one action per song, never per release.
     /// </summary>
     public static List<PendingAction> ComputeForSong(Song song, bool hasDistributedRelease)
