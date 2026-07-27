@@ -209,7 +209,6 @@
   },
   "tasks": {
     "addTask": "+ Add task",
-    "newTaskTitle": "New task title",
     "emptyPhase": "No tasks in this phase.",
     "hasNotes": "Has notes",
     "addNotes": "Add notes",
@@ -229,6 +228,19 @@
       "saveReverted": "Could not save — reverted.",
       "delete": "Could not delete task.",
       "reorder": "Could not reorder."
+    },
+    "deleteConfirm": "Delete task \"{{title}}\"?",
+    "editor": {
+      "addTitle": "Add task",
+      "editTitle": "Edit task",
+      "phase": "Phase",
+      "titleEn": "English",
+      "titleEs": "Español",
+      "titleEsHint": "Leave blank to show the English text to Spanish readers.",
+      "titleEnRequired": "An English title is required.",
+      "timeframe": "Timeframe",
+      "timeframeHint": "Days before release. Leave blank for no timeframe.",
+      "notes": "Notes"
     }
   },
   "tracks": {
@@ -391,8 +403,7 @@
     "notFound": "No template found.",
     "taskCount_one": "{{count}} task in this template",
     "taskCount_other": "{{count}} tasks in this template",
-    "deleteTaskConfirm": "Delete template task \"{{title}}\"?",
-    "perLocaleEdit": "Editing a task here changes its {{language}} text — the other languages keep theirs."
+    "deleteTaskConfirm": "Delete template task \"{{title}}\"?"
   },
   "error": {
     "artist": {

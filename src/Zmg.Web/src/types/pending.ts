@@ -5,10 +5,16 @@ import type { PendingKind } from './enums';
 export interface PendingAction {
   kind: PendingKind;
   /**
-   * Two things, switched on by `kind` (M46): the task's **title** for `TaskDue` — user content,
-   * rendered verbatim — and a **warning code** for the three data kinds, run through `t()`.
+   * The advisory's i18next code, for the three data kinds — run it through `useServerText()`.
+   * Null on `TaskDue`, which carries the task's own text instead (v2.9).
    */
-  label: string;
+  warningCode: string | null;
+  /**
+   * `TaskDue` only: the task's own text, user content rendered verbatim, in both languages so the
+   * row follows a language switch without a refetch. Null on the data kinds.
+   */
+  taskTitleEn: string | null;
+  taskTitleEs: string | null;
   subject: string;
   artistName: string;
   releaseId: string | null;

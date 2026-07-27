@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useServerText } from '@/i18n/serverText';
+import { useTaskText } from '@/hooks/useTaskText';
 import type { PendingAction } from '@/types';
 import { PendingKind } from '@/types';
 
@@ -12,8 +13,13 @@ import { PendingKind } from '@/types';
 export function NeedsAttention({ actions }: { actions: PendingAction[] }) {
   const { t } = useTranslation();
   const server = useServerText();
-  // TaskDue's label is the task's own title (user content, verbatim); the data kinds ship a code.
-  const labelOf = (a: PendingAction) => (a.kind === PendingKind.TaskDue ? a.label : server.code(a.label));
+  const taskText = useTaskText();
+  // TaskDue carries the task's own text in both languages (user content, verbatim); the data kinds
+  // carry an advisory code. Each field means one thing, so nothing has to be disambiguated here.
+  const labelOf = (a: PendingAction) =>
+    a.kind === PendingKind.TaskDue
+      ? taskText({ titleEn: a.taskTitleEn ?? '', titleEs: a.taskTitleEs })
+      : server.code(a.warningCode ?? '');
   return (
     <div className="mb-6 overflow-hidden rounded-xl border border-warn/25 bg-warn/[0.06]">
       <div className="border-b border-warn/20 px-4 py-2.5 text-sm font-semibold text-warnFg">

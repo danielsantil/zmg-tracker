@@ -209,7 +209,6 @@
   },
   "tasks": {
     "addTask": "+ Agregar tarea",
-    "newTaskTitle": "Título de la nueva tarea",
     "emptyPhase": "No hay tareas en esta fase.",
     "hasNotes": "Tiene notas",
     "addNotes": "Agregar notas",
@@ -229,6 +228,19 @@
       "saveReverted": "No se pudo guardar — se revirtió.",
       "delete": "No se pudo eliminar la tarea.",
       "reorder": "No se pudo reordenar."
+    },
+    "deleteConfirm": "¿Eliminar la tarea \"{{title}}\"?",
+    "editor": {
+      "addTitle": "Agregar tarea",
+      "editTitle": "Editar tarea",
+      "phase": "Fase",
+      "titleEn": "English",
+      "titleEs": "Español",
+      "titleEsHint": "Déjalo en blanco para mostrar el texto en inglés a quienes leen en español.",
+      "titleEnRequired": "El título en inglés es obligatorio.",
+      "timeframe": "Plazo",
+      "timeframeHint": "Días antes del lanzamiento. Déjalo en blanco si no tiene plazo.",
+      "notes": "Notas"
     }
   },
   "tracks": {
@@ -391,8 +403,7 @@
     "notFound": "No se encontró la plantilla.",
     "taskCount_one": "{{count}} tarea en esta plantilla",
     "taskCount_other": "{{count}} tareas en esta plantilla",
-    "deleteTaskConfirm": "¿Eliminar la tarea de plantilla \"{{title}}\"?",
-    "perLocaleEdit": "Editar una tarea aquí cambia su texto en {{language}}; los demás idiomas conservan el suyo."
+    "deleteTaskConfirm": "¿Eliminar la tarea de plantilla \"{{title}}\"?"
   },
   "error": {
     "artist": {

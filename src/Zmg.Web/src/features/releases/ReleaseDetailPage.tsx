@@ -1,11 +1,11 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Trans, useTranslation } from 'react-i18next';
 import { api, errorMessage } from '@/api';
 import { useRelease, usePendingByRelease, useArtists, queryKeys } from '@/api/queries';
-import type { ReleaseDetail } from '@/types';
-import { ReleaseType } from '@/types';
+import type { ReleaseDetail, ReleaseTaskDto } from '@/types';
+import { Phase, ReleaseType } from '@/types';
 import { Button, ErrorBanner, Loading, Modal, Toast } from '@/components';
 import { useConfirm } from '@/hooks/useConfirm';
 import { useToast } from '@/hooks/useToast';
@@ -14,6 +14,8 @@ import { PHASE_ORDER } from '@/lib/phase';
 import { ReleaseHeader } from './components/ReleaseHeader';
 import { NeedsAttention } from './components/NeedsAttention';
 import { PhaseSection } from './components/PhaseSection';
+import { TaskEditorModal } from './components/TaskEditorModal';
+import { emptyDraft, type TaskDraft } from './components/taskDraft';
 import { Tracklist } from './components/Tracklist';
 import { SongCard } from './components/SongCard';
 import { archiveReleaseConfirm } from './archiveConfirm';
@@ -52,6 +54,29 @@ function ReleaseDetailView({ release }: { release: ReleaseDetail }) {
     initialTasks,
     showToast,
   );
+  // The task being edited, or a phase when adding. Null means the editor is closed.
+  const [editingTask, setEditingTask] = useState<{ task: ReleaseTaskDto | null; draft: TaskDraft } | null>(null);
+
+  const openAddTask = (phase: Phase) => setEditingTask({ task: null, draft: emptyDraft(phase) });
+
+  const openEditTask = (task: ReleaseTaskDto) =>
+    setEditingTask({
+      task,
+      draft: {
+        titleEn: task.titleEn,
+        titleEs: task.titleEs ?? '',
+        phase: task.phase,
+        minDaysBefore: task.minDaysBefore,
+        maxDaysBefore: task.maxDaysBefore,
+        notes: task.notes ?? '',
+      },
+    });
+
+  function saveTask(draft: TaskDraft) {
+    const existing = editingTask?.task ?? null;
+    setEditingTask(null);
+    void (existing ? updateTask(existing, draft) : addTask(draft));
+  }
   const {
     orderedTracks,
     trackRows,
@@ -149,13 +174,22 @@ function ReleaseDetailView({ release }: { release: ReleaseDetail }) {
             onToggle={toggle}
             getIsDone={(t) => t.isDone}
             getNotes={(t) => t.notes}
-            onAdd={(title) => addTask(phase, title)}
-            onUpdate={updateTask}
+            onAdd={openAddTask}
+            onEdit={openEditTask}
             onDelete={removeTask}
             onMove={move}
           />
         ))}
       </div>
+
+      <TaskEditorModal
+        open={!!editingTask}
+        mode={editingTask?.task ? 'edit' : 'add'}
+        initial={editingTask?.draft ?? emptyDraft(Phase.Pre)}
+        supportsNotes
+        onSave={saveTask}
+        onClose={() => setEditingTask(null)}
+      />
 
       <Modal open={!!dupPrompt} onClose={() => setDupPrompt(null)} title={t('releases.detail.dupSong.title')}>
         {dupPrompt && (

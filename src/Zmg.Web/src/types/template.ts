@@ -1,9 +1,9 @@
 import type { Phase, ReleaseType } from './enums';
+import type { TaskText } from './task';
 
 // Templates (M3 template management)
-export interface TemplateTaskDto {
+export interface TemplateTaskDto extends TaskText {
   id: string;
-  title: string;
   phase: Phase;
   sortOrder: number;
   minDaysBefore: number | null;

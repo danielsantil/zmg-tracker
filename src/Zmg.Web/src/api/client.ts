@@ -1,4 +1,3 @@
-import i18n from '@/i18n';
 import { translateMessage, type ServerMessage } from '@/i18n/serverText';
 
 /**
@@ -36,16 +35,15 @@ export function errorMessage(e: unknown, fallback: string): string {
 
 export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   // FormData sets its own multipart Content-Type *with the boundary* — forcing JSON here would make
-  // the server unable to parse the parts (cover upload, M31). X-Lang rides on *both* branches: the
-  // API resolves checklist text per locale (M47), and a request that skips the header silently
-  // answers in English.
+  // the server unable to parse the parts (cover upload, M31).
+  //
+  // No locale header (v2.9): the API is language-agnostic, shipping checklist text in both languages
+  // and every message as a code. Nothing it returns depends on who is asking, which is what lets a
+  // language switch re-render from cache instead of refetching.
   const isFormData = init?.body instanceof FormData;
-  const localeHeader = { 'X-Lang': i18n.language };
   const res = await fetch(path, {
     ...init,
-    headers: isFormData
-      ? { ...localeHeader, ...init?.headers }
-      : { 'Content-Type': 'application/json', ...localeHeader, ...init?.headers },
+    headers: isFormData ? { ...init?.headers } : { 'Content-Type': 'application/json', ...init?.headers },
   });
 
   if (!res.ok) {

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useServerText } from '@/i18n/serverText';
+import { useTaskText } from '@/hooks/useTaskText';
 import type { PendingAction } from '@/types';
 import { PendingKind } from '@/types';
 
@@ -21,9 +22,23 @@ function nextPage(p: PendingAction) {
  * Aggregate pending actions across all releases and songs (M10; reworked M14): task-due nearest-first,
  * then the data kinds by subject. Collapsible header (PhaseSection-style); the list scrolls past ~4 rows.
  */
+/**
+ * A pending row's text: the task's own title for `TaskDue` (user content, verbatim, in the language
+ * being read) and the advisory's code for the data kinds. Two fields, each meaning one thing — the
+ * single overloaded `label` this replaced had to be disambiguated at every render site (v2.9).
+ */
+function usePendingLabel(): (p: PendingAction) => string {
+  const server = useServerText();
+  const taskText = useTaskText();
+  return (p) =>
+    p.kind === PendingKind.TaskDue
+      ? taskText({ titleEn: p.taskTitleEn ?? '', titleEs: p.taskTitleEs })
+      : server.code(p.warningCode ?? '');
+}
+
 export function PendingSection({ pending }: { pending: PendingAction[] }) {
   const { t } = useTranslation();
-  const server = useServerText();
+  const label = usePendingLabel();
   const [open, setOpen] = useState(true);
 
   if (pending.length === 0) return null;
@@ -46,8 +61,7 @@ export function PendingSection({ pending }: { pending: PendingAction[] }) {
               >
                 <span className="min-w-0">
                   <span className="text-sm text-strong">
-                    {/* TaskDue's label is the task title (verbatim); the data kinds ship a code. */}
-                    {p.kind === PendingKind.TaskDue ? p.label : server.code(p.label)}
+                    {label(p)}
                   </span>
                   <span className="ml-2 text-xs text-muted">
                     {p.subject} · {p.artistName}
