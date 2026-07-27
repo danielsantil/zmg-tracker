@@ -199,12 +199,18 @@ standing rule is that the page body never scrolls sideways.
 ## M45 — SPA strings: catalog, artists, templates, shared components
 
 ```
-[ ] 1. features/catalog (4 pages + 2 components)
-[ ] 2. features/artists (2 pages)
-[ ] 3. features/templates
-[ ] 4. components/** leftovers (EmptyState, ErrorBanner, ConfirmDialog, DataTable, FilterBar, …)
-[ ] 5. Sweep for stragglers
+[x] 1. features/catalog (4 pages + 2 components)
+[x] 2. features/artists (2 pages)
+[x] 3. features/templates
+[x] 4. components/** leftovers          most landed in M44; only InlineAddForm was left
+[x] 5. Sweep for stragglers             clean — the only literals left are KeyboardEvent keys
+                                        and the four ReleaseStatus wire codes
 ```
+
+**Landed:** the artists delete dialogs were the interesting case — three hand-rolled
+`count === 1 ? '' : 's'` part lists became `artists.counts.*` plural keys joined with `common.and`,
+which is the only way that sentence reads correctly in Spanish. `eslint-plugin-i18next` was **not**
+adopted (see below); the sweep plus the key-parity test covered it.
 
 ~120 strings, all of them shapes M44 already solved. Step 5 is a manual grep sweep for JSX text nodes and
 quoted capitalized strings under `src/features` and `src/components`, plus a click-through of every

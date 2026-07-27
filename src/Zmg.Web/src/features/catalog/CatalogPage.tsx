@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { api } from '@/api';
 import { useSongs, useArtists, queryKeys } from '@/api/queries';
 import type { SongListItem } from '@/types';
@@ -30,6 +31,7 @@ import { todayIso } from '@/lib/format';
  */
 export default function CatalogPage() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { toast, toastVariant, showToast } = useToast();
   const [q, setQ] = useState('');
   const [artistId, setArtistId] = useState('');
@@ -45,14 +47,14 @@ export default function CatalogPage() {
 
   const archive = useConfirmDelete<SongListItem>({
     confirm: (s) => ({
-      title: `Archive "${s.title}"?`,
-      body: <p>Archived songs are read-only and can't be restored.</p>,
-      confirmLabel: 'Archive',
+      title: t('songs.archiveConfirm.title', { title: s.title }),
+      body: <p>{t('songs.archived.subtitle')}</p>,
+      confirmLabel: t('common.archive'),
       confirmVariant: 'archive',
     }),
     mutate: (s) => api.songs.archive(s.id),
     invalidate: [queryKeys.songs(), queryKeys.artists],
-    errorFallback: 'Failed to archive.',
+    errorFallback: t('releases.archiveFailed'),
     showToast,
   });
 
@@ -62,17 +64,17 @@ export default function CatalogPage() {
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold text-strong">Catalog</h1>
-          <p className="text-sm text-muted">Every song, by title.</p>
+          <h1 className="text-2xl font-semibold text-strong">{t('songs.title')}</h1>
+          <p className="text-sm text-muted">{t('songs.subtitle')}</p>
         </div>
-        <Button onClick={() => navigate('/catalog/new')}>+ New song</Button>
+        <Button onClick={() => navigate('/catalog/new')}>{t('songs.newSong')}</Button>
       </div>
 
       <FilterBar
         onClear={hasFilters ? () => { setQ(''); setArtistId(''); } : undefined}
         trailing={
           <Link to="/catalog/archived" className="ml-auto shrink-0 text-sm text-muted hover:text-accent">
-            Archived Songs →
+            {t('songs.archivedLink')}
           </Link>
         }
       >
@@ -80,20 +82,20 @@ export default function CatalogPage() {
         <ArtistSelect artists={artists} value={artistId} onChange={setArtistId} />
       </FilterBar>
 
-      <ErrorBanner error={error ? 'Failed to load catalog.' : null} />
+      <ErrorBanner error={error ? t('songs.loadFailed') : null} />
 
       {isLoading ? (
         <Loading />
       ) : songs.length === 0 ? (
         <EmptyState>
-          {hasFilters ? 'No songs match these filters.' : 'No songs yet — add one or create a release.'}
+          {hasFilters ? t('songs.emptyFiltered') : t('songs.empty')}
         </EmptyState>
       ) : (
         <DataTable
           headers={[
-            { label: 'Name' },
-            { label: 'Main Artist' },
-            { label: 'Released' },
+            { label: t('songs.table.name') },
+            { label: t('songs.table.mainArtist') },
+            { label: t('songs.table.released') },
             { label: '', className: 'text-right' },
           ]}
         >
@@ -106,20 +108,20 @@ export default function CatalogPage() {
                 <td className="px-4 py-3 text-body">{s.mainArtistName}</td>
                 <td className="px-4 py-3">
                   {archivable ? (
-                    <span className="text-muted">No</span>
+                    <span className="text-muted">{t('common.no')}</span>
                   ) : s.releaseDate! <= today ? (
-                    <span className="text-okFg">Yes</span>
+                    <span className="text-okFg">{t('common.yes')}</span>
                   ) : (
-                    <span className="text-infoFg">Upcoming</span>
+                    <span className="text-infoFg">{t('status.upcoming')}</span>
                   )}
                 </td>
                 <td className="px-4 py-3 text-right">
                   {archivable && (
                     <div onClick={(e) => e.stopPropagation()} className="flex justify-end">
-                      <RowMenu label="Song actions">
+                      <RowMenu label={t('songs.rowActions')}>
                         {(close) => (
                           <MenuItem tone="archive" onClick={() => { close(); void archive(s); }}>
-                            Archive
+                            {t('common.archive')}
                           </MenuItem>
                         )}
                       </RowMenu>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { api, errorMessage } from '@/api';
 import { useTemplates, queryKeys } from '@/api/queries';
 import type { TemplateTaskDto } from '@/types';
@@ -11,12 +12,13 @@ import { PHASE_ORDER, byPhase } from '@/lib/phase';
 import { PhaseSection } from '../releases/components/PhaseSection';
 import type { TaskPatch } from '../releases/components/TaskRow';
 
-const TYPE_TABS: { type: ReleaseType; label: string }[] = [
-  { type: ReleaseType.Single, label: 'Single' },
-  { type: ReleaseType.Album, label: 'Album' },
-];
+const TYPE_TABS = [
+  { type: ReleaseType.Single, labelKey: 'releaseType.single' },
+  { type: ReleaseType.Album, labelKey: 'releaseType.album' },
+] as const;
 
 export default function TemplatesPage() {
+  const { t } = useTranslation();
   const confirm = useConfirm();
   const queryClient = useQueryClient();
   const { toast, toastVariant, showToast } = useToast();
@@ -43,7 +45,7 @@ export default function TemplatesPage() {
       setTasks((ts) => [...ts, created]);
       invalidateTemplates();
     } catch (e) {
-      showToast(errorMessage(e, 'Could not add task.'));
+      showToast(errorMessage(e, t('tasks.errors.add')));
     }
   }
 
@@ -59,15 +61,15 @@ export default function TemplatesPage() {
       setTasks((ts) => ts.map((t) => (t.id === saved.id ? saved : t)));
       invalidateTemplates();
     } catch (e) {
-      showToast(errorMessage(e, 'Could not save task.'));
+      showToast(errorMessage(e, t('tasks.errors.save')));
     }
   }
 
   async function removeTask(task: TemplateTaskDto) {
     if (
       !(await confirm({
-        title: `Delete template task "${task.title}"?`,
-        confirmLabel: 'Delete',
+        title: t('templates.deleteTaskConfirm', { title: task.title }),
+        confirmLabel: t('common.delete'),
         confirmVariant: 'danger',
       }))
     )
@@ -79,7 +81,7 @@ export default function TemplatesPage() {
       invalidateTemplates();
     } catch (e) {
       setTasks(prev);
-      showToast(errorMessage(e, 'Could not delete task.'));
+      showToast(errorMessage(e, t('tasks.errors.delete')));
     }
   }
 
@@ -100,31 +102,31 @@ export default function TemplatesPage() {
       invalidateTemplates();
     } catch (e) {
       setTasks(prev);
-      showToast(errorMessage(e, 'Could not reorder.'));
+      showToast(errorMessage(e, t('tasks.errors.reorder')));
     }
   }
 
   return (
     <div>
       <div className="mb-4">
-        <h1 className="text-2xl font-semibold text-strong">Templates</h1>
-        <p className="text-sm text-muted">The default checklist copied onto each new release.</p>
+        <h1 className="text-2xl font-semibold text-strong">{t('templates.title')}</h1>
+        <p className="text-sm text-muted">{t('templates.subtitle')}</p>
       </div>
 
       <p className="mb-4 rounded-lg border border-warn/30 bg-warn/10 px-4 py-2.5 text-sm text-warnFg">
-        Changes apply to future releases only — existing releases keep their own copy.
+        {t('templates.futureOnly')}
       </p>
 
       <div className="mb-6 flex gap-1 rounded-lg border border-edge bg-panel p-1">
-        {TYPE_TABS.map((t) => (
+        {TYPE_TABS.map((tab_) => (
           <button
-            key={t.type}
-            onClick={() => setTab(t.type)}
+            key={tab_.type}
+            onClick={() => setTab(tab_.type)}
             className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition ${
-              tab === t.type ? 'bg-accent text-white' : 'text-muted hover:text-body'
+              tab === tab_.type ? 'bg-accent text-white' : 'text-muted hover:text-body'
             }`}
           >
-            {t.label}
+            {t(tab_.labelKey)}
           </button>
         ))}
       </div>
@@ -132,12 +134,12 @@ export default function TemplatesPage() {
       {isLoading ? (
         <Loading />
       ) : error ? (
-        <ErrorBanner error="Failed to load templates." />
+        <ErrorBanner error={t('templates.loadFailed')} />
       ) : !active ? (
-        <p className="text-muted">No template found.</p>
+        <p className="text-muted">{t('templates.notFound')}</p>
       ) : (
         <>
-          <p className="mb-3 text-xs text-subtle">{tasks.length} tasks in this template</p>
+          <p className="mb-3 text-xs text-subtle">{t('templates.taskCount', { count: tasks.length })}</p>
           <div className="space-y-3">
             {PHASE_ORDER.map((phase) => (
               <PhaseSection

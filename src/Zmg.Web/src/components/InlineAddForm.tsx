@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button } from './Button';
 import { inputClass } from './Field';
 
@@ -19,6 +20,7 @@ export function InlineAddForm({
   placeholder: string;
   onAdd: (title: string) => void;
 }) {
+  const { t } = useTranslation();
   const [adding, setAdding] = useState(false);
   const [value, setValue] = useState('');
 
@@ -51,10 +53,10 @@ export function InlineAddForm({
             }}
           />
           <Button type="button" onClick={submit}>
-            Add
+            {t('common.add')}
           </Button>
           <Button type="button" variant="ghost" onClick={cancel}>
-            Cancel
+            {t('common.cancel')}
           </Button>
         </div>
       ) : (

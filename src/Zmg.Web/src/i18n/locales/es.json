@@ -2,7 +2,9 @@
   "common": {
     "add": "Agregar",
     "adding": "Agregando…",
+    "and": "y",
     "archive": "Archivar",
+    "back": "‹ Volver",
     "cancel": "Cancelar",
     "cannotBeUndone": "Esta acción no se puede deshacer.",
     "change": "Cambiar",
@@ -12,16 +14,21 @@
     "edit": "Editar",
     "goBack": "Volver",
     "loading": "Cargando...",
+    "loadingShort": "Cargando…",
     "moveDown": "Mover abajo",
     "moveUp": "Mover arriba",
+    "no": "No",
+    "ok": "OK",
     "optional": "Opcional",
     "or": "o",
     "rename": "Renombrar",
     "save": "Guardar",
     "saveChanges": "Guardar cambios",
+    "saved": "Guardado.",
     "saving": "Guardando…",
     "stillLoading": "Sigue cargando...",
-    "taskActions": "Acciones de la tarea"
+    "taskActions": "Acciones de la tarea",
+    "yes": "Sí"
   },
   "nav": {
     "home": "Inicio",
@@ -276,5 +283,114 @@
     "done": "{{done}}/{{total}} hechas",
     "donePercent": "{{done}}/{{total}} hechas · {{pct}}%",
     "tasks": "{{done}} / {{total}} tareas"
+  },
+  "artistRole": {
+    "featured": "Featuring",
+    "collab": "Colaboración"
+  },
+  "artists": {
+    "title": "Artistas",
+    "subtitle": "Todos los que tienen lanzamientos en el roster.",
+    "newArtist": "+ Nuevo artista",
+    "empty": "Aún no hay artistas. Agrega uno para empezar a crear lanzamientos.",
+    "rowActions": "Acciones del artista",
+    "deleteFailed": "No se pudo eliminar el artista.",
+    "table": {
+      "name": "Nombre",
+      "releases": "Lanzamientos",
+      "songs": "Canciones",
+      "collabs": "Colaboraciones"
+    },
+    "counts": {
+      "releases_one": "{{count}} lanzamiento",
+      "releases_other": "{{count}} lanzamientos",
+      "songs_one": "{{count}} canción",
+      "songs_other": "{{count}} canciones",
+      "credits_one": "{{count}} crédito de featuring/colaboración",
+      "credits_other": "{{count}} créditos de featuring/colaboración",
+      "archivedReleases_one": "{{count}} lanzamiento archivado",
+      "archivedReleases_other": "{{count}} lanzamientos archivados",
+      "archivedSongs_one": "{{count}} canción archivada",
+      "archivedSongs_other": "{{count}} canciones archivadas"
+    },
+    "deleteBlocked": {
+      "title": "No se puede eliminar \"{{name}}\"",
+      "body": "Este artista está ligado a {{parts}}."
+    },
+    "deleteConfirm": {
+      "title": "¿Eliminar al artista \"{{name}}\"?",
+      "archivedBody": "Este artista tiene {{parts}} que también se eliminarán de forma permanente. Esta acción no se puede deshacer."
+    },
+    "form": {
+      "createTitle": "Nuevo artista",
+      "editTitle": "Editar artista",
+      "createArtist": "Crear artista",
+      "name": "Nombre",
+      "namePlaceholder": "ej. Zaie",
+      "nameRequired": "El nombre del artista es obligatorio.",
+      "loadFailed": "No se pudo cargar el artista.",
+      "saveFailed": "No se pudo guardar el artista."
+    }
+  },
+  "songs": {
+    "title": "Catálogo",
+    "subtitle": "Todas las canciones, por título.",
+    "newSong": "+ Nueva canción",
+    "loadFailed": "No se pudo cargar el catálogo.",
+    "empty": "Aún no hay canciones — agrega una o crea un lanzamiento.",
+    "emptyFiltered": "Ninguna canción coincide con estos filtros.",
+    "archivedLink": "Canciones archivadas →",
+    "rowActions": "Acciones de la canción",
+    "filterByTitle": "Filtrar por título…",
+    "noMatches": "Sin coincidencias.",
+    "noneForArtist": "Este artista aún no tiene canciones.",
+    "unreleased": "Sin publicar",
+    "table": {
+      "name": "Nombre",
+      "mainArtist": "Artista principal",
+      "released": "Publicada"
+    },
+    "archiveConfirm": {
+      "title": "¿Archivar \"{{title}}\"?"
+    },
+    "archived": {
+      "back": "‹ Catálogo",
+      "title": "Canciones archivadas",
+      "subtitle": "Las canciones archivadas son de solo lectura y no se pueden restaurar.",
+      "loadFailed": "No se pudieron cargar las canciones archivadas.",
+      "empty": "No hay canciones archivadas."
+    },
+    "form": {
+      "createTitle": "Nueva canción",
+      "createSong": "Crear canción",
+      "titleRequired": "El título de la canción es obligatorio.",
+      "saveFailed": "No se pudo guardar la canción.",
+      "needArtist": "Necesitas al menos un artista antes de agregar una canción.",
+      "isrc": "ISRC",
+      "isrcHint": "Opcional — vacío hasta la distribución a DSPs",
+      "isrcHintCreate": "Opcional — se asigna en la distribución",
+      "isrcPlaceholder": "ej. USABC1234567",
+      "feats": "Artistas invitados y colaboradores"
+    },
+    "detail": {
+      "loadFailed": "No se pudo cargar la canción.",
+      "archivedNote": "Archivada — solo lectura. Esta canción no se puede editar ni restaurar.",
+      "artistDrift": "El artista principal difiere del lanzamiento <releaseTitle>{{release}}</releaseTitle> ({{artist}}).",
+      "isrcPlaceholder": "ej. US-XXX-YY-NNNNN",
+      "feats": "Artistas invitados / colaboradores",
+      "releases": "Lanzamientos",
+      "noReleases": "Aún no está en ningún lanzamiento.",
+      "upcValue": "UPC: {{upc}}"
+    }
+  },
+  "templates": {
+    "title": "Plantillas",
+    "subtitle": "La lista por defecto que se copia en cada nuevo lanzamiento.",
+    "futureOnly": "Los cambios aplican solo a lanzamientos futuros — los existentes conservan su propia copia.",
+    "loadFailed": "No se pudieron cargar las plantillas.",
+    "notFound": "No se encontró la plantilla.",
+    "taskCount_one": "{{count}} tarea en esta plantilla",
+    "taskCount_other": "{{count}} tareas en esta plantilla",
+    "deleteTaskConfirm": "¿Eliminar la tarea de plantilla \"{{title}}\"?"
   }
 }

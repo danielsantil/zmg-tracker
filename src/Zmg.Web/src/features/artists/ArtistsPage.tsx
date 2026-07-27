@@ -1,5 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { api, errorMessage } from '@/api';
 import { useArtists, queryKeys } from '@/api/queries';
 import type { Artist } from '@/types';
@@ -15,6 +16,7 @@ import { useToast } from '@/hooks/useToast';
  */
 export default function ArtistsPage() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const confirm = useConfirm();
   const queryClient = useQueryClient();
   const { toast, toastVariant, showToast } = useToast();
@@ -24,14 +26,14 @@ export default function ArtistsPage() {
     const activeDependents = a.releaseCount + a.songCount + a.creditCount;
     if (activeDependents > 0) {
       const parts = [
-        a.releaseCount > 0 ? `${a.releaseCount} release${a.releaseCount === 1 ? '' : 's'}` : null,
-        a.songCount > 0 ? `${a.songCount} song${a.songCount === 1 ? '' : 's'}` : null,
-        a.creditCount > 0 ? `${a.creditCount} feat/collab credit${a.creditCount === 1 ? '' : 's'}` : null,
+        a.releaseCount > 0 ? t('artists.counts.releases', { count: a.releaseCount }) : null,
+        a.songCount > 0 ? t('artists.counts.songs', { count: a.songCount }) : null,
+        a.creditCount > 0 ? t('artists.counts.credits', { count: a.creditCount }) : null,
       ].filter(Boolean);
       await confirm({
-        title: `Can't delete "${a.name}"`,
-        body: <p>This artist is tied to {parts.join(', ')}.</p>,
-        confirmLabel: 'OK',
+        title: t('artists.deleteBlocked.title', { name: a.name }),
+        body: <p>{t('artists.deleteBlocked.body', { parts: parts.join(', ') })}</p>,
+        confirmLabel: t('common.ok'),
         hideCancel: true,
       });
       return;
@@ -41,26 +43,27 @@ export default function ArtistsPage() {
     // permanently removes that archived data too (the server cascades it in the same delete).
     const archivedParts = [
       a.archivedReleaseCount > 0
-        ? `${a.archivedReleaseCount} archived release${a.archivedReleaseCount === 1 ? '' : 's'}`
+        ? t('artists.counts.archivedReleases', { count: a.archivedReleaseCount })
         : null,
       a.archivedSongCount > 0
-        ? `${a.archivedSongCount} archived song${a.archivedSongCount === 1 ? '' : 's'}`
+        ? t('artists.counts.archivedSongs', { count: a.archivedSongCount })
         : null,
     ].filter(Boolean);
 
     if (
       !(await confirm({
-        title: `Delete artist "${a.name}"?`,
+        title: t('artists.deleteConfirm.title', { name: a.name }),
         body:
           archivedParts.length > 0 ? (
             <p>
-              This artist has {archivedParts.join(' and ')} that will also be permanently removed. This
-              can't be undone.
+              {t('artists.deleteConfirm.archivedBody', {
+                parts: archivedParts.join(` ${t('common.and')} `),
+              })}
             </p>
           ) : (
-            <p>This can't be undone.</p>
+            <p>{t('common.cannotBeUndone')}</p>
           ),
-        confirmLabel: 'Delete',
+        confirmLabel: t('common.delete'),
         confirmVariant: 'danger',
       }))
     )
@@ -72,7 +75,7 @@ export default function ArtistsPage() {
       void queryClient.invalidateQueries({ queryKey: queryKeys.releases() });
     } catch (e) {
       // Concurrency safety net: a release/song could have been added since the list loaded.
-      showToast(errorMessage(e, 'Failed to delete artist.'));
+      showToast(errorMessage(e, t('artists.deleteFailed')));
     }
   }
 
@@ -80,23 +83,23 @@ export default function ArtistsPage() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-strong">Artists</h1>
-          <p className="text-sm text-muted">Everyone with releases in the roster.</p>
+          <h1 className="text-2xl font-semibold text-strong">{t('artists.title')}</h1>
+          <p className="text-sm text-muted">{t('artists.subtitle')}</p>
         </div>
-        <Button onClick={() => navigate('/artists/new')}>+ New artist</Button>
+        <Button onClick={() => navigate('/artists/new')}>{t('artists.newArtist')}</Button>
       </div>
 
       {isLoading ? (
         <Loading />
       ) : artists.length === 0 ? (
-        <EmptyState>No artists yet. Add one to start creating releases.</EmptyState>
+        <EmptyState>{t('artists.empty')}</EmptyState>
       ) : (
         <DataTable
           headers={[
-            { label: 'Name' },
-            { label: 'Releases' },
-            { label: 'Songs' },
-            { label: 'Collabs' },
+            { label: t('artists.table.name') },
+            { label: t('artists.table.releases') },
+            { label: t('artists.table.songs') },
+            { label: t('artists.table.collabs') },
             { label: '', className: 'text-right' },
           ]}
         >
@@ -117,7 +120,7 @@ export default function ArtistsPage() {
               <td className="px-4 py-3 text-body">{a.creditCount}</td>
               <td className="px-4 py-3 text-right">
                 <div onClick={(e) => e.stopPropagation()} className="flex justify-end">
-                  <RowMenu label="Artist actions">
+                  <RowMenu label={t('artists.rowActions')}>
                     {(close) => (
                       <MenuItem
                         tone="danger"
@@ -126,7 +129,7 @@ export default function ArtistsPage() {
                           void remove(a);
                         }}
                       >
-                        Delete
+                        {t('common.delete')}
                       </MenuItem>
                     )}
                   </RowMenu>

@@ -2,7 +2,9 @@
   "common": {
     "add": "Add",
     "adding": "Adding…",
+    "and": "and",
     "archive": "Archive",
+    "back": "‹ Back",
     "cancel": "Cancel",
     "cannotBeUndone": "This can't be undone.",
     "change": "Change",
@@ -12,16 +14,21 @@
     "edit": "Edit",
     "goBack": "Go back",
     "loading": "Loading...",
+    "loadingShort": "Loading…",
     "moveDown": "Move down",
     "moveUp": "Move up",
+    "no": "No",
+    "ok": "OK",
     "optional": "Optional",
     "or": "or",
     "rename": "Rename",
     "save": "Save",
     "saveChanges": "Save changes",
+    "saved": "Saved.",
     "saving": "Saving…",
     "stillLoading": "Still loading...",
-    "taskActions": "Task actions"
+    "taskActions": "Task actions",
+    "yes": "Yes"
   },
   "nav": {
     "home": "Home",
@@ -276,5 +283,114 @@
     "done": "{{done}}/{{total}} done",
     "donePercent": "{{done}}/{{total}} done · {{pct}}%",
     "tasks": "{{done}} / {{total}} tasks"
+  },
+  "artistRole": {
+    "featured": "Featured",
+    "collab": "Collab"
+  },
+  "artists": {
+    "title": "Artists",
+    "subtitle": "Everyone with releases in the roster.",
+    "newArtist": "+ New artist",
+    "empty": "No artists yet. Add one to start creating releases.",
+    "rowActions": "Artist actions",
+    "deleteFailed": "Failed to delete artist.",
+    "table": {
+      "name": "Name",
+      "releases": "Releases",
+      "songs": "Songs",
+      "collabs": "Collabs"
+    },
+    "counts": {
+      "releases_one": "{{count}} release",
+      "releases_other": "{{count}} releases",
+      "songs_one": "{{count}} song",
+      "songs_other": "{{count}} songs",
+      "credits_one": "{{count}} feat/collab credit",
+      "credits_other": "{{count}} feat/collab credits",
+      "archivedReleases_one": "{{count}} archived release",
+      "archivedReleases_other": "{{count}} archived releases",
+      "archivedSongs_one": "{{count}} archived song",
+      "archivedSongs_other": "{{count}} archived songs"
+    },
+    "deleteBlocked": {
+      "title": "Can't delete \"{{name}}\"",
+      "body": "This artist is tied to {{parts}}."
+    },
+    "deleteConfirm": {
+      "title": "Delete artist \"{{name}}\"?",
+      "archivedBody": "This artist has {{parts}} that will also be permanently removed. This can't be undone."
+    },
+    "form": {
+      "createTitle": "New artist",
+      "editTitle": "Edit artist",
+      "createArtist": "Create artist",
+      "name": "Name",
+      "namePlaceholder": "e.g. Zaie",
+      "nameRequired": "Artist name is required.",
+      "loadFailed": "Failed to load artist.",
+      "saveFailed": "Failed to save artist."
+    }
+  },
+  "songs": {
+    "title": "Catalog",
+    "subtitle": "Every song, by title.",
+    "newSong": "+ New song",
+    "loadFailed": "Failed to load catalog.",
+    "empty": "No songs yet — add one or create a release.",
+    "emptyFiltered": "No songs match these filters.",
+    "archivedLink": "Archived Songs →",
+    "rowActions": "Song actions",
+    "filterByTitle": "Filter by title…",
+    "noMatches": "No matches.",
+    "noneForArtist": "No songs by this artist yet.",
+    "unreleased": "Unreleased",
+    "table": {
+      "name": "Name",
+      "mainArtist": "Main Artist",
+      "released": "Released"
+    },
+    "archiveConfirm": {
+      "title": "Archive \"{{title}}\"?"
+    },
+    "archived": {
+      "back": "‹ Catalog",
+      "title": "Archived Songs",
+      "subtitle": "Archived songs are read-only and can't be restored.",
+      "loadFailed": "Failed to load archived songs.",
+      "empty": "No archived songs."
+    },
+    "form": {
+      "createTitle": "New song",
+      "createSong": "Create song",
+      "titleRequired": "Song title is required.",
+      "saveFailed": "Failed to save song.",
+      "needArtist": "You need at least one artist before adding a song.",
+      "isrc": "ISRC",
+      "isrcHint": "Optional — blank until DSP distribution",
+      "isrcHintCreate": "Optional — assigned at distribution",
+      "isrcPlaceholder": "e.g. USABC1234567",
+      "feats": "Featured artists & collaborators"
+    },
+    "detail": {
+      "loadFailed": "Failed to load song.",
+      "archivedNote": "Archived — read only. This song can't be edited or restored.",
+      "artistDrift": "Main artist differs from release <releaseTitle>{{release}}</releaseTitle> ({{artist}}).",
+      "isrcPlaceholder": "e.g. US-XXX-YY-NNNNN",
+      "feats": "Featured / collab artists",
+      "releases": "Releases",
+      "noReleases": "Not on any release yet.",
+      "upcValue": "UPC: {{upc}}"
+    }
+  },
+  "templates": {
+    "title": "Templates",
+    "subtitle": "The default checklist copied onto each new release.",
+    "futureOnly": "Changes apply to future releases only — existing releases keep their own copy.",
+    "loadFailed": "Failed to load templates.",
+    "notFound": "No template found.",
+    "taskCount_one": "{{count}} task in this template",
+    "taskCount_other": "{{count}} tasks in this template",
+    "deleteTaskConfirm": "Delete template task \"{{title}}\"?"
   }
 }

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import clsx from 'clsx';
+import { useTranslation } from 'react-i18next';
 import { api, ApiError } from '@/api';
 import { useArtists, queryKeys } from '@/api/queries';
 import type { SongArtistInput } from '@/types';
@@ -15,6 +16,7 @@ import { SongArtistsEditor } from './components/SongArtistsEditor';
  */
 export default function SongFormPage() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const goBack = useBackNavigation();
   const queryClient = useQueryClient();
   const { data: artists = [], isLoading } = useArtists();
@@ -43,7 +45,7 @@ export default function SongFormPage() {
     setFieldErrors({});
 
     if (!title.trim()) {
-      setFieldErrors({ title: 'Song title is required.' });
+      setFieldErrors({ title: t('songs.form.titleRequired') });
       return;
     }
 
@@ -59,7 +61,7 @@ export default function SongFormPage() {
       void queryClient.invalidateQueries({ queryKey: queryKeys.artists });
       goBack();
     } catch (err) {
-      setErrors(err instanceof ApiError ? err.errors : ['Failed to save song.']);
+      setErrors(err instanceof ApiError ? err.errors : [t('songs.form.saveFailed')]);
     } finally {
       setSaving(false);
     }
@@ -70,9 +72,9 @@ export default function SongFormPage() {
   if (artists.length === 0) {
     return (
       <EmptyState>
-        <p className="text-body">You need at least one artist before adding a song.</p>
+        <p className="text-body">{t('songs.form.needArtist')}</p>
         <Button className="mt-4" onClick={() => navigate('/artists')}>
-          Go to Artists
+          {t('releases.form.goToArtists')}
         </Button>
       </EmptyState>
     );
@@ -80,20 +82,20 @@ export default function SongFormPage() {
 
   return (
     <div className="mx-auto max-w-xl">
-      <h1 className="mb-6 text-2xl font-semibold text-strong">New song</h1>
+      <h1 className="mb-6 text-2xl font-semibold text-strong">{t('songs.form.createTitle')}</h1>
 
       <form onSubmit={submit} className="space-y-4">
-        <Field label="Title" error={fieldErrors.title}>
+        <Field label={t('releases.form.fields.title')} error={fieldErrors.title}>
           <input
             className={clsx(inputClass, fieldErrors.title && inputErrorClass)}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="e.g. Luz"
+            placeholder={t('releases.form.placeholders.title')}
             autoFocus
           />
         </Field>
 
-        <Field label="Main artist">
+        <Field label={t('releases.form.fields.mainArtist')}>
           <select className={inputClass} value={effectiveMainArtistId} onChange={(e) => changeMainArtist(e.target.value)}>
             {artists.map((a) => (
               <option key={a.id} value={a.id}>
@@ -103,16 +105,16 @@ export default function SongFormPage() {
           </select>
         </Field>
 
-        <Field label="ISRC" hint="Optional — assigned at distribution">
+        <Field label={t('songs.form.isrc')} hint={t('songs.form.isrcHintCreate')}>
           <input
             className={`${inputClass} max-w-[16rem]`}
             value={isrc}
             onChange={(e) => setIsrc(e.target.value)}
-            placeholder="e.g. USABC1234567"
+            placeholder={t('songs.form.isrcPlaceholder')}
           />
         </Field>
 
-        <Field label="Featured artists & collaborators" hint="Optional">
+        <Field label={t('songs.form.feats')} hint={t('common.optional')}>
           <SongArtistsEditor
             artists={artists}
             value={songArtists}
@@ -125,10 +127,10 @@ export default function SongFormPage() {
 
         <div className="flex gap-2">
           <Button type="submit" disabled={saving}>
-            {saving ? 'Saving…' : 'Create song'}
+            {saving ? t('common.saving') : t('songs.form.createSong')}
           </Button>
           <Button type="button" variant="ghost" onClick={goBack}>
-            Cancel
+            {t('common.cancel')}
           </Button>
         </div>
       </form>

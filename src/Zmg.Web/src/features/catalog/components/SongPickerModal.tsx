@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '@/api';
 import type { SongListItem } from '@/types';
 import { Modal, inputClass } from '@/components';
@@ -23,6 +24,7 @@ export function SongPickerModal({
   onSelect: (song: SongListItem) => void;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const [q, setQ] = useState('');
   const [results, setResults] = useState<SongListItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,21 +56,21 @@ export function SongPickerModal({
   const visible = results.filter((s) => !excludeIds.includes(s.id));
 
   return (
-    <Modal open={open} onClose={onClose} title="Add existing song">
+    <Modal open={open} onClose={onClose} title={t('tracks.addExistingShort')}>
       <input
         autoFocus
         className={inputClass}
         value={q}
         onChange={(e) => setQ(e.target.value)}
-        placeholder="Filter by title…"
+        placeholder={t('songs.filterByTitle')}
       />
 
       <div className="mt-3 max-h-[50vh] overflow-y-auto rounded-lg border border-edge">
         {loading ? (
-          <p className="px-3 py-2 text-sm text-subtle">Loading…</p>
+          <p className="px-3 py-2 text-sm text-subtle">{t('common.loadingShort')}</p>
         ) : visible.length === 0 ? (
           <p className="px-3 py-2 text-sm text-subtle">
-            {q.trim() ? 'No matches.' : 'No songs by this artist yet.'}
+            {q.trim() ? t('songs.noMatches') : t('songs.noneForArtist')}
           </p>
         ) : (
           <ul>
@@ -81,7 +83,7 @@ export function SongPickerModal({
                 >
                   <span className="block text-sm text-strong">{s.title}</span>
                   <span className="block text-xs text-subtle">
-                    {s.releaseDate ?? 'Unreleased'}
+                    {s.releaseDate ?? t('songs.unreleased')}
                     {s.isrc && ` · ${s.isrc}`}
                   </span>
                 </button>
