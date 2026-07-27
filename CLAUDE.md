@@ -102,3 +102,9 @@ compute them via the domain classes rather than persisting them.
 - Put business rules in `Zmg.Domain` static classes (unit-tested), not in endpoints or services.
 - Soft warnings (e.g. missing UPC/ISRC, empty album) are non-blocking — surfaced via
   `ReleaseWarnings`, never enforced as validation errors.
+- **The SPA is EN/ES (v2.8).** No user-facing literal in `src/features/**` or `src/components/**` —
+  everything goes through `t()`, keyed in `src/i18n/locales/{en,es}.json` (add to **both**; the parity
+  test in `src/i18n/i18n.test.ts` fails otherwise). `t()` is typed off `en.json`, so a wrong key won't
+  compile. Never build a sentence by concatenation — use interpolation or `_one`/`_other` plurals; pure
+  helpers return shapes and `hooks/useFormatters` supplies the words. Full rules in PROGRESS.md's
+  Cross-cutting decisions.

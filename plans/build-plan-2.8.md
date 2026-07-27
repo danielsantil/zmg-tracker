@@ -391,9 +391,12 @@ per-locale text field so ZMG can fix Spanish copy without a migration, over a
 ship 1–3 and carry step 4 into the backlog explicitly — seeded Spanish with no in-app editor is a
 complete, coherent state, and the editor is a convenience, not a correctness requirement.
 
-**Step 5.** PROGRESS journal entry + backlog update (per CLAUDE.md's build workflow), README's status
-line and stack table, and a CLAUDE.md note on the i18n conventions — where keys live, that the server
-stays culture-free, and that codes are permanent identifiers.
+**Step 5 — final docs pass.** PROGRESS.md is **already being updated per milestone** (its v2.8 journal
+entry, the in-flight banner, and the i18n cross-cutting block landed with M45), and CLAUDE.md already
+carries the SPA i18n convention. So step 5 is what's left: **compact** the v2.8 journal entry now that
+the version is done and drop the in-flight banner, fold the M46 code convention and the M47
+`Code`/`SourceCode` rule into Cross-cutting decisions, and refresh **README.md** — whose status line
+still says v2.5 and predates this plan.
 
 **Verification:** full `dotnet test` · the SPA three. Browser-verify a Spanish checklist end to end:
 create a single and an album, confirm every seeded task reads Spanish, confirm a user-added task and an

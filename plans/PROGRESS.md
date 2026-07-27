@@ -16,6 +16,7 @@ for where the project stands and the rules that span plans.
 - [build-plan-2.5.md](build-plan-2.5.md) — deployment · ACA/Neon/R2/Terraform/CI-CD (M29–M34). Shipped.
 - [build-plan-2.6.md](build-plan-2.6.md) — hardening · hard-delete · navbar · catalog fixes (M35–M38). Shipped.
 - [build-plan-2.7.md](build-plan-2.7.md) — infra hardening · remote state · cold start (M39–M42). Shipped.
+- [build-plan-2.8.md](build-plan-2.8.md) — multilingual EN/ES (M43–M48). **In progress: M43–M45 done.**
 
 Newer plan versions go in new `build-plan-N.N.md` files; older ones stay frozen.
 
@@ -24,10 +25,15 @@ Newer plan versions go in new `build-plan-N.N.md` files; older ones stay frozen.
 to **Azure Container Apps** over **Neon Postgres**; covers live in **Cloudflare R2**; the hosted stack is
 codified in Terraform under [`infra/`](../infra/README.md), with remote state in Azure Storage. A
 **GitHub Actions pipeline** tests, builds a SHA-tagged image, applies migrations, deploys to ACA over
-OIDC, then ships the SPA to Cloudflare. Backend **domain 119 / API 158**, SPA **32 Vitest** — the
-pipeline gates on these. **Next: v2.8 — multilingual (EN/ES);** the M37 language selector was
-deliberately deferred there. **Phase 2** (DSP stats, real-Postgres tests) follows and starts a new
+OIDC, then ships the SPA to Cloudflare. Backend **domain 119 / API 158**, SPA **50 Vitest** (32 before
+v2.8) — the pipeline gates on these. **Phase 2** (DSP stats, real-Postgres tests) follows v2.8 and starts a new
 `build-plan-3.0.md`.
+
+> 🚧 **v2.8 is in flight on `feat/i18n-multilingual`, branched off `dev` — not merged, not deployed.**
+> M43–M45 are committed and pushed (the SPA is fully EN/ES); **M46 is next**. Everything the next
+> session needs is in [build-plan-2.8.md](build-plan-2.8.md), whose per-milestone checklists are ticked
+> through M45. Backend test counts and the deployed stack are untouched so far — v2.8 is SPA-only
+> until M46.
 
 > ⚠️ **DB is Postgres (Neon) as of v2.5/M30.** Dev + prod both use `ConnectionStrings__Zmg` — **dev** via
 > `dotnet user-secrets` in `src/Zmg.Api` (never commit it), **prod** as an ACA secret. **Dev and tests
@@ -108,6 +114,17 @@ The measurement was the point: cold start is dominated by ~11–12s of Azure san
 code change touches, so M41's 1.85s was invisible end-to-end and only M42 — shell in **0.145s** instead
 of a blank page for the full ~17–22s — changed what a user actually experiences. ReadyToRun and an
 early `/api/health` wake were both measured and cut. See [build-plan-2.7.md](build-plan-2.7.md).
+
+**v2.8 (M43–M48) — multilingual EN/ES. IN PROGRESS: M43–M45 shipped on `feat/i18n-multilingual`.**
+react-i18next wired with both locales bundled (no HTTP backend — a round-trip would undo M42's edge
+first paint), language state mirroring `useTheme` including its persist-only-on-explicit-choice rule,
+`<html lang>` stamped pre-paint, and the language selector deferred from M37 finally in the navbar
+(M43); then ~270 UI strings migrated feature by feature — home + releases + the shared components they
+render (M44), catalog + artists + templates (M45). Web tests **32 → 50**. The design decision that
+shaped everything: `t()` is **typed off `en.json`**, so a missing key is a compile error, and pure
+helpers return *shapes* (`{ days: 3 }`) rather than sentences, because plural forms and word order
+differ per language. **Still English on purpose:** every server-minted string — pending-action labels,
+release warnings, API validation errors (M46) — and all checklist task text (M47–M48).
 
 ---
 
@@ -283,6 +300,28 @@ early `/api/health` wake were both measured and cut. See [build-plan-2.7.md](bui
   API on the **same origin**, which is why there is no prod CORS policy, no `VITE_API_BASE_URL`, and
   `src/api/client.ts` is untouched. Two build outputs must both keep working: `pnpm build` →
   `../Zmg.Api/wwwroot`, `pnpm build:edge` → `./dist`.
+- **Every user-facing SPA string is an i18next key, and `t()` is typed off `en.json` (v2.8/M43–M45).**
+  One namespace, nested keys under `src/i18n/locales/{en,es}.json`, both **bundled** into the JS. Adding
+  a language = adding a JSON file plus a name in `i18n/language.ts` — never touching component code.
+  Four rules that aren't obvious from the code:
+  - **Never concatenate a sentence.** `t('x', { count })` with `_one`/`_other`, or interpolation — Spanish
+    word order differs often enough that concatenation is a correctness bug, not a style one. Pure
+    helpers (`lib/format`, `lib/calendar`) therefore return **shapes** (`{ days: 3 }`,
+    `{ kind: 'range', … }`) and `hooks/useFormatters` supplies the words; `Intl` owns date wording via a
+    `locale` argument.
+  - **A missing key is a compile error** (`i18n/i18next.d.ts` merges `typeof en` into `CustomTypeOptions`).
+    Keys passed around as data need the `ParseKeys` type, not `string` — see `ReleaseFormPage`'s
+    `validateForm`, which returns keys so it stays pure.
+  - **`es.json` is guarded by `i18n/i18n.test.ts`**, not by types: key parity, placeholder parity, no
+    blanks, complete plural families. It is the thing that catches a key added to `en` and forgotten in
+    `es`. Vitest is `environment: 'node'` over `*.test.ts` only — no Testing Library, so i18n tests stay
+    pure-module.
+  - **Non-component modules translate off the i18n instance** (`import i18n from '@/i18n'`), not a hook —
+    `releases/archiveConfirm.tsx` and `ArtistFormPage`'s load effect. In the effect's case that's also
+    deliberate: taking `t` as a dep would re-fetch the artist on every language switch.
+  `aria-label`/`title`/`placeholder` translate; `KeyboardEvent` keys, `cva` variant keys, and the four
+  `ReleaseStatus` wire codes do not. `eslint-plugin-i18next` was evaluated and **not** adopted — it
+  false-positives on Tailwind class strings, and the parity test catches the failure it would.
 - **Prod runs Postgres (Neon); integration tests run SQLite in-memory (v2.5/M30).** Migrations are
   Postgres-specific. Keep query code **provider-agnostic** — e.g.
   title search lowercases both sides of `Like` rather than using Npgsql `ILike` — so SQLite tests stay
@@ -316,10 +355,25 @@ infra                    Terraform: azurerm + neon + cloudflare in one root modu
 - **Shipped — v2.6 (M35–M38):** startup fail-fast · hard-delete · responsive navbar · catalog counting.
 - **Shipped — v2.7 (M39–M42):** remote Terraform state · cold-start baseline · API boot path ·
   edge-served SPA.
-- **Next: v2.8 — multilingual (EN/ES).** Layered i18n (react-i18next UI chrome · DB-authored checklist
-  translations · API message codes); the language selector deferred from M37 lands here. Outline lives at
-  the end of `build-plan-2.7.md`; write `build-plan-2.8.md` when it starts. **Spanish checklist content is
-  the gating input.** Keep the server culture-free — see Cross-cutting decisions.
+- **In progress — v2.8 (M43–M48): multilingual EN/ES**, on `feat/i18n-multilingual` off `dev`.
+  **Done:** M43 i18n foundation + language selector · M44 home/releases strings · M45
+  catalog/artists/templates strings. The SPA chrome is fully bilingual and each milestone is its own
+  pushed commit.
+  **Next up — M46: API messages as stable codes.** Read [build-plan-2.8.md](build-plan-2.8.md) first; its
+  checklists are ticked through M45 and M46–M48 carry the full design. Three things to know going in:
+  - M46 changes the error payload from `errors: string[]` to `[{ code, args? }]` with **no** prose field,
+    so it touches `Zmg.Domain` (`Validation`, `ReleaseWarnings`, `PendingActions`), `OperationResult`,
+    `Contracts/Dtos.cs`, five services, `api/client.ts`, and both test projects. First milestone needing
+    **full `dotnet test`**.
+  - **M47 fixes a real latent bug, and it is not optional:** `Release.IsDistributed` matches the literal
+    English title `"Distribute to DSPs"` (`Release.cs:38`, `ReleaseService.cs:57,187`). One Spanish title
+    and the UPC warning, the pending engine, and the past-date backfill all silently stop firing. The
+    stable `Code`/`SourceCode` columns are the fix, with a backfill for existing rows.
+  - **M48 needs the user**, and only for reviewing the 41 Spanish task titles. Per the user (v2.8 kickoff)
+    the bar is a first pass, **not** perfect copy: leave anything genuinely ambiguous in English rather
+    than guessing, and they'll finish it on the running site.
+  Keep the server culture-free throughout — see Cross-cutting decisions. Nothing in v2.8 needs infra,
+  secrets, or money.
 - **Then: Phase 2 — DSP stats** (the reason this exists over Notion/Trello): hang streaming/revenue data
   off the stable Artist / Release / **Song** / Track ids and the UPC/ISRC columns; the v2.0 Song ids are
   its foundation. Also real-Postgres tests. No build plan yet — write `build-plan-3.0.md` when it starts.
