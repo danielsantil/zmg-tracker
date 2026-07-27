@@ -4,7 +4,7 @@ Per-release checklist tracker for Zion Music Group. Turns the repeatable pre/rel
 into per-release progress tracking across artists, for singles and albums.
 
 **Live:** https://zmg-app.mangohill-c8bd3207.eastus.azurecontainerapps.io
-· **Status:** v2.5 complete — feature-complete through v2.4, fully deployed and on CI/CD.
+· **Status:** v2.8 complete — feature-complete through v2.4, fully deployed on CI/CD, and **bilingual EN/ES**.
 
 The source of truth for project state is [plans/PROGRESS.md](plans/PROGRESS.md); per-milestone briefs
 are in [plans/build-plan-*.md](plans/). Working conventions are in [CLAUDE.md](CLAUDE.md).
@@ -16,6 +16,7 @@ are in [plans/build-plan-*.md](plans/). Working conventions are in [CLAUDE.md](C
 | Backend | ASP.NET Core (.NET 8) minimal API + EF Core |
 | Domain | pure C# (no I/O) — template-copy, progress, derived status, warnings, validation |
 | Frontend | React 19 + Vite + Tailwind SPA (served from a **Cloudflare Worker** at the edge, and from the API's `wwwroot` as a fallback) |
+| Languages | **English + Spanish** — react-i18next bundles for UI text, stable codes for API messages, DB rows for checklist text |
 | Database | **Neon Postgres** (prod + dev); **SQLite in-memory** for tests |
 | Image storage | **Cloudflare R2** (release covers, normalized to a 1000px WebP on ingest) |
 | Hosting | **Azure Container Apps** (Consumption, scale-to-zero) |
@@ -30,6 +31,12 @@ and a **Song** (title, main artist, ISRC, feats/collabs) are separate first-clas
 through a pure **`Track`** join, so one song can sit on a single *and* an album. A release copies a
 seeded **ChecklistTemplate** into concrete tasks at creation; status and warnings are **derived**, never
 stored. See [CLAUDE.md](CLAUDE.md) for the full model.
+
+The app is **bilingual (EN/ES)** in three layers, each with its own mechanism: UI text is i18next JSON
+bundled into the SPA; API errors and warnings ship as culture-invariant **codes** the SPA renders (the
+server stays culture-free, `InvariantGlobalization=true`); and checklist task text is **data** — a
+stable `Code` per seeded task resolving a per-locale row at read time, editable in the templates screen
+without a deploy.
 
 ```
 src/Zmg.Domain   Entities, enums, and business rules as pure static classes. No I/O, no EF.

@@ -391,7 +391,8 @@
     "notFound": "No template found.",
     "taskCount_one": "{{count}} task in this template",
     "taskCount_other": "{{count}} tasks in this template",
-    "deleteTaskConfirm": "Delete template task \"{{title}}\"?"
+    "deleteTaskConfirm": "Delete template task \"{{title}}\"?",
+    "perLocaleEdit": "Editing a task here changes its {{language}} text — the other languages keep theirs."
   },
   "error": {
     "artist": {

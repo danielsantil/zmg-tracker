@@ -81,6 +81,98 @@ public static class SeedData
         new(Phase.Post, TaskCodes.AlbumRemainingLyricVideos, "Lyric videos for remaining tracks")
     ];
 
+
+    /// <summary>
+    /// Spanish checklist copy (v2.8/M48), keyed by <see cref="TaskCodes"/> slug. Seeded as
+    /// <c>TemplateTaskTranslation</c> rows, so it is deterministic, versioned in the repo and reviewable
+    /// in a diff — and, once the templates editor grows a per-locale field, correctable in the app
+    /// without a migration.
+    /// </summary>
+    /// <remarks>
+    /// Two deliberate rules. <b>Domain jargon stays English</b> — DSP, BMI, MLC, SoundExchange,
+    /// Musixmatch, Canvas, Artist Pick, Discovery Mode are proper nouns, and "smart link", "pre-save",
+    /// "waterfall", "multitracks", "master", "splits", "focus tracks", "tracklist", "pitch", "streams"
+    /// and "EPK" are the terms ZMG actually uses in English. Translating them would make the checklist
+    /// *harder* to read, not easier.
+    /// <para>
+    /// And <b>a task with no entry here is not a gap</b>: three titles (Spotify Canvas, Spotify Artist
+    /// Pick, Spotify Discovery Mode) are proper nouns end to end, so they get no row at all and fall
+    /// back to the English column — which is cheaper and more honest than storing a "translation"
+    /// identical to its fallback.
+    /// </para>
+    /// </remarks>
+    private static readonly Dictionary<string, string> SpanishTitles = new()
+    {
+        // Base checklist — Pre
+        [TaskCodes.MixMaster] = "Mezcla/master",
+        [TaskCodes.DesignCover] = "Diseñar la portada para los DSPs",
+        [TaskCodes.DistributeToDsps] = "Distribuir a los DSPs",
+        [TaskCodes.YoutubeVideoAssets] = "Hacer el video para YouTube, la miniatura y los demás recursos de YouTube",
+        [TaskCodes.PitchAmazon] = "Pitch a Amazon",
+        [TaskCodes.PitchSpotify] = "Pitch a Spotify",
+
+        // Base checklist — Release
+        [TaskCodes.SmartLink] = "Configurar el smart link a todas las tiendas",
+        [TaskCodes.SmartLinkRedirect] = "Configurar la redirección del smart link desde zionmusicgroup.com/<song-name>",
+        [TaskCodes.RegisterBmi] = "Registrar la composición en BMI",
+        [TaskCodes.RegisterMlc] = "Registrar la composición en MLC",
+        [TaskCodes.RegisterSoundExchange] = "Registrar en SoundExchange",
+        [TaskCodes.MusixmatchLyrics] = "Letra en Musixmatch: agregar/sincronizar",
+        [TaskCodes.CheckDeezer] = "Revisar el lanzamiento en Deezer (artista equivocado)",
+        [TaskCodes.CheckAmazon] = "Revisar el lanzamiento en Amazon (artista equivocado)",
+        [TaskCodes.CheckApple] = "Revisar el lanzamiento en Apple (artista equivocado)",
+        // SpotifyCanvas / SpotifyArtistPick: proper nouns, no row — see the remarks above.
+        [TaskCodes.YoutubeBanner] = "Actualizar el banner de YouTube",
+        [TaskCodes.YoutubeHomeVideo] = "Actualizar el video destacado de YouTube",
+        [TaskCodes.YoutubeCards] = "Actualizar las tarjetas en los videos existentes",
+        [TaskCodes.YoutubePinnedComment] = "Actualizar el comentario fijado en los videos existentes con el enlace al video nuevo",
+        [TaskCodes.InstagramBioYoutubeLink] = "Actualizar el enlace de YouTube en las biografías de Instagram",
+        [TaskCodes.InstagramBioSong] = "Actualizar la canción en las biografías de Instagram",
+        [TaskCodes.MasterSplits] = "Enviar los master splits a los colaboradores",
+
+        // Base checklist — Post
+        [TaskCodes.MetaAdsInitial] = "Meta ads: campaña inicial de lanzamiento",
+        [TaskCodes.MetaAdsOngoing] = "Meta ads: campaña continua",
+        // SpotifyDiscoveryMode: proper noun, no row.
+        [TaskCodes.YoutubeVideoAds] = "Anuncios de video en YouTube",
+        [TaskCodes.TiktokAds] = "Anuncios en TikTok",
+        [TaskCodes.YoutubeLyricsVideo] = "Crear el video con letra para YouTube",
+        [TaskCodes.MultitracksSetup] = "Preparar los multitracks: proyecto de Ableton, subida a Google Drive, nueva entrada en zionmusicgroup.com/recursos",
+
+        // Album extras
+        [TaskCodes.AlbumTracklistSequencing] = "Cerrar el tracklist y el orden de las canciones (queda fijo al enviarlo a la distribuidora)",
+        [TaskCodes.AlbumIsrcUpcMetadata] = "Confirmar ISRC/UPC y los metadatos/créditos de cada canción",
+        [TaskCodes.AlbumFocusTracksWaterfall] = "Elegir los focus tracks y planear 2-4 sencillos previos al álbum (waterfall: cada sencillo nuevo se reempaqueta con los anteriores y el álbum hereda sus streams)",
+        [TaskCodes.AlbumPreSave] = "Campaña de pre-save del álbum",
+        [TaskCodes.AlbumBioPressEpk] = "Actualizar la biografía del artista / el comunicado de prensa / el EPK",
+        [TaskCodes.AlbumBatchContent] = "Producir contenido por lotes antes de la semana de lanzamiento (comentario canción por canción, videos con letra, versiones acústicas)",
+        [TaskCodes.AlbumPhysicalMedia] = "Medios físicos si aplica (los tiempos de producción de vinilo/CD son de meses)",
+        [TaskCodes.AlbumPerTrackRegistrations] = "Los registros (BMI, MLC, Musixmatch, splits) se repiten por cada canción",
+        [TaskCodes.AlbumRotateFocusTracks] = "Rotar los focus tracks cada pocas semanas con pitching de playlists por canción",
+        [TaskCodes.AlbumRemainingLyricVideos] = "Videos con letra para las canciones restantes",
+    };
+
+    /// <summary>
+    /// Flat translation rows for EF <c>HasData</c>. One per (template task, locale): the base checklist
+    /// is seeded into <i>both</i> templates, so a shared title is written once here and lands as two
+    /// rows — the key is <c>(TemplateTaskId, Locale)</c>, which is already deterministic.
+    /// </summary>
+    public static IEnumerable<TemplateTaskTranslation> AllTemplateTaskTranslations()
+    {
+        foreach (var task in AllTemplateTasks())
+        {
+            if (task.Code is { } code && SpanishTitles.TryGetValue(code, out var text))
+            {
+                yield return new TemplateTaskTranslation
+                {
+                    TemplateTaskId = task.Id,
+                    Locale = "es",
+                    Text = text,
+                };
+            }
+        }
+    }
+
     public static IReadOnlyList<ChecklistTemplate> Templates()
     {
         return

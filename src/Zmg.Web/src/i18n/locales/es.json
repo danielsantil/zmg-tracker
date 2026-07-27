@@ -391,7 +391,8 @@
     "notFound": "No se encontró la plantilla.",
     "taskCount_one": "{{count}} tarea en esta plantilla",
     "taskCount_other": "{{count}} tareas en esta plantilla",
-    "deleteTaskConfirm": "¿Eliminar la tarea de plantilla \"{{title}}\"?"
+    "deleteTaskConfirm": "¿Eliminar la tarea de plantilla \"{{title}}\"?",
+    "perLocaleEdit": "Editar una tarea aquí cambia su texto en {{language}}; los demás idiomas conservan el suyo."
   },
   "error": {
     "artist": {

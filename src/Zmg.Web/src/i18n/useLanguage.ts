@@ -27,9 +27,13 @@ export function useLanguage(): { language: Language; setLanguage: (next: Languag
       // Since M47 the server answers checklist text per locale, keyed off the `X-Lang` header
       // `client.ts` sends — so every cached payload is now in the *previous* language. Chrome text
       // re-renders on its own; this is what makes the task titles follow.
-      void queryClient.invalidateQueries();
+      //
+      // Ordering is load-bearing: `client.ts` reads `i18n.language` as it builds the header, and the
+      // effect below doesn't run until after this render. Invalidating first therefore refetched the
+      // *old* locale and left the checklist visibly untranslated while the chrome had already flipped.
+      void i18n.changeLanguage(next).then(() => queryClient.invalidateQueries());
     },
-    [queryClient],
+    [i18n, queryClient],
   );
 
   return { language, setLanguage };

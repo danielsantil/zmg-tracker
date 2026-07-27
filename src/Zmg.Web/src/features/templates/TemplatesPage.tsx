@@ -9,6 +9,8 @@ import { ErrorBanner, Loading, Toast } from '@/components';
 import { useConfirm } from '@/hooks/useConfirm';
 import { useToast } from '@/hooks/useToast';
 import { PHASE_ORDER, byPhase } from '@/lib/phase';
+import { useLanguage } from '@/i18n/useLanguage';
+import { LANGUAGE_NAMES } from '@/i18n/language';
 import { PhaseSection } from '../releases/components/PhaseSection';
 import type { TaskPatch } from '../releases/components/TaskRow';
 
@@ -19,6 +21,7 @@ const TYPE_TABS = [
 
 export default function TemplatesPage() {
   const { t } = useTranslation();
+  const { language } = useLanguage();
   const confirm = useConfirm();
   const queryClient = useQueryClient();
   const { toast, toastVariant, showToast } = useToast();
@@ -116,6 +119,10 @@ export default function TemplatesPage() {
       <p className="mb-4 rounded-lg border border-warn/30 bg-warn/10 px-4 py-2.5 text-sm text-warnFg">
         {t('templates.futureOnly')}
       </p>
+
+      {/* M48: a title edit lands in whichever language you're reading, so ZMG can correct the Spanish
+          copy here instead of through a migration. Worth saying out loud — it isn't guessable. */}
+      <p className="mb-6 text-sm text-muted">{t('templates.perLocaleEdit', { language: LANGUAGE_NAMES[language] })}</p>
 
       <div className="mb-6 flex gap-1 rounded-lg border border-edge bg-panel p-1">
         {TYPE_TABS.map((tab_) => (

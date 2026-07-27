@@ -17,8 +17,14 @@ namespace Zmg.Api.Tests;
 /// </summary>
 public class ChecklistTranslationApiTests(ZmgApiFactory factory) : IClassFixture<ZmgApiFactory>
 {
+    // The real seeded copy (M48), not a fixture — asserting against SeedData is what makes these tests
+    // prove the shipped checklist rather than a hand-built one.
     private const string MixMasterEs = "Mezcla/master";
-    private const string DistributeEs = "Distribuir a DSPs";
+    private const string DistributeEs = "Distribuir a los DSPs";
+
+    // Deliberately untranslated: a proper noun end to end, so it has no row and falls back to English.
+    // It is the fallback path's live example, not an oversight — see SeedData.SpanishTitles.
+    private const string UntranslatedTitle = "Spotify Canvas";
 
     // ---- Seed + migration ----
 
@@ -102,24 +108,23 @@ public class ChecklistTranslationApiTests(ZmgApiFactory factory) : IClassFixture
     public async Task Templates_answer_in_the_requested_locale_and_fall_back_to_english()
     {
         var client = factory.CreateClient();
-        SeedSpanish();
 
         var spanish = await GetTemplates(client, "es");
         var single = spanish.Single(t => t.Type == ReleaseType.Single);
         Assert.Contains(single.Phases.SelectMany(p => p.Tasks), t => t.Title == MixMasterEs);
-        // Only two codes were translated; everything else keeps its English title, never a raw slug.
-        Assert.Contains(single.Phases.SelectMany(p => p.Tasks), t => t.Title == "Pitch to Spotify");
+        // A task with no Spanish row keeps its English title, never a raw slug.
+        Assert.Contains(single.Phases.SelectMany(p => p.Tasks), t => t.Title == UntranslatedTitle);
 
         var english = await GetTemplates(client, "en");
-        Assert.Contains(english.Single(t => t.Type == ReleaseType.Single).Phases.SelectMany(p => p.Tasks),
-            t => t.Title == "Mix/master");
+        var englishTasks = english.Single(t => t.Type == ReleaseType.Single).Phases.SelectMany(p => p.Tasks).ToList();
+        Assert.Contains(englishTasks, t => t.Title == "Mix/master");
+        Assert.DoesNotContain(englishTasks, t => t.Title == MixMasterEs);
     }
 
     [Fact]
     public async Task A_release_checklist_translates_through_its_source_code()
     {
         var client = factory.CreateClient();
-        SeedSpanish();
         var release = await CreateRelease(client, "Locale Release", TestDates.Today.AddDays(21));
 
         var spanish = await GetRelease(client, release.Id, "es");
@@ -133,7 +138,6 @@ public class ChecklistTranslationApiTests(ZmgApiFactory factory) : IClassFixture
     public async Task An_unsupported_locale_falls_back_to_english_rather_than_failing()
     {
         var client = factory.CreateClient();
-        SeedSpanish();
         var release = await CreateRelease(client, "Unsupported Locale Release", TestDates.Today.AddDays(22));
 
         var detail = await GetRelease(client, release.Id, "de");
@@ -145,7 +149,6 @@ public class ChecklistTranslationApiTests(ZmgApiFactory factory) : IClassFixture
     public async Task Accept_language_is_honoured_when_x_lang_is_absent()
     {
         var client = factory.CreateClient();
-        SeedSpanish();
         var release = await CreateRelease(client, "Accept-Language Release", TestDates.Today.AddDays(23));
 
         var request = new HttpRequestMessage(HttpMethod.Get, $"/api/releases/{release.Id}");
@@ -161,7 +164,6 @@ public class ChecklistTranslationApiTests(ZmgApiFactory factory) : IClassFixture
     public async Task Editing_a_task_title_clears_its_source_code_and_the_text_stays_verbatim()
     {
         var client = factory.CreateClient();
-        SeedSpanish();
         var release = await CreateRelease(client, "Edited Task Release", TestDates.Today.AddDays(24));
         var task = release.Phases.SelectMany(p => p.Tasks).Single(t => t.Title == "Mix/master");
 
@@ -188,7 +190,6 @@ public class ChecklistTranslationApiTests(ZmgApiFactory factory) : IClassFixture
     public async Task Moving_a_task_between_phases_in_spanish_is_not_treated_as_a_title_edit()
     {
         var client = factory.CreateClient();
-        SeedSpanish();
         var release = await CreateRelease(client, "Phase Move Release", TestDates.Today.AddDays(25));
         var task = release.Phases.SelectMany(p => p.Tasks).Single(t => t.Title == SeedData.DistributeToDspsTitle);
 
@@ -212,31 +213,6 @@ public class ChecklistTranslationApiTests(ZmgApiFactory factory) : IClassFixture
 
     // ---- Helpers ----
 
-    /// <summary>Two codes only — enough to prove resolution while leaving the fallback path exercised.</summary>
-    private void SeedSpanish()
-    {
-        using var scope = factory.Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<ZmgDbContext>();
-        if (db.TemplateTaskTranslations.Any()) return;
-
-        var wanted = new Dictionary<string, string>
-        {
-            [TaskCodes.MixMaster] = MixMasterEs,
-            [TaskCodes.DistributeToDsps] = DistributeEs,
-        };
-
-        // One row per template task, so the base checklist's two copies (single + album) both translate.
-        foreach (var task in db.TemplateTasks.AsNoTracking().Where(t => wanted.Keys.Contains(t.Code!)).ToList())
-        {
-            db.TemplateTaskTranslations.Add(new TemplateTaskTranslation
-            {
-                TemplateTaskId = task.Id,
-                Locale = "es",
-                Text = wanted[task.Code!],
-            });
-        }
-        db.SaveChanges();
-    }
 
     private async Task<ReleaseDetailDto> CreateRelease(HttpClient client, string title, DateOnly date)
     {

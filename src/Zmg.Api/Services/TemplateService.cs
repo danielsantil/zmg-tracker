@@ -68,22 +68,82 @@ public sealed class TemplateService(ZmgDbContext db, ITaskTranslationService tra
             task.Phase = input.Phase;
         }
 
-        // Same rule as a release task (M47): a real title edit makes the task custom — new text stored,
-        // code dropped — and "real" is measured against the text the user was shown, not the English
-        // column, so a phase move in Spanish doesn't overwrite the title with its own translation.
+        // A title edit is applied to *the locale the editor is reading* (M48). Editing a seeded task
+        // while in Spanish rewrites its Spanish row and leaves the English standard — and the code —
+        // alone; editing in English rewrites the standard and leaves the Spanish alone. That is what
+        // makes the copy correctable in the app instead of by migration, and it supersedes M47's
+        // "clear the Code on edit" for template tasks: with per-locale edits there is no silent revert
+        // to protect against, and dropping the code would orphan every other locale's text.
+        // (Release tasks keep M47's rule — a release owns a snapshot, with no per-locale text of its own.)
+        //
+        // "Edited" is still measured against what the user was shown, not the English column: the SPA
+        // round-trips the title on a phase move, so comparing to `Title` would treat every Spanish move
+        // as an edit.
         var text = await translations.ForRequestLocaleAsync(ct);
         var newTitle = input.Title.Trim();
-        if (!string.Equals(newTitle, TaskText.Resolve(task.Code, task.Title, text), StringComparison.Ordinal))
+        var responseTitle = TaskText.Resolve(task.Code, task.Title, text);
+
+        if (!string.Equals(newTitle, responseTitle, StringComparison.Ordinal))
         {
-            task.Title = newTitle;
-            task.Code = null;
+            responseTitle = newTitle;
+            if (task.Code is not null && translations.Locale != TaskText.DefaultLocale)
+                await UpsertTranslationAsync(task, translations.Locale, newTitle, ct);
+            else
+                task.Title = newTitle; // English, or a user-added task that has no locale to key off
         }
 
         task.MinDaysBefore = input.MinDaysBefore;
         task.MaxDaysBefore = input.MaxDaysBefore;
         await db.SaveChangesAsync(ct);
 
-        return OperationResult<TemplateTaskDto>.Success(ToDto(task, text));
+        return OperationResult<TemplateTaskDto>.Success(
+            new TemplateTaskDto(task.Id, responseTitle, task.Phase, task.SortOrder, task.MinDaysBefore, task.MaxDaysBefore));
+    }
+
+    /// <summary>
+    /// Writes one locale's text for a task — and for <b>every</b> template task sharing its code.
+    /// </summary>
+    /// <remarks>
+    /// Code-scoped, not row-scoped, because the lookup map is keyed by code: a release task carries a
+    /// <c>SourceCode</c> and no live FK, so there is nothing else to resolve through. The base checklist
+    /// is seeded into both templates, so writing only this row would leave the other one supplying the
+    /// old text to the same code — the edit would appear to do nothing, which is exactly what the test
+    /// for this caught. (English titles stay per-row, as they always have been: <c>Title</c> is a
+    /// column, and nothing resolves it by code.)
+    /// <para>
+    /// Text identical to the English title <b>deletes</b> the row rather than storing it: falling back
+    /// to the column is the same result with less to keep in step, and it is the rule the seed already
+    /// follows for the untranslatable proper nouns.
+    /// </para>
+    /// </remarks>
+    private async Task UpsertTranslationAsync(TemplateTask task, string locale, string text, CancellationToken ct)
+    {
+        var code = task.Code!;
+        var siblings = await db.TemplateTasks.Where(t => t.Code == code).ToListAsync(ct);
+        var existingByTask = (await db.TemplateTaskTranslations
+                .Where(t => t.Locale == locale && t.TemplateTask!.Code == code)
+                .ToListAsync(ct))
+            .ToDictionary(t => t.TemplateTaskId);
+
+        foreach (var sibling in siblings)
+        {
+            existingByTask.TryGetValue(sibling.Id, out var existing);
+            Write(sibling, existing);
+        }
+
+        void Write(TemplateTask target, TemplateTaskTranslation? existing)
+        {
+            if (string.Equals(text, target.Title, StringComparison.Ordinal))
+            {
+                if (existing is not null) db.TemplateTaskTranslations.Remove(existing);
+                return;
+            }
+
+            if (existing is null)
+                db.TemplateTaskTranslations.Add(new TemplateTaskTranslation { TemplateTaskId = target.Id, Locale = locale, Text = text });
+            else
+                existing.Text = text;
+        }
     }
 
     public async Task<OperationResult> ReorderTasksAsync(Guid templateId, ReorderTemplateTasksInput input, CancellationToken ct = default)

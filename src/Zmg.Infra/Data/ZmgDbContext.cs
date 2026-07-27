@@ -135,5 +135,16 @@ public class ZmgDbContext(DbContextOptions<ZmgDbContext> options) : DbContext(op
                 MaxDaysBefore = task.MaxDaysBefore,
             });
         }
+        // Spanish checklist text (M48). Rows, not resources — English stays in Title, so only `es` is
+        // seeded, and a task with no row (three Spotify proper nouns) correctly falls back to English.
+        foreach (var translation in SeedData.AllTemplateTaskTranslations())
+        {
+            b.Entity<TemplateTaskTranslation>().HasData(new TemplateTaskTranslation
+            {
+                TemplateTaskId = translation.TemplateTaskId,
+                Locale = translation.Locale,
+                Text = translation.Text,
+            });
+        }
     }
 }

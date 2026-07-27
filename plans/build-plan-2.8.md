@@ -401,12 +401,39 @@ new migration, `src/Zmg.Api/{Contracts/Dtos.cs,Services/*}`, `src/Zmg.Web/src/ap
 ## M48 — Spanish checklist content + per-locale editing
 
 ```
-[ ] 1. Draft es for 41 titles                    ← Code change (SeedData)
-[ ] 2. Seed via HasData + migration              ← Code change
-[ ] 3. User review pass                          ← the one input I can't self-serve
-[ ] 4. Templates editor: per-locale text field   ← Code change  (droppable — see below)
-[ ] 5. PROGRESS + README + CLAUDE.md             ← Code change
+[x] 1. Draft es for 41 titles                    ← Code change (SeedData) — 38 translated, 3 left English
+[x] 2. Seed via HasData + migration              ← Code change  (66 rows)
+[ ] 3. User review pass                          ← the one input I can't self-serve — still open
+[x] 4. Templates editor: per-locale text field   ← Code change  (kept, and simpler than planned)
+[x] 5. PROGRESS + README + CLAUDE.md             ← Code change
 ```
+
+**Landed.** Step 3 is the only thing outstanding, and it is deliberately not a blocker — step 4 shipped,
+so corrections go into the running app rather than into a migration.
+
+- **38 titles translated, 3 left English on purpose.** Spotify Canvas / Artist Pick / Discovery Mode are
+  proper nouns end to end, so they get **no row at all** and fall back to the `Title` column — cheaper
+  and more honest than storing a "translation" identical to its fallback. `SeedDataTests` pins that
+  exact set, so a *forgotten* translation fails a test instead of sitting quietly as English inside a
+  Spanish checklist. Domain jargon stayed English throughout (DSP/BMI/MLC/SoundExchange/Musixmatch,
+  "smart link", "pre-save", "waterfall", "multitracks", "master", "splits", "focus tracks", "tracklist",
+  "pitch", "streams", "EPK") — translating it would make the checklist harder to read, not easier.
+- **Step 4 needed no new endpoint, DTO or field.** The templates editor already edits titles inline and
+  already sends `X-Lang`, so the whole feature is a semantic change in `TemplateService.UpdateTaskAsync`:
+  an edit lands in the locale being read. That supersedes M47's "clear the `Code` on edit" for template
+  tasks — with per-locale edits there is no silent revert to protect against, and dropping the code
+  would orphan every other locale. The UI change is one explanatory line, since the behaviour is
+  correct but not guessable.
+- **The write has to be code-scoped, and a test caught it.** The lookup map is keyed by code (a release
+  task carries `SourceCode` and no live FK), and the base checklist is seeded into *both* templates — so
+  writing only the edited row left the other template feeding the old text back to the same code, and
+  the edit appeared to do nothing. `UpsertTranslationAsync` fans out to every task sharing the code.
+- **A latent race in the language switch, found by browser verification.** `setLanguage` invalidated the
+  query cache before `i18n.changeLanguage` had run, so the refetch re-requested the *old* locale: chrome
+  flipped, checklist didn't. Ordering is now explicit and commented in `useLanguage`.
+
+**Counted correction:** the album template holds **41** tasks (31 base + 10 extras), not 40 — stale in
+PROGRESS and build-plan-2.7 since M6 inserted "Distribute to DSPs" into the shared base list. Fixed.
 
 **Step 1.** 41 distinct titles — 31 base (the single template) + 10 album extras. The album template is
 the base list *plus* the extras, so it holds 41 tasks and shared titles are translated once. (Counted

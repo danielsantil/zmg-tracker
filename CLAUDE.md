@@ -108,6 +108,12 @@ compute them via the domain classes rather than persisting them.
   reflects over the constants and fails otherwise. Codes are permanent identifiers; keep them next to
   the rule that raises them (`Validation`, `ReleaseWarnings`, `CoverImage`), or in
   `Api/Services/ServiceErrors.cs` for the ones a service mints. Full rules in PROGRESS.md.
+- **Checklist task text is data, keyed by a stable code (v2.8/M47–M48).** `TaskCodes` holds a slug per
+  seeded task; `TemplateTask.Code` carries it and `TemplateCopy` stamps it onto `ReleaseTask.SourceCode`.
+  Per-locale text lives in `TemplateTaskTranslation` rows and resolves at read time through pure
+  `TaskText.Resolve`, which falls back to the English `Title` column on every miss. **Never key a rule
+  off a task title** — `Release.IsDistributed` uses the code, and anything new must too. Adding a seeded
+  task means adding its code, its English title, and (usually) its Spanish. Full rules in PROGRESS.md.
 - **The SPA is EN/ES (v2.8).** No user-facing literal in `src/features/**` or `src/components/**` —
   everything goes through `t()`, keyed in `src/i18n/locales/{en,es}.json` (add to **both**; the parity
   test in `src/i18n/i18n.test.ts` fails otherwise). `t()` is typed off `en.json`, so a wrong key won't
