@@ -1,4 +1,5 @@
 using System.Data.Common;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.Sqlite;
@@ -19,6 +20,13 @@ public class ZmgApiFactory : WebApplicationFactory<Program>
 {
     private DbConnection? _connection;
 
+    /// <summary>
+    /// When true (the default), a stub scheme signs every request in as the seeded user, so the whole
+    /// existing suite keeps exercising business endpoints without knowing authentication exists
+    /// (v2.10/M55). Set false to exercise the real deny-by-default pipeline — see <c>AuthApiTests</c>.
+    /// </summary>
+    public bool Authenticated { get; init; } = true;
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
@@ -31,6 +39,11 @@ public class ZmgApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("R2:SecretAccessKey", "test-secret-access-key");
         builder.UseSetting("R2:Bucket", "test-bucket");
         builder.UseSetting("R2:PublicBaseUrl", "https://covers.test");
+        // Dummy Google credentials so startup validation passes. Never dereferenced: no test challenges
+        // the OIDC handler, which would otherwise fetch Google's discovery document over the network —
+        // and this suite touches neither R2 nor the network, by standing rule.
+        builder.UseSetting("Authentication:Google:ClientId", "test-client-id");
+        builder.UseSetting("Authentication:Google:ClientSecret", "test-client-secret");
 
         builder.ConfigureServices(services =>
         {
@@ -44,6 +57,16 @@ public class ZmgApiFactory : WebApplicationFactory<Program>
             _connection.Open();
 
             services.AddDbContext<ZmgDbContext>(options => options.UseSqlite(_connection));
+
+            if (Authenticated)
+            {
+                // Re-points the default scheme at a handler that always succeeds. The fallback policy
+                // still runs — it is simply satisfied — so this stubs *authentication*, never
+                // authorization: an endpoint that forgot AllowAnonymous is still reachable here, which
+                // is exactly what AuthApiTests exists to catch instead.
+                services.AddAuthentication(TestAuthHandler.SchemeName)
+                    .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(TestAuthHandler.SchemeName, _ => { });
+            }
         });
     }
 

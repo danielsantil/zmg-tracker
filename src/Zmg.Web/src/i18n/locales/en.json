@@ -1,4 +1,21 @@
 {
+  "auth": {
+    "login": {
+      "title": "Release Tracker",
+      "subtitle": "Sign in to continue",
+      "google": "Continue with Google",
+      "fineprint": "Internal tool. Access is by invitation — ask Daniel to add your address."
+    },
+    "denied": {
+      "badge": "Access not granted",
+      "body": "That Google account isn't authorised for this workspace. If you signed in with a personal account, try again with your work one.",
+      "retry": "Try a different account"
+    },
+    "account": {
+      "menu": "Account",
+      "signOut": "Sign out"
+    }
+  },
   "common": {
     "add": "Add",
     "adding": "Adding…",
@@ -406,6 +423,11 @@
     "deleteTaskConfirm": "Delete template task \"{{title}}\"?"
   },
   "error": {
+    "auth": {
+      "required": "Your session has ended. Sign in again to continue.",
+      "notAllowed": "That account isn't authorised for this workspace.",
+      "emailUnverified": "That Google account's email address isn't verified."
+    },
     "artist": {
       "nameRequired": "Artist name is required.",
       "duplicateName": "An artist named \"{{name}}\" already exists.",
@@ -456,6 +478,8 @@
     },
     "mainArtistRequired": "A main artist is required.",
     "mainArtistNotFound": "The selected main artist does not exist.",
+    "unexpected": "Something went wrong on our side. Please try again — quote reference {{requestId}} if it keeps happening.",
+    "badRequest": "The server couldn't accept that request. If it was a file, it may be too large.",
     "unknown": "Something went wrong."
   },
   "warning": {

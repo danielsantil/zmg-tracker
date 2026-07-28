@@ -65,3 +65,14 @@ variable "r2_public_base_url" {
   description = "Public r2.dev base URL for covers"
   type        = string
 }
+
+variable "google_client_id" {
+  description = "Google OAuth client id. Public by design (it appears in the authorization URL)"
+  type        = string
+}
+
+variable "google_client_secret" {
+  description = "Google OAuth client secret."
+  type        = string
+  sensitive   = true
+}

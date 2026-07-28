@@ -22,6 +22,61 @@ namespace Zmg.Infra.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Microsoft.AspNetCore.DataProtection.EntityFrameworkCore.DataProtectionKey", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("FriendlyName")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Xml")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("DataProtectionKeys");
+                });
+
+            modelBuilder.Entity("Zmg.Domain.Entities.AllowedUser", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DisabledAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DisplayName")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Email")
+                        .IsUnique();
+
+                    b.ToTable("AllowedUsers");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("33333333-3333-3333-3333-333333333333"),
+                            CreatedAt = new DateTime(2026, 7, 28, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Email = "danielsantilh@gmail.com"
+                        });
+                });
+
             modelBuilder.Entity("Zmg.Domain.Entities.Artist", b =>
                 {
                     b.Property<Guid>("Id")
@@ -40,6 +95,42 @@ namespace Zmg.Infra.Migrations
                     b.HasIndex("Name");
 
                     b.ToTable("Artists");
+                });
+
+            modelBuilder.Entity("Zmg.Domain.Entities.AuthSession", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<Guid>("AllowedUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("LastSeenAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<byte[]>("TicketData")
+                        .IsRequired()
+                        .HasColumnType("bytea");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AllowedUserId");
+
+                    b.HasIndex("ExpiresAt");
+
+                    b.ToTable("AuthSessions");
                 });
 
             modelBuilder.Entity("Zmg.Domain.Entities.ChecklistTemplate", b =>
@@ -991,6 +1082,17 @@ namespace Zmg.Infra.Migrations
                     b.ToTable("Tracks");
                 });
 
+            modelBuilder.Entity("Zmg.Domain.Entities.AuthSession", b =>
+                {
+                    b.HasOne("Zmg.Domain.Entities.AllowedUser", "User")
+                        .WithMany("Sessions")
+                        .HasForeignKey("AllowedUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Zmg.Domain.Entities.Release", b =>
                 {
                     b.HasOne("Zmg.Domain.Entities.Artist", "MainArtist")
@@ -1071,6 +1173,11 @@ namespace Zmg.Infra.Migrations
                     b.Navigation("Release");
 
                     b.Navigation("Song");
+                });
+
+            modelBuilder.Entity("Zmg.Domain.Entities.AllowedUser", b =>
+                {
+                    b.Navigation("Sessions");
                 });
 
             modelBuilder.Entity("Zmg.Domain.Entities.Artist", b =>

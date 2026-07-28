@@ -1,12 +1,29 @@
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Zmg.Api.Endpoints;
 using Zmg.Api.Extensions;
+using Zmg.Api.Logging;
 using Zmg.Infra.Data;
 
 // Start logging startup boot time
 var bootStart = Environment.TickCount64;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// One JSON object per line to stdout, which ACA collects into ContainerAppConsoleLogs_CL and KQL can
+// parse_json — no sink, no package, no network call, so there is nothing here that can fail closed and
+// take the app down with it (v2.10/M57). Scopes are included because the request id rides in one.
+// Dev keeps the readable single-line console: JSON at a terminal is a downgrade.
+if (!builder.Environment.IsDevelopment())
+{
+    builder.Logging.AddJsonConsole(o =>
+    {
+        o.IncludeScopes = true;
+        o.UseUtcTimestamp = true;
+        o.TimestampFormat = "yyyy-MM-dd'T'HH:mm:ss.fff'Z'";
+        o.JsonWriterOptions = new JsonWriterOptions { Indented = false };
+    });
+}
 
 // Fail fast on any missing required setting (connection string + all R2:* keys), naming every offender
 // at once, rather than letting a null surface deep inside the first request that needs it. Prod supplies
@@ -17,6 +34,14 @@ var connectionString = builder.Configuration.GetConnectionString("Zmg");
 builder.Services.AddDbContext<ZmgDbContext>(options => options.UseNpgsql(connectionString));
 
 builder.Services.RegisterServices(builder.Configuration);
+builder.Services.AddZmgAuthentication(builder.Configuration, builder.Environment);
+
+// One shape for every unhandled exception: logged once with its stack, answered with the same coded
+// envelope as every other failure. AddProblemDetails is required for the parameterless
+// UseExceptionHandler() below — it supplies the fallback the middleware demands, though our handler
+// always claims the exception first.
+builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
 if (builder.Environment.IsDevelopment())
 {
@@ -48,6 +73,20 @@ if (builder.Configuration.GetValue("Database:MigrateOnStartup", true))
 
 app.Logger.LogInformation("[boot] DB ready {Ms} ms", Environment.TickCount64 - bootStart);
 
+// Outermost, so every line below — including the exception handler's — carries the request id, and so
+// the id reaches the response even when the pipeline blows up.
+app.UseMiddleware<CorrelationMiddleware>();
+
+// Outside the exception handler on purpose: by the time this middleware's finally runs, an unhandled
+// exception has already become a 500 and is reported as a failed request rather than escaping unmeasured.
+app.UseMiddleware<RequestSummaryMiddleware>();
+app.UseExceptionHandler();
+
+// Before authentication, and before anything reads Request.Host: the Cloudflare Worker rewrites Host
+// to the ACA FQDN (the ingress routes on it), so the public hostname arrives as X-Forwarded-Host and
+// the OIDC redirect_uri would otherwise be built from the wrong one.
+app.UseZmgForwardedHeaders();
+
 if (app.Environment.IsDevelopment())
 {
     app.UseCors("dev");
@@ -55,7 +94,13 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
+app.UseAuthentication();
+app.UseAuthorization();
+
+// Anonymous by necessity: the readiness probe, and the auth endpoints themselves. Everything else is
+// protected by the fallback policy without having to say so.
+app.MapGet("/api/health", () => Results.Ok(new { status = "ok" })).AllowAnonymous();
+app.MapAuthEndpoints();
 app.MapArtistEndpoints();
 app.MapReleaseEndpoints();
 app.MapSongEndpoints();
@@ -66,9 +111,12 @@ app.MapPendingEndpoints();
 app.MapUploadEndpoints();
 
 // Serve the built SPA (wwwroot) in production; SPA fallback for client-side routing.
+// The shell stays anonymous — it has to be, since it is what renders the login screen. Static files
+// aren't endpoint-routed so the fallback policy never applies to them; MapFallbackToFile *is* an
+// endpoint, so it opts out explicitly.
 app.UseDefaultFiles();
 app.UseStaticFiles();
-app.MapFallbackToFile("index.html");
+app.MapFallbackToFile("index.html").AllowAnonymous();
 
 app.Lifetime.ApplicationStarted.Register(() => 
     app.Logger.LogInformation("[boot] Application started - listening {Ms} ms", Environment.TickCount64 - bootStart));

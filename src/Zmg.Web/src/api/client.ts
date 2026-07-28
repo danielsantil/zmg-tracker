@@ -33,6 +33,21 @@ export function errorMessage(e: unknown, fallback: string): string {
   return e instanceof ApiError ? e.message : fallback;
 }
 
+/**
+ * Called when the server says a request needed a session and didn't have one — a session that expired
+ * or was revoked mid-visit (v2.10/M56). `AuthProvider` registers this so the app flips to the login
+ * gate the moment any call comes back 401, instead of the user staring at a screen whose every action
+ * silently fails.
+ *
+ * A module-level hook rather than a React one because `request` is called from outside any component
+ * tree — the same reason `ApiError` builds its messages off the i18n instance (M46).
+ */
+let unauthorizedHandler: (() => void) | null = null;
+
+export function setUnauthorizedHandler(handler: (() => void) | null): void {
+  unauthorizedHandler = handler;
+}
+
 export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   // FormData sets its own multipart Content-Type *with the boundary* — forcing JSON here would make
   // the server unable to parse the parts (cover upload, M31).
@@ -47,6 +62,11 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   });
 
   if (!res.ok) {
+    // Everything under /api/auth is excluded, and that exclusion is load-bearing: `/api/auth/me` is
+    // the probe whose 401 *is* the answer "signed out". Letting it fire the handler would invalidate
+    // the auth state, which refetches the probe, which 401s again — an infinite loop.
+    if (res.status === 401 && !path.startsWith('/api/auth/')) unauthorizedHandler?.();
+
     // A body with no usable errors array (a 500's ProblemDetails, an HTML error page) still has to
     // render as a sentence, so fall back to a code the bundle carries rather than to English prose.
     let errors: ServerMessage[] = [{ code: 'error.unknown' }];

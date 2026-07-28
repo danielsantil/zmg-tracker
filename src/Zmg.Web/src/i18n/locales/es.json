@@ -1,4 +1,21 @@
 {
+  "auth": {
+    "login": {
+      "title": "Release Tracker",
+      "subtitle": "Inicia sesión para continuar",
+      "google": "Continuar con Google",
+      "fineprint": "Herramienta interna. El acceso es por invitación: pide a Daniel que añada tu dirección."
+    },
+    "denied": {
+      "badge": "Acceso no autorizado",
+      "body": "Esa cuenta de Google no tiene acceso a este espacio de trabajo. Si iniciaste sesión con una cuenta personal, inténtalo con la del trabajo.",
+      "retry": "Probar con otra cuenta"
+    },
+    "account": {
+      "menu": "Cuenta",
+      "signOut": "Cerrar sesión"
+    }
+  },
   "common": {
     "add": "Agregar",
     "adding": "Agregando…",
@@ -406,6 +423,11 @@
     "deleteTaskConfirm": "¿Eliminar la tarea de plantilla \"{{title}}\"?"
   },
   "error": {
+    "auth": {
+      "required": "Tu sesión ha terminado. Inicia sesión de nuevo para continuar.",
+      "notAllowed": "Esa cuenta no tiene acceso a este espacio de trabajo.",
+      "emailUnverified": "El correo de esa cuenta de Google no está verificado."
+    },
     "artist": {
       "nameRequired": "El nombre del artista es obligatorio.",
       "duplicateName": "Ya existe un artista llamado \"{{name}}\".",
@@ -456,6 +478,8 @@
     },
     "mainArtistRequired": "Se requiere un artista principal.",
     "mainArtistNotFound": "El artista principal seleccionado no existe.",
+    "unexpected": "Algo salió mal de nuestro lado. Vuelve a intentarlo — menciona la referencia {{requestId}} si sigue ocurriendo.",
+    "badRequest": "El servidor no pudo aceptar esa solicitud. Si era un archivo, puede que sea demasiado grande.",
     "unknown": "Algo salió mal."
   },
   "warning": {

@@ -69,6 +69,11 @@ resource "azurerm_container_app" "zmg" {
     value = var.r2_secret_access_key
   }
 
+  secret {
+    name  = "google-client-secret"
+    value = var.google_client_secret
+  }
+
   template {
     min_replicas                     = 0
     max_replicas                     = 1
@@ -115,6 +120,16 @@ resource "azurerm_container_app" "zmg" {
       env {
         name  = "Database__MigrateOnStartup"
         value = false
+      }
+
+      env {
+        name  = "Authentication__Google__ClientId"
+        value = var.google_client_id
+      }
+
+      env {
+        name        = "Authentication__Google__ClientSecret"
+        secret_name = "google-client-secret"
       }
     }
   }

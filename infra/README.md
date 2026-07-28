@@ -64,12 +64,24 @@ the config is wrong — fix the config. Two replacements would be unrecoverable:
 - **The state backend itself** (`zmg-tfstate-rg` + the `zmgtfstate1` storage account) is created by
   hand with `az` — Terraform can't create the account its own state lives in. Setup steps are in
   [plans/build-plan-2.7.md](../plans/build-plan-2.7.md) (M39).
-- **The Cloudflare Worker** (`zmg-tracker`) is created by `wrangler`, not Terraform. Managing it with
-  `cloudflare_workers_script` would require adding **Workers Scripts · Edit** to the Cloudflare token in
-  `terraform.tfvars`, which is deliberately R2-only — one credential that can both replace deployed code
-  and reach the covers bucket is a wider blast radius than this earns. The Worker deploys from
-  [`.github/workflows/web.yml`](../.github/workflows/web.yml) with its own token instead. Revisit if the
-  Worker ever needs to be created in lockstep with other infrastructure.
+- **The Cloudflare Worker *script*** (`zmg-tracker`) is created by `wrangler`, not Terraform, and
+  deploys from [`.github/workflows/web.yml`](../.github/workflows/web.yml) with its own token. The
+  pipeline owns application code; Terraform owns infrastructure — same split as the image tag above.
+- **The `zionmusicgroup.com` zone and its three DNS records** (apex `A` → Netlify, `www` `CNAME` →
+  Netlify, `MX` → Google Workspace) are hand-managed in the Cloudflare dashboard, **deliberately**.
+  Codifying them would need `Zone: Write` + `DNS: Write` on the Terraform token, and a Terraform-driven
+  replacement of a DNS record is a brief outage while a replaced **MX record is lost mail**. Three
+  static records, recorded verbatim in [`plans/build-plan-2.10.md`](../plans/build-plan-2.10.md) (M53),
+  do not earn that.
+- **The Worker *custom domain*** (`app.zionmusicgroup.com`) **is** Terraform-managed as
+  `cloudflare_workers_custom_domain` (v2.10/M53). This is the one place the Cloudflare token in
+  `terraform.tfvars` widens beyond R2: the resource accepts **`Workers Scripts Read` + `Write`** and
+  nothing more — notably **no DNS rights**, because Cloudflare creates the proxied `app` record and
+  issues the certificate itself as a side effect of the binding.
+  - The rejected alternative was declaring the domain in `wrangler.jsonc`, which would have required
+    **`DNS: Edit`** on the *CI* token — a credential in GitHub Actions able to rewrite the DNS that
+    routes company email. Keeping the wider credential in gitignored `terraform.tfvars` and out of CI
+    is the whole point of the choice.
 
 ## Deploy identity (OIDC)
 
@@ -89,7 +101,8 @@ The GitHub side pairs with it: a repo **Environment** named `production` and thr
 
 ## Edge SPA (Cloudflare Worker)
 
-The SPA is served from Cloudflare's edge at **https://zmg-tracker.zmg-app.workers.dev**, configured by
+The SPA is served from Cloudflare's edge at **https://app.zionmusicgroup.com** (and still on
+`zmg-tracker.zmg-app.workers.dev`, kept as a second path), configured by
 [`src/Zmg.Web/wrangler.jsonc`](../src/Zmg.Web/wrangler.jsonc) and deployed by
 [`.github/workflows/web.yml`](../.github/workflows/web.yml) after each successful ACA deploy.
 

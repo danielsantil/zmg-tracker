@@ -13,6 +13,14 @@
         </PackageReference>
 
         <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.11" />
+
+        <!--
+          Persists the Data Protection key ring to Postgres (v2.10/M54). Not optional: keys default to
+          the container filesystem, which is ephemeral on ACA — with min_replicas=0 and a 300s cooldown
+          the replica dies after five minutes idle and the next one generates fresh keys, silently
+          invalidating every session cookie. This is what makes a 7-day session last 7 days.
+        -->
+        <PackageReference Include="Microsoft.AspNetCore.DataProtection.EntityFrameworkCore" Version="8.0.11" />
     </ItemGroup>
 
     <ItemGroup>

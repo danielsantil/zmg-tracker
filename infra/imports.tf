@@ -27,3 +27,8 @@ import {
   to = cloudflare_r2_bucket.covers
   id = "aa697a66b815f21d509abc14613b070d/zmg-covers/default"
 }
+
+import {
+  to = cloudflare_workers_custom_domain.app
+  id = "aa697a66b815f21d509abc14613b070d/70c11747a896bc31aa0221f410b6a624dd3050a6"
+}
