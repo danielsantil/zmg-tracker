@@ -3,8 +3,8 @@
 Per-release checklist tracker for Zion Music Group. Turns the repeatable pre/release/post checklist
 into per-release progress tracking across artists, for singles and albums.
 
-**Live:** https://zmg-app.mangohill-c8bd3207.eastus.azurecontainerapps.io
-· **Status:** v2.8 complete — feature-complete through v2.4, fully deployed on CI/CD, and **bilingual EN/ES**.
+**Live:** https://app.zionmusicgroup.com
+· **Status:** v2.9 complete — feature-complete through v2.4, fully deployed on CI/CD, and **bilingual EN/ES**.
 
 The source of truth for project state is [plans/PROGRESS.md](plans/PROGRESS.md); per-milestone briefs
 are in [plans/build-plan-*.md](plans/). Working conventions are in [CLAUDE.md](CLAUDE.md).
@@ -219,12 +219,19 @@ aborts the deploy while the old image is still serving. After ACA is live, `ci.y
 [`web.yml`](.github/workflows/web.yml), which builds the SPA and deploys it to the Cloudflare Worker —
 API first, SPA second, so the UI never calls an endpoint that isn't deployed yet.
 
-**Two URLs serve the app:**
+**Three URLs serve the app:**
 
 | URL | Serves |
 |---|---|
-| https://zmg-tracker.zmg-app.workers.dev | Normal use. SPA from the edge (~150ms), `/api/*` proxied to ACA |
+| https://app.zionmusicgroup.com | **The front door.** SPA from the edge (~150ms), `/api/*` proxied to ACA |
+| https://zmg-tracker.zmg-app.workers.dev | The same Worker on its default hostname — a free second path while validating |
 | https://zmg-app.mangohill-c8bd3207.eastus.azurecontainerapps.io | The container serving everything itself — the fallback and rollback target |
+
+The custom domain (v2.10/M53) required moving `zionmusicgroup.com`'s **nameservers** to Cloudflare —
+a Workers custom domain only binds to a zone Cloudflare controls. The Netlify marketing site on the
+apex and `www` is untouched: those records are **DNS-only (grey cloud)**, so Cloudflare answers the
+lookup and Netlify still serves the site and issues its own certificate. Google Workspace mail
+(`MX 1 smtp.google.com`) moved across unchanged.
 
 The Worker is an **accelerator, never a dependency**. The container still builds and serves the SPA from
 `wwwroot`, so `docker run -e ConnectionStrings__Zmg=… ghcr.io/danielsantil/zmg-tracker:<tag>` always
