@@ -94,6 +94,22 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+// BEFORE authentication/authorization, and this ordering is load-bearing (v2.10/M59).
+//
+// The built SPA's assets are file paths that match no endpoint — MapFallbackToFile's catch-all carries
+// the `nonfile` constraint, so anything with a dot in it is excluded by design. And "no endpoint" is
+// precisely when AuthorizationMiddleware applies the fallback policy, so with these registered after
+// it every /assets/*.js and *.css answered an anonymous browser with a 302 to /Account/Login. The
+// shell loaded, its scripts did not, and the login screen it exists to render never appeared. Prod hid
+// it: Cloudflare serves the assets from the edge, so only the container — the documented rollback
+// target — was a blank page.
+//
+// Serving them first is also the framework's documented order. Nothing is exposed by it: wwwroot holds
+// only the built SPA, which the edge already serves to anonymous users, and the shell is deliberately
+// anonymous because it is what renders the login gate.
+app.UseDefaultFiles();
+app.UseStaticFiles();
+
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -110,12 +126,9 @@ app.MapTrackEndpoints();
 app.MapPendingEndpoints();
 app.MapUploadEndpoints();
 
-// Serve the built SPA (wwwroot) in production; SPA fallback for client-side routing.
-// The shell stays anonymous — it has to be, since it is what renders the login screen. Static files
-// aren't endpoint-routed so the fallback policy never applies to them; MapFallbackToFile *is* an
-// endpoint, so it opts out explicitly.
-app.UseDefaultFiles();
-app.UseStaticFiles();
+// The SPA fallback for client-side routing (the files themselves are served above, before the auth
+// middleware). MapFallbackToFile *is* an endpoint, so it opts out of the fallback policy explicitly —
+// the shell has to be anonymous, since it is what renders the login screen.
 app.MapFallbackToFile("index.html").AllowAnonymous();
 
 app.Lifetime.ApplicationStarted.Register(() => 

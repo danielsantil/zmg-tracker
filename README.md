@@ -5,8 +5,9 @@ into per-release progress tracking across artists, for singles and albums.
 
 **Live:** https://app.zionmusicgroup.com
 
-The source of truth for project state is [plans/PROGRESS.md](plans/PROGRESS.md); per-milestone briefs
-are in [plans/build-plan-*.md](plans/). Working conventions are in [CLAUDE.md](CLAUDE.md).
+The source of truth for project state — what shipped, what's next, and the decisions behind both — is
+[plans/PROGRESS.md](plans/PROGRESS.md). Working conventions are in [CLAUDE.md](CLAUDE.md); the plans
+folder holds the per-milestone briefs behind each of them.
 
 ## Stack
 
@@ -21,6 +22,7 @@ are in [plans/build-plan-*.md](plans/). Working conventions are in [CLAUDE.md](C
 | Image storage | **Cloudflare R2** (release covers, normalized to a 1000px WebP on ingest) |
 | Hosting | **Azure Container Apps** (Consumption, scale-to-zero) |
 | Edge | **Cloudflare Worker** — serves the SPA, proxies `/api/*` to ACA on the same origin |
+| Logs | **Structured JSON to stdout** → Azure Log Analytics, joined to per-request ingress logs ([cookbook](docs/kql-cookbook.md)) |
 | Infra as code | **Terraform** — `azurerm` + `neon` + `cloudflare` ([infra/](infra/README.md)) |
 | CI/CD | **GitHub Actions** — test → build+push image → deploy to ACA via OIDC → deploy SPA to Cloudflare |
 
@@ -52,7 +54,7 @@ infra                    Terraform for the whole hosted stack (see infra/README.
 
 - .NET SDK 8.0 (pinned via `global.json`)
 - Node.js 24.18.0 (`.nvmrc`) + pnpm (via Corepack — pinned in `package.json`)
-All of the following must be set, or the API refuses to boot (M35) — startup lists every missing key:
+All of the following must be set, or the API refuses to boot — startup lists every missing key at once:
 
 | Env var | Purpose |
 | --- | --- |
@@ -108,7 +110,14 @@ DELETE FROM "AuthSessions" WHERE "Email" = 'partner@example.com';
 ```
 
 Sessions are **absolute, not sliding** — 7 days from sign-in via `Auth:SessionDays`, never extended by
-use. They live in `AuthSessions` rather than inside the cookie precisely so they can be deleted.
+use. They live in `AuthSessions` rather than inside the cookie precisely so they can be deleted. The
+row is re-checked on every request, so disabling someone takes effect immediately rather than whenever
+their week happens to run out.
+
+Authorization is **flat**: on the list means full access. There are no roles and no per-screen rules,
+so the SPA has one gate around the whole app rather than per-route guards. On the server the reverse
+applies — **every endpoint requires a session unless it explicitly opts out**, so forgetting to protect
+something new is a non-event rather than a hole.
 
 **Local dev needs a Google OAuth client** with `http://localhost:5274/api/auth/google/callback` as an
 authorized redirect URI — that is the *API's* port, not Vite's, because Google redirects to the
@@ -239,6 +248,33 @@ text needs a **third column** (`TitleFr`), one line in `lib/taskText.ts` and one
 an approach using normalized translation tables was dropped - it is easier to maintain and query translation changes. No other component code changes; the two-language
 toggle becomes a popover (which must portal to `<body>`, per the standing popover rule).
 
+## Logs and diagnosing production
+
+Outside Development the app writes **one JSON object per line to stdout** — no logging package, no
+sink, no network call, so nothing in the logging path can fail and take the app down with it. Azure
+collects it, alongside a per-request record written by the ingress proxy at no cost to the app.
+
+**Start here: [docs/kql-cookbook.md](docs/kql-cookbook.md)** — paste-and-run queries, each with a
+"use this when".
+
+Three things worth knowing before you need them:
+
+- **Every request carries an id**, returned on the `x-request-id` response header and stamped on every
+  log line the request produces. When something breaks, that id is the whole investigation: it finds
+  the ingress record and the app's own lines together. A 500 puts it in the error message on screen, so
+  a user can quote it.
+- **The happy path is silent, deliberately.** Ingress already records every request, so the app logs
+  only failures, requests over `Logging:SlowRequestMs` (1s), and a short list of events worth naming —
+  sign-ins, denials, uploads, blocked remote fetches. No lines for a successful request is the system
+  working, not a gap.
+- **What is never logged, as a rule:** session or cookie material, tokens, the connection string,
+  storage keys, and query strings — paths are logged without them. The one deliberate exception is the
+  **email address on authentication events**, because a failed-login spike is otherwise unactionable.
+  Ordinary writes record nothing about who made them.
+
+Events carry stable numeric ids so queries filter on the id rather than on message text, which is free
+to change. Add one in `Api/Logging/Log.cs` — not as a bare `logger.LogInformation` at a call site.
+
 ## Common tasks
 
 ```bash
@@ -270,7 +306,7 @@ API first, SPA second, so the UI never calls an endpoint that isn't deployed yet
 | https://zmg-tracker.zmg-app.workers.dev | The same Worker on its default hostname — a free second path while validating |
 | https://zmg-app.mangohill-c8bd3207.eastus.azurecontainerapps.io | The container serving everything itself — the fallback and rollback target |
 
-The custom domain (v2.10/M53) required moving `zionmusicgroup.com`'s **nameservers** to Cloudflare —
+The custom domain required moving `zionmusicgroup.com`'s **nameservers** to Cloudflare —
 a Workers custom domain only binds to a zone Cloudflare controls. The Netlify marketing site on the
 apex and `www` is untouched: those records are **DNS-only (grey cloud)**, so Cloudflare answers the
 lookup and Netlify still serves the site and issues its own certificate. Google Workspace mail

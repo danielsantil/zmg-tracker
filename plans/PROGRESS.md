@@ -18,8 +18,7 @@ for where the project stands and the rules that span plans.
 - [build-plan-2.7.md](build-plan-2.7.md) — infra hardening · remote state · cold start (M39–M42). Shipped.
 - [build-plan-2.8.md](build-plan-2.8.md) — multilingual EN/ES (M43–M48). Shipped.
 - [build-plan-2.9.md](build-plan-2.9.md) — checklist text, simplified (M49–M52). Shipped.
-- [build-plan-2.10.md](build-plan-2.10.md) — custom domain · auth · logging (M53–M59). **In progress:
-  M53–M58 shipped and merged to `main`, M59 open.**
+- [build-plan-2.10.md](build-plan-2.10.md) — custom domain · auth · logging (M53–M59). Shipped.
 
 Newer plan versions go in new `build-plan-N.N.md` files; older ones stay frozen.
 
@@ -30,12 +29,10 @@ with `/api/*` proxied same-origin to **Azure Container Apps** over **Neon Postgr
 remote state in Azure Storage. A **GitHub Actions pipeline** tests, builds a SHA-tagged image, applies
 migrations, deploys to ACA over OIDC, then ships the SPA to Cloudflare.
 
-**The app is closed.** `feat/auth-and-logging` merged to `main` as
-[#13](https://github.com/danielsantil/zmg-tracker/pull/13) on 2026-07-28 and deployed: Google SSO is
-live in prod (the full round trip — probe 401 → `/api/auth/login` → Google → callback → probe 200 — is
-visible in the ingress log), and the app logs structured JSON that Log Analytics collects. **M59
-(verification + docs) is all that remains of v2.10.** Tests: backend **domain 166 / API 278**, SPA
-**86 Vitest** — the pipeline gates on these.
+**The app is closed and observable.** Google SSO is live in prod over a revocable server-side session,
+and the app logs structured JSON that Log Analytics collects alongside a per-request ingress record —
+queries in [`docs/kql-cookbook.md`](../docs/kql-cookbook.md). Tests: backend **domain 166 / API 281**,
+SPA **86 Vitest** — the pipeline gates on these.
 
 **Phase 2** (DSP stats, real-Postgres tests) follows v2.10 and starts a new `build-plan-3.0.md`.
 
@@ -146,63 +143,16 @@ retires the guessing. Schema squashed to a single `InitialCreate`, clearing the 
 hazard. Tests **domain 138 → 125, API 216 → 214, web 50 → 57** — the backend drop is deleted tests
 whose subject no longer exists, not lost coverage. See [build-plan-2.9.md](build-plan-2.9.md).
 
-**v2.10 (M53–M57 of M53–M59) — custom domain · authentication · logging. In progress on
-`feat/auth-and-logging`, unmerged.** The app got a real address and a lock, in that order because the
-second needed the first. **M53** moved `zionmusicgroup.com`'s nameservers to Cloudflare — the whole
-zone had to move, since a Workers custom domain only binds to a zone Cloudflare controls and both
-subdomain-only routes are paywalled — then bound `app.zionmusicgroup.com` to the Worker. The Netlify
-marketing site and Google Workspace mail came across untouched, because their records stay DNS-only
-(grey) and Cloudflare merely answers the lookup. **M54–M56** added Google SSO: `AllowedUser` as the
-single whitelist, `AuthSession` rows so "7 days unless invalidated" means something, and one
-`AuthGate` around the whole SPA rather than per-route guards, because flat authorization has nothing
-to guard per route.
-
-Four things were caught that would each have shipped silently. **Data Protection keys defaulted to the
-container filesystem**, which is ephemeral on ACA — with `min_replicas = 0` every scale-from-zero
-would have minted a fresh key ring and logged everyone out roughly every five idle minutes; they now
-live in Postgres. **`DefaultChallengeScheme` was OpenIdConnect**, so an unauthenticated `/api/*` call
-would have 302'd to Google instead of answering 401, sending the SPA's `fetch` chasing a cross-origin
-consent page. **`ForwardedHeadersOptions` treats an empty `AllowedHosts` as *allow every host*** — the
-opposite of the guard intended — so `X-Forwarded-Host` is now enabled only when an allow-list exists,
-failing closed instead of trusting a forged header from the publicly reachable ACA origin. And
-`Redirects.SafeLocalPath` trimmed before scanning for control characters, silently repairing a
-trailing `\r` while rejecting an embedded one; it now scans the raw input first. Tests **domain
-125 → 166, API 214 → 244, web 57 → 86**. See [build-plan-2.10.md](build-plan-2.10.md).
-
-**M57** then made the running app legible: `AddJsonConsole` outside Development, a request id scope,
-an `IExceptionHandler`, a summary line for requests worth one, and `[LoggerMessage]` event ids —
-**no Serilog, no sink, nothing that can fail closed**, just one JSON object per line to stdout for ACA
-to collect. The design question throughout was *what not to log*: ingress already records every
-request better than the app can, so the app speaks only for failures and slow requests, and EF's
-command logger — the bulk of the ingestion and none of the signal — is pinned at `Warning`. Writing it
-against real output rather than in the abstract caught three things the code review wouldn't have.
-**The exception was logged twice**, once by the framework's exception middleware and once by the
-handler it then called — same stack, adjacent lines, double the bill; the framework's copy is now
-silenced by category. **`RequestId` was already taken**: ASP.NET's hosting scope publishes Kestrel's
-per-connection id under exactly that name, so ours sat beside it as a second value under one key —
-a KQL query would have picked one and reported nothing wrong, which is why the scope key is
-`CorrelationId`. And a `Dictionary` scope printed its own type name on every line, hence
-`CorrelationScope`. Two things were guarded rather than discovered: the request id is
-**normalized, not trusted** (it is a client header — CR/LF splits a response header and a JSON-shaped
-value forges a whole log entry), and `BadHttpRequestException` **keeps its own status** instead of
-becoming a 500, because the reachable case is an upload past Kestrel's body limit and turning that
-413 into "something broke on our side" would be both a worse message and a false alarm. Tests **API
-244 → 278**.
-
-**M58** switched the ACA environment's logs destination to `azure-monitor` — the only setting that
-emits `ContainerAppHTTPLogs`, Envoy's per-request record, at no cost to the app — and added the
-diagnostic setting that then becomes the *only* thing routing logs anywhere. The plan carried an abort
-condition, because replacing the environment would change the ACA FQDN that `wrangler.jsonc` and a
-registered Google redirect URI both point at; `terraform plan` reported `~ update in-place`, including
-the removal of `log_analytics_workspace_id` (which the provider forbids alongside `azure-monitor`), so
-it went ahead. `log_analytics_destination_type` turned out to be **inert** here — ACA's categories are
-resource-specific only, so Azure never persists the field and Terraform re-proposed it on every plan;
-it was dropped rather than pinned with `ignore_changes`, since a permanently dirty plan is how a real
-diff hides. The deliverable is [`docs/kql-cookbook.md`](../docs/kql-cookbook.md), written against
-column names from real exported rows rather than from documentation — several in the plan's sketch
-were wrong (`Log`, not `Log_s`; the `_s` suffixes belong only to the legacy `_CL` tables holding
-pre-switch history). **The `CorrelationId` ↔ `RequestId` join was proven rather than assumed**: an
-unauthenticated 401 was traced from its `x-request-id` response header through both tables to one id.
+**v2.10 (M53–M59) — custom domain · authentication · logging.** The app got a real address and a
+lock, in that order because the second needed the first: the `zionmusicgroup.com` zone moved to
+Cloudflare so `app.zionmusicgroup.com` could bind to the Worker, then Google SSO landed over a
+revocable server-side session — one `AllowedUser` whitelist, sessions as database rows, and a single
+gate around the whole SPA rather than per-route guards. Observability followed: structured JSON logs
+with a request id that joins every app line to the ingress record for the same request, plus
+[`docs/kql-cookbook.md`](../docs/kql-cookbook.md) to query it. The verification pass earned its keep —
+the container was answering every SPA asset with a redirect to a login path, so the edge-served copy
+worked and the rollback target was a blank page. Tests **domain 125 → 166, API 214 → 281, web
+57 → 86**. See [build-plan-2.10.md](build-plan-2.10.md).
 
 ---
 
@@ -373,6 +323,12 @@ unauthenticated 401 was traced from its `x-request-id` response header through b
   **latency-bound, not bandwidth-bound** — a 44% smaller image did not shorten it. ReadyToRun (+size on an
   always-pulled image) and an early `fetch('/api/health')` in `index.html` (measured: 160ms of ~20,000ms)
   were both evaluated and cut. Don't re-propose either; the only thing that moved the needle was M42.
+- **The marketing site's and mail's DNS records stay DNS-only (grey cloud) — never proxy them.** The
+  whole `zionmusicgroup.com` zone had to move to Cloudflare, because a Workers custom domain only binds
+  to a zone Cloudflare controls and subdomain-only routes are paywalled. Netlify and Google Workspace
+  survived that move *because* Cloudflare merely answers the lookup for their records; turning the
+  orange cloud on for the apex or `www` puts Cloudflare in front of a site that issues its own
+  certificate, and mail routing is not something to experiment on. They are hand-managed, deliberately.
 - **The Cloudflare Worker is an accelerator, never a dependency (M42).** The container must keep building
   and serving the SPA from `wwwroot` so `docker run` yields a complete app and the ACA URL stays a working
   rollback target — never drop the web stage from the Dockerfile. `run_worker_first: ["/api/*"]` keeps the
@@ -494,6 +450,10 @@ unauthenticated 401 was traced from its `x-request-id` response header through b
   - **A denial never says which of "not listed" or "disabled" it was.** One code,
     `AccessControl.NotAllowedCode`, for both; distinguishing them is a membership oracle. The login
     screen echoes no address either.
+  - **Validate raw input before normalizing it.** `Redirects.SafeLocalPath` trimmed first and so
+    silently *repaired* a trailing `\r` while rejecting an embedded one — the same input class handled
+    two ways depending on where the byte landed. Reject, don't sanitize: quietly fixing malformed input
+    hides whatever produced it.
   - **`MessageCodeApiTests.AllCodes()` scans a hand-maintained `Type[]`**, not the assembly. A new
     code-minting class must be added to it or its codes are silently unguarded — which is exactly the
     failure that test exists to catch.
@@ -510,13 +470,11 @@ unauthenticated 401 was traced from its `x-request-id` response header through b
     tokens, the connection string, R2 keys, and **query strings** — paths are logged without them.
     The one deliberate exception to "no user attribution" is the **email on auth events**, because a
     failed-login spike is otherwise unactionable; business writes still record nothing about the actor.
-  - **The correlation scope key is `CorrelationId`, not `RequestId`.** ASP.NET's hosting scope already
-    publishes `RequestId` (Kestrel's per-connection id, which nothing outside the process has seen), so
-    reusing the name puts two different values under one key in the same `Scopes` array and a query
-    silently picks one. The value is ACA/Envoy's `x-request-id` where the caller supplied one — that
-    is what makes an app line and its ingress record joinable — **normalized, never trusted**, since a
-    client-controlled string echoed into a header and every log line is a header-splitting and
-    log-forging primitive.
+  - **The correlation scope key is `CorrelationId`, not `RequestId`** — ASP.NET's hosting scope already
+    publishes the latter (Kestrel's per-connection id), and two values under one key make a query pick
+    one silently. Its value is Envoy's `x-request-id`, which is what joins an app line to its ingress
+    record, **normalized and never trusted**: a client-controlled string echoed into a response header
+    and every log line splits headers and forges log entries.
   - **The happy path is silent.** Ingress records every request better than the app can, so
     `RequestSummaryMiddleware` logs only failures and requests over `Logging:SlowRequestMs`. EF's
     command logger stays at `Warning` — at `Information` it is most of the ingestion and none of the
@@ -530,6 +488,13 @@ unauthenticated 401 was traced from its `x-request-id` response header through b
     **`BadHttpRequestException` keeps its own status** (`error.badRequest`, `Warning`, no stack): the
     reachable case is an upload past Kestrel's body limit, and a 413 rewritten as a 500 is both a worse
     message and a false alarm.
+  - **`UseStaticFiles` must stay before `UseAuthentication` (M59).** An asset path matches no endpoint
+    (`MapFallbackToFile`'s catch-all has the `nonfile` constraint), and **no endpoint is exactly when
+    the fallback authorization policy applies** — so serving files later 302s an anonymous browser at
+    `/Account/Login` and the SPA never boots. `wwwroot` holds only the built SPA, which the edge already
+    serves anonymously, so the earlier placement exposes nothing. `StaticFileAuthApiTests` pins it, and
+    the lesson generalizes — **"it isn't endpoint-routed" is not an exemption from the fallback policy,
+    it is the trigger for it.**
   - **The environment's logs destination is `azure-monitor`, and an `azurerm_monitor_diagnostic_setting`
     is the only thing routing logs (M58).** Delete that resource and logging stops silently, with the
     app none the wiser — it is not an accessory to the destination setting, it *is* the plumbing. The
@@ -567,44 +532,19 @@ docs                     kql-cookbook.md — queries for the production logs (v2
 
 ## Backlog / next steps
 
-- **Shipped — v2.4 (M26–M28):** UI polish · semantic color tokens · dark/light toggle.
-- **Shipped — v2.5 (M29–M34):** ACA deploy · Neon Postgres · R2 covers · cover normalization · Terraform ·
-  CI/CD image pipeline.
-- **Shipped — v2.6 (M35–M38):** startup fail-fast · hard-delete · responsive navbar · catalog counting.
-- **Shipped — v2.7 (M39–M42):** remote Terraform state · cold-start baseline · API boot path ·
-  edge-served SPA.
-- **Shipped — v2.8 (M43–M48):** i18n foundation + language selector · home/releases strings ·
-  catalog/artists/templates strings · API message codes · checklist translations · Spanish content.
-- **Shipped — v2.9 (M49–M52):** checklist text as two columns · code demoted to identity · squashed
-  schema · one task-editor modal · locale plumbing deleted.
-- **Done — the v2.9 schema reset.** Dev was reset 2026-07-27; **prod** was reset (public schema
-  including `__EFMigrationsHistory`) and redeployed onto the squashed `InitialCreate`, verified
-  working. Later migrations are ordinary additive ones again.
-- **In progress — v2.10 (M53–M59)**, merged to `main` and deployed. See
-  [build-plan-2.10.md](build-plan-2.10.md).
-  - **Shipped:** M53 custom domain · M54 auth schema · M55 Google SSO API · M56 login screen + gate ·
-    M57 structured application logs · M58 ingress logs + KQL cookbook.
-  - **Next: M59** — verification + docs. Note that a good deal of it happened incidentally when M53–M57
-    deployed: Google SSO completed end-to-end in prod, and the `CorrelationId` ↔ ingress `RequestId`
-    join was traced through both tables. What remains is the deliberate pass — full suite, browser
-    verification, session expiry/revocation against real Postgres, and the README.
-  - ⏳ **Owner tasks still open:** **delete
-    the dormant Netlify DNS zone on/after ~2026-08-03**, not before — it is the M53 rollback anchor.
-  - ⚠️ **An uncommitted Terraform edit was applied and then lost to a branch switch during M58**, so
-    live infrastructure briefly had a diagnostic setting the config didn't — one `terraform apply` away
-    from silently deleting it and stopping all logging. Commit infra changes in the same pass that
-    applies them; a `terraform plan` reporting `No changes` is only meaningful against committed config.
-- **Next: Phase 2 — DSP stats** (the reason this exists over Notion/Trello): hang streaming/revenue data
-  off the stable Artist / Release / **Song** / Track ids and the UPC/ISRC columns; the v2.0 Song ids are
-  its foundation. Also real-Postgres tests. No build plan yet — write `build-plan-3.0.md` when it starts.
-- **Still open (not gating):** low-value test polish (exhaustive AAA pass, the last few Theory
-  conversions); the suite is green without it. The seeded Spanish was reviewed by ZMG on 2026-07-27 and
-  now covers all 41 tasks. The copy of record is **`SeedData.cs`** (the scratch review file that pass
-  used was untracked and no longer exists); further corrections go through the templates screen, not a
-  migration.
-- **Per-track task fan-out** on albums: registrations that repeat per track are single "per track" tasks
-  today. Decide after the first real album.
-- Deferred: un-archive/restore (archives are terminal by rule); absolute per-task due dates (v1.1 only
-  added timeframe *ranges*). *(Auth and the custom domain moved out of Deferred into v2.10.)*
-  (The **seed-data 3-way drift hazard** carried here since the M24 audit is **gone** — v2.9's squash to
-  a single `InitialCreate` collapsed the three copies into one.)
+- **Shipped — v2.10 (M53–M59):** custom domain · auth schema · Google SSO API · login screen + gate ·
+  structured application logs · ingress logs + KQL cookbook · verification + docs.
+  (Earlier versions are in the Journal; they are not repeated here.)
+- **Next: Phase 2 — DSP stats** (the reason this exists over Notion/Trello): hang streaming/revenue
+  data off the stable Artist / Release / **Song** / Track ids and the UPC/ISRC columns; the v2.0 Song
+  ids are its foundation. Also real-Postgres tests (Testcontainers + a CI service container). No build
+  plan yet — write `build-plan-3.0.md` when it starts.
+- ⏳ **Open owner task:** delete the dormant Netlify DNS zone on/after ~2026-08-03, not before — it is
+  the custom-domain rollback anchor.
+- **Per-track task fan-out** on albums: registrations that repeat per track are single "per track"
+  tasks today. Decide after the first real album.
+- **Still open (not gating):** low-value test polish — an exhaustive AAA pass and the last few Theory
+  conversions. The suite is green without it.
+- **Deferred:** un-archive/restore (archives are terminal by rule); absolute per-task due dates (only
+  timeframe *ranges* exist); email OTP / magic links; roles or per-screen permissions (flat by
+  decision); a user-management screen (the whitelist is a table).

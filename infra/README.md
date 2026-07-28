@@ -20,7 +20,7 @@ rather than with `~>`, because a `0.x` release makes no compatibility promise be
 | `versions.tf` | `required_providers` + version pins, and the `azurerm` remote state backend |
 | `providers.tf` | provider auth (Azure via `az login`; Neon + Cloudflare via API-key vars) |
 | `variables.tf` | all inputs |
-| `azure.tf` | resource group, Log Analytics, Container Apps environment, the container app + its secrets/env |
+| `azure.tf` | resource group, Log Analytics, Container Apps environment + its diagnostic setting, the container app + its secrets/env |
 | `neon.tf` | the Neon project and the composed connection string (`local.neon_connection_string`) |
 | `cloudflare.tf` | the R2 bucket |
 | `deploy-identity.tf` | the managed identity, federated credential, and role assignment the CI/CD pipeline uses |
@@ -82,6 +82,33 @@ the config is wrong — fix the config. Two replacements would be unrecoverable:
     **`DNS: Edit`** on the *CI* token — a credential in GitHub Actions able to rewrite the DNS that
     routes company email. Keeping the wider credential in gitignored `terraform.tfvars` and out of CI
     is the whole point of the choice.
+
+## Logging
+
+The environment's `logs_destination` is **`azure-monitor`**, not `log-analytics`. That is the only
+setting under which the platform emits `ContainerAppHTTPLogs` — a per-request ingress record (method,
+path, status, duration, request id, client IP) written by Envoy at no CPU cost to the app.
+
+**`azurerm_monitor_diagnostic_setting.zmg_env` is the plumbing, not an accessory.** Under this
+destination nothing else routes logs: delete that resource and logging stops silently, with the app
+running normally and no error anywhere. It carries three categories — console, system, and HTTP.
+
+Three things about the resource that are easy to get wrong:
+
+- **`log_analytics_workspace_id` does not go on the environment** in this mode; the provider rejects
+  the combination outright. The workspace is named on the diagnostic setting instead.
+- **`log_analytics_destination_type` is deliberately omitted.** Container Apps' categories are
+  resource-specific only, so Azure never persists the field and Terraform re-proposes it on every
+  plan — a permanently dirty plan is how a real diff hides. Rows land in the resource-specific tables
+  regardless.
+- **The switch was checked against replacement before it ran.** Replacing
+  `azurerm_container_app_environment` would change the ACA FQDN, which is `API_ORIGIN` in
+  `wrangler.jsonc` *and* a registered Google redirect URI. The plan reported `~ update in-place`, so it
+  proceeded; had it said `forces replacement`, the answer was no.
+
+Console and system logs live in `ContainerAppConsoleLogs` / `ContainerAppSystemLogs`. Anything from
+before the switch is in the `_CL` custom tables with `_s`-suffixed columns and was **not** migrated.
+Retention is 30 days. Queries: [`docs/kql-cookbook.md`](../docs/kql-cookbook.md).
 
 ## Deploy identity (OIDC)
 
@@ -184,7 +211,8 @@ them are secret.
 
 - **The resource group is separate from `zmg-rg` on purpose** — so a `terraform destroy` can't delete
   the state file describing what it is destroying.
-- **The blob still holds live secrets in cleartext** — Neon password, R2 secret, GHCR token.
+- **The blob still holds live secrets in cleartext** — Neon password, R2 secret, GHCR token, Google
+  OAuth client secret.
   `sensitive = true` redacts values from CLI output; it encrypts nothing. What protects it is access
   control: blob storage is encrypted at rest (SSE, on by default), and **shared key access is disabled
   on the account**, so no account key exists to leak or to be pasted into a CI variable. The only way

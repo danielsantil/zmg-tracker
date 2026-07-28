@@ -66,6 +66,14 @@ cd src/Zmg.Web && pnpm build && cd ../.. && dotnet run --project src/Zmg.Api
   migrations + seeds templates. To reset local data: reset the Neon
   branch, or `dotnet ef database drop` + `dotnet ef database update`. **Tests run SQLite in-memory**. EF migrations are Postgres-specific; keep EF tooling on
   **EF 8** to match the runtime.
+- **Auth (v2.10): Google SSO + an `AllowedUser` whitelist.** Two `Authentication:Google:*` settings in
+  **dev** user-secrets and **prod** ACA config; startup validation refuses to boot without them. Local
+  sign-in needs `http://localhost:5274/api/auth/google/callback` registered as a redirect URI — the
+  *API's* port, not Vite's. **Tests never exercise the Google leg** (it would fetch the discovery
+  document over the network); `ZmgApiFactory` stubs a signed-in user by default, and
+  `Authenticated = false` gets you the real deny-by-default pipeline.
+- **Logs (v2.10): structured JSON to stdout outside Development, no package or sink.** Queries live in
+  [`docs/kql-cookbook.md`](docs/kql-cookbook.md).
 
 ## Architecture
 
@@ -99,6 +107,9 @@ compute them via the domain classes rather than persisting them.
 
 - Adding an API resource means the full slice: entity (Domain) → migration (Infra) → `I*Service`+`*Service`
   (registered in `Program.cs`) → `*Endpoints.cs` (mapped in `Program.cs`) → `src/api/*.ts` client module.
+  **A new endpoint is authenticated by default** — a fallback authorization policy covers everything, so
+  there is no `.RequireAuthorization()` to forget. `.AllowAnonymous()` is the deliberate opt-out, and
+  only `/api/health`, `/api/auth/*` and the SPA shell take it.
 - Put business rules in `Zmg.Domain` static classes (unit-tested), not in endpoints or services.
 - Soft warnings (e.g. missing UPC/ISRC, empty album) are non-blocking — surfaced via
   `ReleaseWarnings`, never enforced as validation errors.
@@ -122,3 +133,16 @@ compute them via the domain classes rather than persisting them.
   compile. Never build a sentence by concatenation — use interpolation or `_one`/`_other` plurals; pure
   helpers return shapes and `hooks/useFormatters` supplies the words. Full rules in PROGRESS.md's
   Cross-cutting decisions.
+- **Log through `Api/Logging/Log.cs`, never a bare `logger.LogInformation` at a call site (v2.10/M57).**
+  Events are `[LoggerMessage]` methods with permanent numeric ids (1000 auth, 2000 uploads, 3000
+  requests) so queries filter on `EventId` instead of message text. The happy path stays silent —
+  ingress already records every request — so add an event only for something ingress cannot know.
+  **Never log** session/cookie material, tokens, the connection string, R2 keys, or query strings; log
+  `Request.Path` without them. The single exception is the email on auth events. Full rules in
+  PROGRESS.md.
+- **Middleware order in `Program.cs` is load-bearing, and two placements are not stylistic.**
+  `UseDefaultFiles`/`UseStaticFiles` must stay **before** `UseAuthentication` — an asset path matches no
+  endpoint, and "no endpoint" is exactly when the fallback authorization policy applies, so serving them
+  later answers an anonymous browser with a redirect and the SPA never boots (`StaticFileAuthApiTests`
+  pins it). `UseZmgForwardedHeaders` must stay before authentication, or the OIDC `redirect_uri` is
+  built from the wrong host.
