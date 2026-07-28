@@ -506,8 +506,7 @@ infra                    Terraform: azurerm + neon + cloudflare in one root modu
   - **Next: M57** — structured JSON logs (`AddJsonConsole`, no Serilog), a correlation id off
     `x-request-id`, an `IExceptionHandler`, and `[LoggerMessage]` event ids. Then **M58** (ACA ingress
     logs + `docs/kql-cookbook.md`) and **M59** (verification + docs).
-  - ⏳ **Owner tasks still open:** sign in once for real (the only end-to-end proof of M55+M56 —
-    nothing else exercises the Google round trip, since tests never touch the network); and **delete
+  - ⏳ **Owner tasks still open:** **delete
     the dormant Netlify DNS zone on/after ~2026-08-03**, not before — it is the M53 rollback anchor.
   - ⚠️ **Before this branch deploys:** the two Google settings must exist as ACA config
     (`Authentication__Google__ClientId` plain, `ClientSecret` a secret) — **done 2026-07-28**. Startup

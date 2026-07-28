@@ -4,9 +4,6 @@ Per-release checklist tracker for Zion Music Group. Turns the repeatable pre/rel
 into per-release progress tracking across artists, for singles and albums.
 
 **Live:** https://app.zionmusicgroup.com
-· **Status:** v2.9 shipped — feature-complete through v2.4, deployed on CI/CD, **bilingual EN/ES**.
-**v2.10 is in progress** on `feat/auth-and-logging`: the custom domain and **Google SSO** are built but
-unmerged, so `main` is still open to anyone with the URL.
 
 The source of truth for project state is [plans/PROGRESS.md](plans/PROGRESS.md); per-milestone briefs
 are in [plans/build-plan-*.md](plans/). Working conventions are in [CLAUDE.md](CLAUDE.md).
@@ -223,8 +220,7 @@ type both languages in the dialog. It edits the template you're looking at (Sing
    display copy in two languages that the user can reword at will; the code is the identity.
 
 **The copy of record is `SeedData.cs` itself** — both languages sit on the same line, so a missing
-translation shows up in the diff. (v2.9 used a scratch review file for ZMG's pass over all 41 tasks;
-it was untracked and is gone.) Corrections to *existing* text go through the **templates screen**, not
+translation shows up in the diff. Corrections to *existing* text go through the **templates screen**, not
 a migration — a release owns its own checklist, so editing a template only shapes future releases.
 
 Domain jargon stays English by rule: DSP/BMI/MLC/SoundExchange/Musixmatch, "smart link", "pre-save",
@@ -239,8 +235,8 @@ dotnet test
 
 Add `src/i18n/locales/<code>.json` and a name in `src/i18n/language.ts` for the UI chrome. Checklist
 text needs a **third column** (`TitleFr`), one line in `lib/taskText.ts` and one field in
-`TaskEditorModal` — a deliberate trade for two languages being the real requirement, and the reason
-v2.9 dropped the normalized translation tables. No other component code changes; the two-language
+`TaskEditorModal`. This is a deliberate trade for two languages being the real requirement, and the reason
+an approach using normalized translation tables was dropped - it is easier to maintain and query translation changes. No other component code changes; the two-language
 toggle becomes a popover (which must portal to `<body>`, per the standing popover rule).
 
 ## Common tasks
@@ -292,5 +288,4 @@ the UI paints immediately and only the data waits.
   pipeline owns the image tag; Terraform owns everything else and ignores the tag by design.
 - **New required config must reach ACA *before* the image that needs it.** Startup validation fails the
   boot on any missing key, so shipping first means the container won't start and the deploy aborts with
-  the old revision still serving — recoverable, but avoidable. This is why the two
-  `Authentication__Google__*` settings were added to `infra/azure.tf` ahead of the v2.10 merge.
+  the old revision still serving — recoverable, but avoidable.
