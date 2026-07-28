@@ -12,14 +12,24 @@ resource "azurerm_log_analytics_workspace" "zmg" {
 }
 
 resource "azurerm_container_app_environment" "zmg" {
-  name                       = "zmg-env"
-  resource_group_name        = azurerm_resource_group.zmg.name
-  location                   = azurerm_resource_group.zmg.location
-  log_analytics_workspace_id = azurerm_log_analytics_workspace.zmg.id
+  name                = "zmg-env"
+  resource_group_name = azurerm_resource_group.zmg.name
+  location            = azurerm_resource_group.zmg.location
+  logs_destination    = "azure-monitor"
   workload_profile {
     name                  = "Consumption"
     workload_profile_type = "Consumption"
   }
+}
+
+resource "azurerm_monitor_diagnostic_setting" "zmg_env" {
+  name                           = "zmg-env-to-workspace"
+  target_resource_id             = azurerm_container_app_environment.zmg.id
+  log_analytics_workspace_id     = azurerm_log_analytics_workspace.zmg.id
+
+  enabled_log { category = "ContainerAppConsoleLogs" }
+  enabled_log { category = "ContainerAppSystemLogs" }
+  enabled_log { category = "ContainerAppHTTPLogs" }
 }
 
 resource "azurerm_container_app" "zmg" {
