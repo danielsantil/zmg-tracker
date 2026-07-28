@@ -109,6 +109,35 @@ public static class SeedData
         return Templates().SelectMany(template => template.Tasks);
     }
 
+    // ---- Authentication (v2.10/M54) ----
+
+    private static readonly Guid BootstrapUserId = new("33333333-3333-3333-3333-333333333333");
+
+    /// <summary>
+    /// The one seeded whitelist entry, so a freshly migrated database is never locked out (v2.10/M54).
+    /// Everyone else is a hand-written <c>INSERT</c> — there is no signup and no admin screen, by
+    /// decision, and this exists only to solve the bootstrap: with an empty <c>AllowedUser</c> table
+    /// nobody can sign in, including the person who would add the first row.
+    /// </summary>
+    /// <remarks>
+    /// <c>CreatedAt</c> is a fixed instant, not <c>DateTime.UtcNow</c>. <c>HasData</c> values are baked
+    /// into the migration and compared against the model snapshot on every scaffold, so a moving value
+    /// would make EF detect a model change on every single <c>migrations add</c> — the same class of
+    /// drift the M24 audit flagged. It must stay UTC: Npgsql maps <c>DateTimeKind.Utc</c> to
+    /// <c>timestamptz</c> and throws on an Unspecified kind.
+    /// </remarks>
+    public static IEnumerable<AllowedUser> AllowedUsers()
+    {
+        yield return new AllowedUser
+        {
+            Id = BootstrapUserId,
+            Email = EmailNormalization.Normalize("danielsantilh@gmail.com"),
+            DisplayName = null, // filled from the provider profile on first sign-in
+            CreatedAt = new DateTime(2026, 7, 28, 0, 0, 0, DateTimeKind.Utc),
+            DisabledAt = null,
+        };
+    }
+
     private static ChecklistTemplate BuildTemplate(
         Guid templateId, ReleaseType type, IEnumerable<TaskSeed> tasks)
     {

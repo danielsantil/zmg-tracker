@@ -329,8 +329,14 @@ screen. Static files aren't endpoint-routed and are unaffected.
 not a 302 to an HTML login page. An XHR that follows a redirect and parses HTML as JSON is a
 confusing failure; a 401 is the SPA's signal to show the gate.
 
-**New message codes** — `error.auth.required`, `error.auth.notAllowed`, `error.auth.emailUnverified`.
-Per M46 they need keys in **both** `en.json` and `es.json` or `MessageCodeApiTests` fails.
+**New message codes** — `error.auth.required`, `error.auth.notAllowed`, `error.auth.emailUnverified`,
+declared on `AccessControl` (the rule that raises them, per M46). They need keys in **both**
+`en.json` and `es.json`.
+
+> ⚠️ **`MessageCodeApiTests.AllCodes()` scans a hardcoded `Type[] sources` array, not the assembly.**
+> `typeof(AccessControl)` must be added to it or the parity guard silently ignores every auth code —
+> which is precisely the failure that test exists to catch (a code with no key renders as its own key
+> path, in both languages, with everything green). Verified in M54; do not skip.
 
 ### Your configuration steps (M55)
 

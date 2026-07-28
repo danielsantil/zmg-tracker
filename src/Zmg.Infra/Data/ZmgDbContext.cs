@@ -1,10 +1,14 @@
+using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Zmg.Domain;
 using Zmg.Domain.Entities;
 
 namespace Zmg.Infra.Data;
 
-public class ZmgDbContext(DbContextOptions<ZmgDbContext> options) : DbContext(options)
+/// <summary>
+/// Also the Data Protection key store (v2.10/M54) — see <see cref="DataProtectionKeys"/>.
+/// </summary>
+public class ZmgDbContext(DbContextOptions<ZmgDbContext> options) : DbContext(options), IDataProtectionKeyContext
 {
     public DbSet<Artist> Artists => Set<Artist>();
     public DbSet<Release> Releases => Set<Release>();
@@ -14,6 +18,19 @@ public class ZmgDbContext(DbContextOptions<ZmgDbContext> options) : DbContext(op
     public DbSet<ReleaseTask> ReleaseTasks => Set<ReleaseTask>();
     public DbSet<ChecklistTemplate> ChecklistTemplates => Set<ChecklistTemplate>();
     public DbSet<TemplateTask> TemplateTasks => Set<TemplateTask>();
+
+    // ---- Authentication (v2.10/M54) ----
+
+    public DbSet<AllowedUser> AllowedUsers => Set<AllowedUser>();
+    public DbSet<AuthSession> AuthSessions => Set<AuthSession>();
+
+    /// <summary>
+    /// The ASP.NET Data Protection key ring, satisfying <see cref="IDataProtectionKeyContext"/>.
+    /// Nothing in this codebase reads it — the framework does, via <c>PersistKeysToDbContext</c>.
+    /// It lives in the database because the container filesystem is ephemeral on ACA, and keys lost
+    /// on a scale-from-zero would silently sign every user out (see the note in Zmg.Infra.csproj).
+    /// </summary>
+    public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -105,6 +122,46 @@ public class ZmgDbContext(DbContextOptions<ZmgDbContext> options) : DbContext(op
             // of SeedData and the index exists for lookup.
             e.HasIndex(x => new { x.ChecklistTemplateId, x.Code });
         });
+
+        b.Entity<AllowedUser>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Email).IsRequired().HasMaxLength(320); // RFC 5321 max: 64 local + @ + 255 domain
+            // Unique, not merely indexed — unlike Artist.Name, whose case-insensitive uniqueness is an
+            // app-level rule. Here the value is already normalized by EmailNormalization before it is
+            // ever written, so ordinal uniqueness in the database is exactly the invariant we want, and
+            // it is the last line of defence against two rows granting access to the same person.
+            e.HasIndex(x => x.Email).IsUnique();
+        });
+
+        b.Entity<AuthSession>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasMaxLength(64);
+            e.Property(x => x.Email).IsRequired().HasMaxLength(320);
+            e.Property(x => x.TicketData).IsRequired();
+            // Sessions die with the user. Contrast AllowedUser.DisabledAt, which is the *reversible*
+            // revocation that keeps the row; a delete is the deliberate hard one.
+            e.HasOne(x => x.User)
+                .WithMany(u => u.Sessions)
+                .HasForeignKey(x => x.AllowedUserId)
+                .OnDelete(DeleteBehavior.Cascade);
+            // Drives the expired-row sweep the ticket store runs on sign-in.
+            e.HasIndex(x => x.ExpiresAt);
+        });
+
+        // The bootstrap whitelist entry, so a fresh database isn't locked out of its own login screen.
+        foreach (var user in SeedData.AllowedUsers())
+        {
+            b.Entity<AllowedUser>().HasData(new AllowedUser
+            {
+                Id = user.Id,
+                Email = user.Email,
+                DisplayName = user.DisplayName,
+                CreatedAt = user.CreatedAt,
+                DisabledAt = user.DisabledAt,
+            });
+        }
 
         // Seed both templates and their tasks (build-plan.md section 5.4).
         foreach (var template in SeedData.Templates())
