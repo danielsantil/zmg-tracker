@@ -19,7 +19,7 @@ for where the project stands and the rules that span plans.
 - [build-plan-2.8.md](build-plan-2.8.md) — multilingual EN/ES (M43–M48). Shipped.
 - [build-plan-2.9.md](build-plan-2.9.md) — checklist text, simplified (M49–M52). Shipped.
 - [build-plan-2.10.md](build-plan-2.10.md) — custom domain · auth · logging (M53–M59). **In progress:
-  M53–M57 shipped, M58–M59 open.**
+  M53–M58 shipped and merged to `main`, M59 open.**
 
 Newer plan versions go in new `build-plan-N.N.md` files; older ones stay frozen.
 
@@ -30,10 +30,12 @@ with `/api/*` proxied same-origin to **Azure Container Apps** over **Neon Postgr
 remote state in Azure Storage. A **GitHub Actions pipeline** tests, builds a SHA-tagged image, applies
 migrations, deploys to ACA over OIDC, then ships the SPA to Cloudflare.
 
-⚠️ **Work in progress on `feat/auth-and-logging`** (v2.10, M53–M59): the custom domain, **Google
-SSO** and structured logging are built but **the branch is unmerged and undeployed**. `main` is still
-open to anyone with the URL. M58–M59 (ingress logs, verification) remain. Tests on the branch: backend
-**domain 166 / API 278**, SPA **86 Vitest** — the pipeline gates on these.
+**The app is closed.** `feat/auth-and-logging` merged to `main` as
+[#13](https://github.com/danielsantil/zmg-tracker/pull/13) on 2026-07-28 and deployed: Google SSO is
+live in prod (the full round trip — probe 401 → `/api/auth/login` → Google → callback → probe 200 — is
+visible in the ingress log), and the app logs structured JSON that Log Analytics collects. **M59
+(verification + docs) is all that remains of v2.10.** Tests: backend **domain 166 / API 278**, SPA
+**86 Vitest** — the pipeline gates on these.
 
 **Phase 2** (DSP stats, real-Postgres tests) follows v2.10 and starts a new `build-plan-3.0.md`.
 
@@ -186,6 +188,21 @@ value forges a whole log entry), and `BadHttpRequestException` **keeps its own s
 becoming a 500, because the reachable case is an upload past Kestrel's body limit and turning that
 413 into "something broke on our side" would be both a worse message and a false alarm. Tests **API
 244 → 278**.
+
+**M58** switched the ACA environment's logs destination to `azure-monitor` — the only setting that
+emits `ContainerAppHTTPLogs`, Envoy's per-request record, at no cost to the app — and added the
+diagnostic setting that then becomes the *only* thing routing logs anywhere. The plan carried an abort
+condition, because replacing the environment would change the ACA FQDN that `wrangler.jsonc` and a
+registered Google redirect URI both point at; `terraform plan` reported `~ update in-place`, including
+the removal of `log_analytics_workspace_id` (which the provider forbids alongside `azure-monitor`), so
+it went ahead. `log_analytics_destination_type` turned out to be **inert** here — ACA's categories are
+resource-specific only, so Azure never persists the field and Terraform re-proposed it on every plan;
+it was dropped rather than pinned with `ignore_changes`, since a permanently dirty plan is how a real
+diff hides. The deliverable is [`docs/kql-cookbook.md`](../docs/kql-cookbook.md), written against
+column names from real exported rows rather than from documentation — several in the plan's sketch
+were wrong (`Log`, not `Log_s`; the `_s` suffixes belong only to the legacy `_CL` tables holding
+pre-switch history). **The `CorrelationId` ↔ `RequestId` join was proven rather than assumed**: an
+unauthenticated 401 was traced from its `x-request-id` response header through both tables to one id.
 
 ---
 
@@ -513,6 +530,15 @@ becoming a 500, because the reachable case is an upload past Kestrel's body limi
     **`BadHttpRequestException` keeps its own status** (`error.badRequest`, `Warning`, no stack): the
     reachable case is an upload past Kestrel's body limit, and a 413 rewritten as a 500 is both a worse
     message and a false alarm.
+  - **The environment's logs destination is `azure-monitor`, and an `azurerm_monitor_diagnostic_setting`
+    is the only thing routing logs (M58).** Delete that resource and logging stops silently, with the
+    app none the wiser — it is not an accessory to the destination setting, it *is* the plumbing. The
+    provider forbids `log_analytics_workspace_id` on the environment in this mode, so the workspace is
+    named on the diagnostic setting instead. `log_analytics_destination_type` is deliberately absent:
+    ACA's categories are resource-specific only, Azure never persists the field, and leaving it in
+    config re-proposes it on every plan. Console/system logs live in `ContainerAppConsoleLogs` /
+    `ContainerAppSystemLogs`; anything before 2026-07-28 is in the `_CL` tables with `_s` columns and
+    is not migrated. Queries: [`docs/kql-cookbook.md`](../docs/kql-cookbook.md).
 - **Prod runs Postgres (Neon); integration tests run SQLite in-memory (v2.5/M30).** Migrations are
   Postgres-specific. Keep query code **provider-agnostic** — e.g.
   title search lowercases both sides of `Like` rather than using Npgsql `ILike` — so SQLite tests stay
@@ -534,6 +560,7 @@ src/Zmg.Web      React + Vite + Tailwind SPA, organized by feature folder; worke
 tests/Zmg.Domain.Tests   xUnit unit tests
 tests/Zmg.Api.Tests      integration tests (WebApplicationFactory + in-memory SQLite)
 infra                    Terraform: azurerm + neon + cloudflare in one root module (see infra/README.md)
+docs                     kql-cookbook.md — queries for the production logs (v2.10/M58)
 ```
 
 ---
@@ -553,22 +580,20 @@ infra                    Terraform: azurerm + neon + cloudflare in one root modu
 - **Done — the v2.9 schema reset.** Dev was reset 2026-07-27; **prod** was reset (public schema
   including `__EFMigrationsHistory`) and redeployed onto the squashed `InitialCreate`, verified
   working. Later migrations are ordinary additive ones again.
-- **In progress — v2.10 (M53–M59)** on `feat/auth-and-logging`. See
+- **In progress — v2.10 (M53–M59)**, merged to `main` and deployed. See
   [build-plan-2.10.md](build-plan-2.10.md).
   - **Shipped:** M53 custom domain · M54 auth schema · M55 Google SSO API · M56 login screen + gate ·
-    M57 structured application logs.
-  - **Next: M58** — ACA ingress logs + `docs/kql-cookbook.md`. Then **M59** (verification + docs).
-    M58 opens with an owner step: flipping the ACA environment's `logs_destination` to
-    `azure-monitor` in Terraform, under the guard below.
+    M57 structured application logs · M58 ingress logs + KQL cookbook.
+  - **Next: M59** — verification + docs. Note that a good deal of it happened incidentally when M53–M57
+    deployed: Google SSO completed end-to-end in prod, and the `CorrelationId` ↔ ingress `RequestId`
+    join was traced through both tables. What remains is the deliberate pass — full suite, browser
+    verification, session expiry/revocation against real Postgres, and the README.
   - ⏳ **Owner tasks still open:** **delete
     the dormant Netlify DNS zone on/after ~2026-08-03**, not before — it is the M53 rollback anchor.
-  - ⚠️ **Before this branch deploys:** the two Google settings must exist as ACA config
-    (`Authentication__Google__ClientId` plain, `ClientSecret` a secret) — **done 2026-07-28**. Startup
-    validation fails the boot without them, so a deploy would leave the old revision serving.
-  - **M58 is guarded:** switching the ACA environment's `logs_destination` to `azure-monitor` is what
-    unlocks `ContainerAppHTTPLogs`, but if `terraform plan` reports `forces replacement`, **skip it** —
-    replacing the environment changes the ACA FQDN, which is `API_ORIGIN` in `wrangler.jsonc` and a
-    registered Google redirect URI. M57's slow/failed request logging covers the failure cases anyway.
+  - ⚠️ **An uncommitted Terraform edit was applied and then lost to a branch switch during M58**, so
+    live infrastructure briefly had a diagnostic setting the config didn't — one `terraform apply` away
+    from silently deleting it and stopping all logging. Commit infra changes in the same pass that
+    applies them; a `terraform plan` reporting `No changes` is only meaningful against committed config.
 - **Next: Phase 2 — DSP stats** (the reason this exists over Notion/Trello): hang streaming/revenue data
   off the stable Artist / Release / **Song** / Track ids and the UPC/ISRC columns; the v2.0 Song ids are
   its foundation. Also real-Postgres tests. No build plan yet — write `build-plan-3.0.md` when it starts.

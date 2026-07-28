@@ -23,9 +23,9 @@ resource "azurerm_container_app_environment" "zmg" {
 }
 
 resource "azurerm_monitor_diagnostic_setting" "zmg_env" {
-  name                           = "zmg-env-to-workspace"
-  target_resource_id             = azurerm_container_app_environment.zmg.id
-  log_analytics_workspace_id     = azurerm_log_analytics_workspace.zmg.id
+  name                       = "zmg-env-to-workspace"
+  target_resource_id         = azurerm_container_app_environment.zmg.id
+  log_analytics_workspace_id = azurerm_log_analytics_workspace.zmg.id
 
   enabled_log { category = "ContainerAppConsoleLogs" }
   enabled_log { category = "ContainerAppSystemLogs" }
