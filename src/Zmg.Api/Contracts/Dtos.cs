@@ -158,3 +158,8 @@ public record UploadedCoverDto(string Url);
 // {"errors":[{"code":"error.song.duplicateTitle"}]}, which is strictly better in logs anyway.
 public record ValidationErrorResponse(Message[] Errors);
 public record CreatedWithWarnings<T>(T Data, Message[] Warnings);
+
+// ---- Auth (v2.10/M55) ----
+// The whole of the signed-in identity on the wire. Authorization is flat, so there are no roles or
+// permissions to ship — if this ever grows a field, check that it isn't a role in disguise.
+public record AuthUserDto(string Email, string? DisplayName);

@@ -17,6 +17,7 @@ var connectionString = builder.Configuration.GetConnectionString("Zmg");
 builder.Services.AddDbContext<ZmgDbContext>(options => options.UseNpgsql(connectionString));
 
 builder.Services.RegisterServices(builder.Configuration);
+builder.Services.AddZmgAuthentication(builder.Configuration, builder.Environment);
 
 if (builder.Environment.IsDevelopment())
 {
@@ -48,6 +49,11 @@ if (builder.Configuration.GetValue("Database:MigrateOnStartup", true))
 
 app.Logger.LogInformation("[boot] DB ready {Ms} ms", Environment.TickCount64 - bootStart);
 
+// Before authentication, and before anything reads Request.Host: the Cloudflare Worker rewrites Host
+// to the ACA FQDN (the ingress routes on it), so the public hostname arrives as X-Forwarded-Host and
+// the OIDC redirect_uri would otherwise be built from the wrong one.
+app.UseZmgForwardedHeaders();
+
 if (app.Environment.IsDevelopment())
 {
     app.UseCors("dev");
@@ -55,7 +61,13 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
+app.UseAuthentication();
+app.UseAuthorization();
+
+// Anonymous by necessity: the readiness probe, and the auth endpoints themselves. Everything else is
+// protected by the fallback policy without having to say so.
+app.MapGet("/api/health", () => Results.Ok(new { status = "ok" })).AllowAnonymous();
+app.MapAuthEndpoints();
 app.MapArtistEndpoints();
 app.MapReleaseEndpoints();
 app.MapSongEndpoints();
@@ -66,9 +78,12 @@ app.MapPendingEndpoints();
 app.MapUploadEndpoints();
 
 // Serve the built SPA (wwwroot) in production; SPA fallback for client-side routing.
+// The shell stays anonymous — it has to be, since it is what renders the login screen. Static files
+// aren't endpoint-routed so the fallback policy never applies to them; MapFallbackToFile *is* an
+// endpoint, so it opts out explicitly.
 app.UseDefaultFiles();
 app.UseStaticFiles();
-app.MapFallbackToFile("index.html");
+app.MapFallbackToFile("index.html").AllowAnonymous();
 
 app.Lifetime.ApplicationStarted.Register(() => 
     app.Logger.LogInformation("[boot] Application started - listening {Ms} ms", Environment.TickCount64 - bootStart));

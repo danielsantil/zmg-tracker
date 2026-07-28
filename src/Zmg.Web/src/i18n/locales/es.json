@@ -406,6 +406,11 @@
     "deleteTaskConfirm": "¿Eliminar la tarea de plantilla \"{{title}}\"?"
   },
   "error": {
+    "auth": {
+      "required": "Tu sesión ha terminado. Inicia sesión de nuevo para continuar.",
+      "notAllowed": "Esa cuenta no tiene acceso a este espacio de trabajo.",
+      "emailUnverified": "El correo de esa cuenta de Google no está verificado."
+    },
     "artist": {
       "nameRequired": "El nombre del artista es obligatorio.",
       "duplicateName": "Ya existe un artista llamado \"{{name}}\".",

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Zmg.Domain;
@@ -112,15 +113,25 @@ public class AuthSchemaApiTests(ZmgApiFactory factory) : IClassFixture<ZmgApiFac
     }
 
     [Fact]
-    public async Task The_data_protection_key_table_exists()
+    public async Task The_data_protection_key_ring_is_persisted_to_the_database()
     {
         using var scope = factory.Services.CreateScope();
         var db = Db(scope);
 
-        // Empty is correct — the framework writes here, not us. What is asserted is that the table was
-        // created at all: without it, key persistence silently falls back to the ephemeral container
-        // filesystem, and on ACA every scale-from-zero would sign all users out.
-        Assert.Empty(await db.DataProtectionKeys.ToListAsync());
+        // Exercise the key ring the way issuing a session cookie would.
+        scope.ServiceProvider
+            .GetRequiredService<IDataProtectionProvider>()
+            .CreateProtector("zmg.test")
+            .Protect("payload");
+
+        var keys = await db.DataProtectionKeys.ToListAsync();
+
+        // The assertion that matters in production: keys land in Postgres rather than on the
+        // container's ephemeral filesystem. Without this, ACA's min_replicas=0 mints a fresh key ring
+        // on every scale-from-zero — roughly every five idle minutes — silently invalidating every
+        // session cookie. It is the failure that would present as "the app randomly logs me out".
+        Assert.NotEmpty(keys);
+        Assert.All(keys, k => Assert.False(string.IsNullOrWhiteSpace(k.Xml)));
     }
 
     private static async Task<AllowedUser> AddUserAsync(ZmgDbContext db, string email)

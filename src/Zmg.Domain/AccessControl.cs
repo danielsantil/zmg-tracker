@@ -16,6 +16,26 @@ namespace Zmg.Domain;
 public static class AccessControl
 {
     /// <summary>
+    /// The request needs a session and has none — expired, revoked, or never signed in. The SPA's
+    /// signal to show the login gate, which is why <c>/api/*</c> answers 401 with this rather than
+    /// redirecting: an XHR that follows a 302 and parses HTML as JSON fails confusingly.
+    /// </summary>
+    public const string RequiredCode = "error.auth.required";
+
+    /// <summary>
+    /// Authenticated with the provider, but not permitted here — either never listed or disabled.
+    /// <b>One code for both</b>, deliberately: distinguishing them would tell an outsider whether an
+    /// address is known to us, which is a membership oracle for free.
+    /// </summary>
+    public const string NotAllowedCode = "error.auth.notAllowed";
+
+    /// <summary>
+    /// The provider returned an address it has not verified. Rare with Google, but accepting it would
+    /// let anyone who can set an unverified address on some account impersonate a listed one.
+    /// </summary>
+    public const string EmailUnverifiedCode = "error.auth.emailUnverified";
+
+    /// <summary>
     /// Whether a looked-up user may use the app. A null user means the address was never on the list;
     /// a non-null one with <see cref="AllowedUser.DisabledAt"/> set means access was revoked. Both are
     /// denials, and callers must not distinguish them to the browser — see the note on enumeration in

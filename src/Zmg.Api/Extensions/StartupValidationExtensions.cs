@@ -28,6 +28,11 @@ public static class StartupValidationExtensions
         configuration.GetSection(R2Options.SectionName).Bind(r2);
         missing.AddRange(r2.MissingKeys());
 
+        // Google SSO (M55). Same reasoning as R2: without these the app boots happily and then fails on
+        // the first person who tries to sign in — which, since nothing else is reachable, means it is
+        // simply broken while looking healthy.
+        missing.AddRange(AuthenticationExtensions.BindAuthOptions(configuration).MissingKeys());
+
         if (missing.Count > 0)
         {
             throw new InvalidOperationException(

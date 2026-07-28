@@ -406,6 +406,11 @@
     "deleteTaskConfirm": "Delete template task \"{{title}}\"?"
   },
   "error": {
+    "auth": {
+      "required": "Your session has ended. Sign in again to continue.",
+      "notAllowed": "That account isn't authorised for this workspace.",
+      "emailUnverified": "That Google account's email address isn't verified."
+    },
     "artist": {
       "nameRequired": "Artist name is required.",
       "duplicateName": "An artist named \"{{name}}\" already exists.",

@@ -96,10 +96,14 @@ public class MessageCodeApiTests(ZmgApiFactory factory) : IClassFixture<ZmgApiFa
     /// </summary>
     public static TheoryData<string> AllCodes()
     {
+        // NOTE: this list is hand-maintained on purpose (a broad assembly sweep would drag in unrelated
+        // string constants) — which means a new code-minting class must be *added here* or its codes are
+        // silently unguarded. That is precisely the failure this file exists to catch.
         Type[] sources =
         [
             typeof(Validation), typeof(ReleaseWarnings), typeof(PendingActions),
             typeof(ReleaseMutability), typeof(CoverImage), typeof(ServiceErrors),
+            typeof(AccessControl),
         ];
 
         var data = new TheoryData<string>();
