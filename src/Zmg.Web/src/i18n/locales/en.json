@@ -478,6 +478,8 @@
     },
     "mainArtistRequired": "A main artist is required.",
     "mainArtistNotFound": "The selected main artist does not exist.",
+    "unexpected": "Something went wrong on our side. Please try again — quote reference {{requestId}} if it keeps happening.",
+    "badRequest": "The server couldn't accept that request. If it was a file, it may be too large.",
     "unknown": "Something went wrong."
   },
   "warning": {

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies; // ITicketStore
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Zmg.Api.Logging;
 using Zmg.Domain;
 using Zmg.Domain.Entities;
 using Zmg.Infra.Data;
@@ -68,9 +69,14 @@ public sealed class PostgresTicketStore(
         // Opportunistic sweep. Sign-in is rare, so this is the cheapest possible place to put it — a
         // hosted timer would barely run anyway on a container that scales to zero after 5 idle minutes.
         var removed = await db.AuthSessions.Where(s => s.ExpiresAt < now).ExecuteDeleteAsync();
-        if (removed > 0) logger.LogInformation("Swept {Count} expired session(s).", removed);
+        if (removed > 0) Log.AuthSessionsSwept(logger, removed);
 
         await db.SaveChangesAsync();
+
+        // The successful-login line lives here rather than in the OIDC event that authorized it: this
+        // is the moment the session exists, and the only one that knows the id to revoke it by.
+        Log.AuthLoginOk(logger, email, key);
+
         return key;
     }
 

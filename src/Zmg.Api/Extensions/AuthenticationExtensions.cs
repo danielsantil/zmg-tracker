@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Zmg.Api.Contracts;
+using Zmg.Api.Logging;
 using Zmg.Api.Services;
 using Zmg.Domain;
 using Zmg.Infra.Data;
@@ -215,7 +216,8 @@ public static class AuthenticationExtensions
         ctx.Properties.ExpiresUtc = DateTimeOffset.UtcNow.AddDays(options.SessionDays);
         ctx.Properties.RedirectUri = PostLoginUri(ctx.Properties.RedirectUri, options);
 
-        logger.LogInformation("auth.login.ok {Email}", user.Email);
+        // auth.login.ok is logged by PostgresTicketStore.StoreAsync, a moment later: creating the
+        // session row *is* the successful login, and it is the only point that knows the session id.
     }
 
     private static void Deny(TicketReceivedContext ctx, ILogger logger, string email, string reason, AuthOptions options)
@@ -223,7 +225,7 @@ public static class AuthenticationExtensions
         // The address is logged — the one deliberate exception to "no user attribution in logs" — because
         // a failed-login spike is otherwise unactionable: you cannot tell a partner fat-fingering from
         // someone probing the door.
-        logger.LogInformation("auth.login.denied {Email} {Reason}", email, reason);
+        Log.AuthLoginDenied(logger, email, reason);
 
         ctx.HandleResponse();
         // No email in the redirect URL, deliberately. ACA's ingress HTTP logs record the full path

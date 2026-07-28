@@ -1,6 +1,8 @@
+using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using Zmg.Api.Contracts;
+using Zmg.Api.Logging;
 using Zmg.Api.Services.Interfaces;
 using Zmg.Domain;
 
@@ -55,7 +57,7 @@ public sealed class CoverUploadService(IStorageService storage, HttpClient http,
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException && !ct.IsCancellationRequested)
         {
             // Never surface the remote failure verbatim — it's a probe oracle, and useless to the user.
-            logger.LogInformation(ex, "Cover fetch failed for {Host}", uri!.Host);
+            Log.CoverFetchFailed(logger, ex, uri!.Host);
             return OperationResult<UploadedCoverDto>.Invalid([CoverImage.UnreachableUrlCode]);
         }
 
@@ -73,6 +75,10 @@ public sealed class CoverUploadService(IStorageService storage, HttpClient http,
         {
             if (!await IsAllowedHostAsync(uri, ct))
             {
+                // The first hop and a later one are different stories: the first is someone pasting a
+                // bad link, a later one is a public host redirecting at an internal address — which is
+                // the attack the manual redirect-following exists to stop.
+                Log.CoverFetchBlocked(logger, hop == 0 ? "blocked_address" : "blocked_redirect_address", uri.Host);
                 return OperationResult<byte[]>.Invalid([CoverImage.BlockedUrlCode]);
             }
 
@@ -87,6 +93,7 @@ public sealed class CoverUploadService(IStorageService storage, HttpClient http,
                 var next = location.IsAbsoluteUri ? location : new Uri(uri, location);
                 if (!CoverImage.IsFetchableUrl(next.ToString(), out var parsed))
                 {
+                    Log.CoverFetchBlocked(logger, "blocked_redirect_scheme", next.Host);
                     return OperationResult<byte[]>.Invalid([CoverImage.BlockedUrlCode]);
                 }
 
@@ -158,17 +165,36 @@ public sealed class CoverUploadService(IStorageService storage, HttpClient http,
     /// </summary>
     private async Task<OperationResult<UploadedCoverDto>> StoreAsync(byte[] bytes, CancellationToken ct)
     {
+        var started = Stopwatch.GetTimestamp();
+
         var sniffed = CoverImage.SniffContentType(bytes);
-        if (sniffed is null) return OperationResult<UploadedCoverDto>.Invalid([CoverImage.InvalidTypeCode]);
+        if (sniffed is null)
+        {
+            LogUpload("rejected_bytes", bytes.Length, 0, started);
+            return OperationResult<UploadedCoverDto>.Invalid([CoverImage.InvalidTypeCode]);
+        }
 
         // Re-encoded to a bounded WebP (M33): the header can be valid while the rest is corrupt, so a
         // failed decode is a 400 rather than a 500.
         var normalized = CoverProcessor.Normalize(bytes);
-        if (normalized is null) return OperationResult<UploadedCoverDto>.Invalid([CoverImage.InvalidTypeCode]);
+        if (normalized is null)
+        {
+            LogUpload("decode_failed", bytes.Length, 0, started);
+            return OperationResult<UploadedCoverDto>.Invalid([CoverImage.InvalidTypeCode]);
+        }
 
         var url = await storage.UploadCoverAsync(normalized, CoverImage.StoredContentType, ct);
+
+        // The byte pair is the reason this line exists: M33's encoder default silently produced
+        // lossless WebP — 2.9 MB out of a 4.3 MB source — with every unit test green. In production
+        // that shape is only visible here.
+        LogUpload("stored", bytes.Length, normalized.Length, started);
         return OperationResult<UploadedCoverDto>.Success(new UploadedCoverDto(url));
     }
+
+    private void LogUpload(string outcome, int sourceBytes, int storedBytes, long started) =>
+        Log.CoverUpload(logger, outcome, sourceBytes, storedBytes,
+            (long)Stopwatch.GetElapsedTime(started).TotalMilliseconds);
 
     private static OperationResult<UploadedCoverDto> NotConfigured() =>
         OperationResult<UploadedCoverDto>.Problem("Cover storage is not configured.");

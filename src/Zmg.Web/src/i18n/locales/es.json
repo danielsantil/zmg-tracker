@@ -478,6 +478,8 @@
     },
     "mainArtistRequired": "Se requiere un artista principal.",
     "mainArtistNotFound": "El artista principal seleccionado no existe.",
+    "unexpected": "Algo salió mal de nuestro lado. Vuelve a intentarlo — menciona la referencia {{requestId}} si sigue ocurriendo.",
+    "badRequest": "El servidor no pudo aceptar esa solicitud. Si era un archivo, puede que sea demasiado grande.",
     "unknown": "Algo salió mal."
   },
   "warning": {

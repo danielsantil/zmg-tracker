@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Zmg.Api.Contracts;
+using Zmg.Api.Extensions;
+using Zmg.Api.Logging;
 using Zmg.Domain;
 
 namespace Zmg.Api.Endpoints;
@@ -51,9 +53,15 @@ public static class AuthEndpoints
         // POST, not GET: a GET sign-out can be triggered by any <img> on any page. Deletes the session
         // row via the ticket store, so the session is gone server-side rather than merely forgotten by
         // the browser.
-        group.MapPost("/logout", async (HttpContext ctx) =>
+        group.MapPost("/logout", async (HttpContext ctx, ILoggerFactory loggers) =>
         {
+            // Read the address before signing out — afterwards the principal is gone, and an
+            // unattributed logout line is worth nothing next to the login ones it pairs with.
+            var email = ctx.User.FindFirstValue(ClaimTypes.Email);
+
             await ctx.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+
+            if (!string.IsNullOrEmpty(email)) Log.AuthLogout(loggers.CreateLogger("Zmg.Api.Auth"), email);
             return Results.NoContent();
         });
     }

@@ -19,7 +19,7 @@ for where the project stands and the rules that span plans.
 - [build-plan-2.8.md](build-plan-2.8.md) — multilingual EN/ES (M43–M48). Shipped.
 - [build-plan-2.9.md](build-plan-2.9.md) — checklist text, simplified (M49–M52). Shipped.
 - [build-plan-2.10.md](build-plan-2.10.md) — custom domain · auth · logging (M53–M59). **In progress:
-  M53–M56 shipped, M57–M59 open.**
+  M53–M57 shipped, M58–M59 open.**
 
 Newer plan versions go in new `build-plan-N.N.md` files; older ones stay frozen.
 
@@ -30,10 +30,10 @@ with `/api/*` proxied same-origin to **Azure Container Apps** over **Neon Postgr
 remote state in Azure Storage. A **GitHub Actions pipeline** tests, builds a SHA-tagged image, applies
 migrations, deploys to ACA over OIDC, then ships the SPA to Cloudflare.
 
-⚠️ **Work in progress on `feat/auth-and-logging`** (v2.10, M53–M59): the custom domain and **Google
-SSO are built but the branch is unmerged and undeployed**. `main` is still open to anyone with the
-URL. M57–M59 (logging, ingress logs, verification) remain. Tests on the branch: backend **domain 166 /
-API 244**, SPA **86 Vitest** — the pipeline gates on these.
+⚠️ **Work in progress on `feat/auth-and-logging`** (v2.10, M53–M59): the custom domain, **Google
+SSO** and structured logging are built but **the branch is unmerged and undeployed**. `main` is still
+open to anyone with the URL. M58–M59 (ingress logs, verification) remain. Tests on the branch: backend
+**domain 166 / API 278**, SPA **86 Vitest** — the pipeline gates on these.
 
 **Phase 2** (DSP stats, real-Postgres tests) follows v2.10 and starts a new `build-plan-3.0.md`.
 
@@ -144,7 +144,7 @@ retires the guessing. Schema squashed to a single `InitialCreate`, clearing the 
 hazard. Tests **domain 138 → 125, API 216 → 214, web 50 → 57** — the backend drop is deleted tests
 whose subject no longer exists, not lost coverage. See [build-plan-2.9.md](build-plan-2.9.md).
 
-**v2.10 (M53–M56 of M53–M59) — custom domain · authentication. In progress on
+**v2.10 (M53–M57 of M53–M59) — custom domain · authentication · logging. In progress on
 `feat/auth-and-logging`, unmerged.** The app got a real address and a lock, in that order because the
 second needed the first. **M53** moved `zionmusicgroup.com`'s nameservers to Cloudflare — the whole
 zone had to move, since a Workers custom domain only binds to a zone Cloudflare controls and both
@@ -166,6 +166,26 @@ failing closed instead of trusting a forged header from the publicly reachable A
 `Redirects.SafeLocalPath` trimmed before scanning for control characters, silently repairing a
 trailing `\r` while rejecting an embedded one; it now scans the raw input first. Tests **domain
 125 → 166, API 214 → 244, web 57 → 86**. See [build-plan-2.10.md](build-plan-2.10.md).
+
+**M57** then made the running app legible: `AddJsonConsole` outside Development, a request id scope,
+an `IExceptionHandler`, a summary line for requests worth one, and `[LoggerMessage]` event ids —
+**no Serilog, no sink, nothing that can fail closed**, just one JSON object per line to stdout for ACA
+to collect. The design question throughout was *what not to log*: ingress already records every
+request better than the app can, so the app speaks only for failures and slow requests, and EF's
+command logger — the bulk of the ingestion and none of the signal — is pinned at `Warning`. Writing it
+against real output rather than in the abstract caught three things the code review wouldn't have.
+**The exception was logged twice**, once by the framework's exception middleware and once by the
+handler it then called — same stack, adjacent lines, double the bill; the framework's copy is now
+silenced by category. **`RequestId` was already taken**: ASP.NET's hosting scope publishes Kestrel's
+per-connection id under exactly that name, so ours sat beside it as a second value under one key —
+a KQL query would have picked one and reported nothing wrong, which is why the scope key is
+`CorrelationId`. And a `Dictionary` scope printed its own type name on every line, hence
+`CorrelationScope`. Two things were guarded rather than discovered: the request id is
+**normalized, not trusted** (it is a client header — CR/LF splits a response header and a JSON-shaped
+value forges a whole log entry), and `BadHttpRequestException` **keeps its own status** instead of
+becoming a 500, because the reachable case is an upload past Kestrel's body limit and turning that
+413 into "something broke on our side" would be both a worse message and a false alarm. Tests **API
+244 → 278**.
 
 ---
 
@@ -460,6 +480,39 @@ trailing `\r` while rejecting an embedded one; it now scans the raw input first.
   - **`MessageCodeApiTests.AllCodes()` scans a hand-maintained `Type[]`**, not the assembly. A new
     code-minting class must be added to it or its codes are silently unguarded — which is exactly the
     failure that test exists to catch.
+- **Logs are structured JSON to stdout, and the app speaks only when it has something to add
+  (v2.10/M57).** `AddJsonConsole` outside Development (`IncludeScopes`, UTC, not indented); dev keeps
+  the readable console. There is **no logging package, no sink and no network call** — one object per
+  line, collected by ACA into `ContainerAppConsoleLogs_CL` — so there is nothing in the logging path
+  that can fail and take the app with it. Never add one.
+  - **Events are `[LoggerMessage]` methods on `Zmg.Api.Logging.Log`, and their ids are permanent
+    identifiers** — same rule as the message codes and the integer enums. `1000` auth, `2000` uploads,
+    `3000` requests. Queries and alerts are written against `EventId`, precisely so that rewording a
+    message breaks nothing. Add an event there, not as a `logger.LogInformation` at a call site.
+  - **Never logged, as a rule:** the session cookie's protected value, the Google client secret,
+    tokens, the connection string, R2 keys, and **query strings** — paths are logged without them.
+    The one deliberate exception to "no user attribution" is the **email on auth events**, because a
+    failed-login spike is otherwise unactionable; business writes still record nothing about the actor.
+  - **The correlation scope key is `CorrelationId`, not `RequestId`.** ASP.NET's hosting scope already
+    publishes `RequestId` (Kestrel's per-connection id, which nothing outside the process has seen), so
+    reusing the name puts two different values under one key in the same `Scopes` array and a query
+    silently picks one. The value is ACA/Envoy's `x-request-id` where the caller supplied one — that
+    is what makes an app line and its ingress record joinable — **normalized, never trusted**, since a
+    client-controlled string echoed into a header and every log line is a header-splitting and
+    log-forging primitive.
+  - **The happy path is silent.** Ingress records every request better than the app can, so
+    `RequestSummaryMiddleware` logs only failures and requests over `Logging:SlowRequestMs`. EF's
+    command logger stays at `Warning` — at `Information` it is most of the ingestion and none of the
+    signal. A signed-out `GET /api/auth/me` 401 is excluded by name: it is the SPA's probe answering
+    "signed out", and it would otherwise be the most common line in the file.
+  - **An unhandled exception is logged once and answered in the coded envelope (M46).**
+    `GlobalExceptionHandler` owns both; the framework's own duplicate is silenced by category
+    (`Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddleware: None`). The body carries
+    `error.unexpected` plus the request id — which is also on the response header, re-applied via
+    `OnStarting` because the exception middleware calls `Response.Clear()` first.
+    **`BadHttpRequestException` keeps its own status** (`error.badRequest`, `Warning`, no stack): the
+    reachable case is an upload past Kestrel's body limit, and a 413 rewritten as a 500 is both a worse
+    message and a false alarm.
 - **Prod runs Postgres (Neon); integration tests run SQLite in-memory (v2.5/M30).** Migrations are
   Postgres-specific. Keep query code **provider-agnostic** — e.g.
   title search lowercases both sides of `Like` rather than using Npgsql `ILike` — so SQLite tests stay
@@ -502,10 +555,11 @@ infra                    Terraform: azurerm + neon + cloudflare in one root modu
   working. Later migrations are ordinary additive ones again.
 - **In progress — v2.10 (M53–M59)** on `feat/auth-and-logging`. See
   [build-plan-2.10.md](build-plan-2.10.md).
-  - **Shipped:** M53 custom domain · M54 auth schema · M55 Google SSO API · M56 login screen + gate.
-  - **Next: M57** — structured JSON logs (`AddJsonConsole`, no Serilog), a correlation id off
-    `x-request-id`, an `IExceptionHandler`, and `[LoggerMessage]` event ids. Then **M58** (ACA ingress
-    logs + `docs/kql-cookbook.md`) and **M59** (verification + docs).
+  - **Shipped:** M53 custom domain · M54 auth schema · M55 Google SSO API · M56 login screen + gate ·
+    M57 structured application logs.
+  - **Next: M58** — ACA ingress logs + `docs/kql-cookbook.md`. Then **M59** (verification + docs).
+    M58 opens with an owner step: flipping the ACA environment's `logs_destination` to
+    `azure-monitor` in Terraform, under the guard below.
   - ⏳ **Owner tasks still open:** **delete
     the dormant Netlify DNS zone on/after ~2026-08-03**, not before — it is the M53 rollback anchor.
   - ⚠️ **Before this branch deploys:** the two Google settings must exist as ACA config
