@@ -1,9 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Menu, Moon, Sun, X } from 'lucide-react';
+import { LogOut, Menu, Moon, Sun, X } from 'lucide-react';
 import { useTheme, type Theme } from '../hooks/useTheme';
 import { useLanguage } from '../i18n/useLanguage';
+import { useAuth } from '../auth/useAuth';
 import { LanguageToggle } from './LanguageToggle';
 import Logo from './Logo';
 
@@ -46,6 +48,95 @@ function ThemeToggle({ theme, toggle }: { theme: Theme; toggle: () => void }) {
   );
 }
 
+/** Initials for the avatar — from the display name when there is one, else the address. */
+function initials(user: { displayName: string | null; email: string }): string {
+  const source = user.displayName?.trim() || user.email;
+  const parts = source.split(/[\s.@_-]+/).filter(Boolean);
+  return (parts[0]?.[0] ?? '?').concat(parts.length > 1 ? parts[1][0] : '').toUpperCase();
+}
+
+/**
+ * Email + sign out, behind an initials avatar (≥sm only).
+ *
+ * Portals to `<body>` and positions from the trigger's rect, the same mechanism as `RowMenu` and for
+ * the same reason (v2.2): a `fixed` popover inside a transformed ancestor resolves against that
+ * ancestor rather than the viewport. Below `sm` this renders nothing — the hamburger sheet carries
+ * the same two rows instead, so there is one popover implementation rather than two.
+ */
+function AccountMenu() {
+  const { t } = useTranslation();
+  const { user, signOut } = useAuth();
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<React.CSSProperties | null>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+
+  const close = useCallback(() => setOpen(false), []);
+
+  // Fixed coordinates don't track the page, so close on scroll/resize — same as RowMenu.
+  useEffect(() => {
+    if (!open) return;
+    const dismiss = () => setOpen(false);
+    window.addEventListener('scroll', dismiss, true);
+    window.addEventListener('resize', dismiss);
+    return () => {
+      window.removeEventListener('scroll', dismiss, true);
+      window.removeEventListener('resize', dismiss);
+    };
+  }, [open]);
+
+  if (!user) return null;
+
+  function openMenu() {
+    const rect = btnRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    setPos({ position: 'fixed', top: rect.bottom + 6, right: window.innerWidth - rect.right });
+    setOpen(true);
+  }
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        type="button"
+        aria-label={t('auth.account.menu')}
+        aria-expanded={open}
+        onClick={() => (open ? close() : openMenu())}
+        className="hidden h-8 w-8 place-items-center rounded-full bg-accent text-[0.68rem] font-bold text-white transition hover:bg-accent/90 sm:grid"
+      >
+        {initials(user)}
+      </button>
+
+      {open &&
+        pos &&
+        createPortal(
+          <>
+            <div className="fixed inset-0 z-50" onClick={close} />
+            <div style={pos} className="z-50 w-60 overflow-hidden rounded-lg border border-edge bg-panel shadow-lg">
+              <div className="px-3 py-2.5">
+                {user.displayName && (
+                  <div className="text-sm font-semibold text-strong">{user.displayName}</div>
+                )}
+                <div className="break-all font-mono text-xs text-muted">{user.email}</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  close();
+                  void signOut();
+                }}
+                className="flex w-full items-center gap-x-2 border-t border-edge px-3 py-2.5 text-left text-sm text-body hover:bg-edge"
+              >
+                <LogOut className="h-4 w-4" aria-hidden />
+                {t('auth.account.signOut')}
+              </button>
+            </div>
+          </>,
+          document.body,
+        )}
+    </>
+  );
+}
+
 /**
  * The app header. Desktop (≥sm) is the horizontal link row; below sm the five links collapse into a
  * `☰` dropdown sheet while brand + theme toggle stay always-visible (M37).
@@ -63,6 +154,7 @@ export default function NavBar() {
   const { t } = useTranslation();
   const { theme, toggle } = useTheme();
   const { language, setLanguage } = useLanguage();
+  const { user, signOut } = useAuth();
 
   // Close on navigation — tapping a sheet link should land on the page, not leave the sheet hanging.
   useEffect(() => setOpen(false), [location]);
@@ -99,6 +191,7 @@ export default function NavBar() {
         <div className="ml-auto flex items-center gap-x-1">
           <LanguageToggle language={language} setLanguage={setLanguage} />
           <ThemeToggle theme={theme} toggle={toggle} />
+          <AccountMenu />
           <button
             type="button"
             className="grid h-8 w-8 place-items-center rounded-lg text-muted transition hover:bg-edge hover:text-body sm:hidden"
@@ -122,6 +215,21 @@ export default function NavBar() {
                 {t(l.labelKey)}
               </NavLink>
             ))}
+
+            {/* The account rows live here below sm rather than in a second popover implementation. */}
+            {user && (
+              <div className="mt-2 border-t border-edge pt-2">
+                <div className="px-3 py-1.5 font-mono text-xs text-muted">{user.email}</div>
+                <button
+                  type="button"
+                  onClick={() => void signOut()}
+                  className="flex w-full items-center gap-x-2 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-body hover:bg-edge"
+                >
+                  <LogOut className="h-4 w-4" aria-hidden />
+                  {t('auth.account.signOut')}
+                </button>
+              </div>
+            )}
           </div>
         </nav>
       )}

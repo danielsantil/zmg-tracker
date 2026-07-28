@@ -6,3 +6,4 @@ export * from './task';
 export * from './track';
 export * from './template';
 export * from './pending';
+export * from './auth';

@@ -1,4 +1,5 @@
 import { artistsApi } from './artists';
+import { authApi } from './auth';
 import { pendingApi } from './pending';
 import { releasesApi } from './releases';
 import { songsApi } from './songs';
@@ -14,6 +15,7 @@ import { uploadsApi } from './uploads';
  */
 export const api = {
   artists: artistsApi,
+  auth: authApi,
   releases: releasesApi,
   songs: songsApi,
   tasks: tasksApi,

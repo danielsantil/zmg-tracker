@@ -1,4 +1,21 @@
 {
+  "auth": {
+    "login": {
+      "title": "Release Tracker",
+      "subtitle": "Sign in to continue",
+      "google": "Continue with Google",
+      "fineprint": "Internal tool. Access is by invitation — ask Daniel to add your address."
+    },
+    "denied": {
+      "badge": "Access not granted",
+      "body": "That Google account isn't authorised for this workspace. If you signed in with a personal account, try again with your work one.",
+      "retry": "Try a different account"
+    },
+    "account": {
+      "menu": "Account",
+      "signOut": "Sign out"
+    }
+  },
   "common": {
     "add": "Add",
     "adding": "Adding…",

@@ -1,6 +1,8 @@
 import { Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ConfirmProvider } from './hooks/ConfirmProvider';
+import { AuthProvider } from './auth/AuthProvider';
+import { AuthGate } from './auth/AuthGate';
 import NavBar from './components/NavBar';
 import Home from './features/home/HomePage';
 import AllReleases from './features/releases/AllReleasesPage';
@@ -25,6 +27,10 @@ const queryClient = new QueryClient({
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
+      {/* AuthProvider sits inside QueryClientProvider (it probes via a query) and outside AuthGate,
+          which reads it. Everything below the gate can assume there is a signed-in user. */}
+      <AuthProvider>
+      <AuthGate>
       <ConfirmProvider>
         <div className="min-h-screen">
           <NavBar />
@@ -48,6 +54,8 @@ export default function App() {
           </main>
         </div>
       </ConfirmProvider>
+      </AuthGate>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }
