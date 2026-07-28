@@ -4,7 +4,9 @@ Per-release checklist tracker for Zion Music Group. Turns the repeatable pre/rel
 into per-release progress tracking across artists, for singles and albums.
 
 **Live:** https://app.zionmusicgroup.com
-· **Status:** v2.9 complete — feature-complete through v2.4, fully deployed on CI/CD, and **bilingual EN/ES**.
+· **Status:** v2.9 shipped — feature-complete through v2.4, deployed on CI/CD, **bilingual EN/ES**.
+**v2.10 is in progress** on `feat/auth-and-logging`: the custom domain and **Google SSO** are built but
+unmerged, so `main` is still open to anyone with the URL.
 
 The source of truth for project state is [plans/PROGRESS.md](plans/PROGRESS.md); per-milestone briefs
 are in [plans/build-plan-*.md](plans/). Working conventions are in [CLAUDE.md](CLAUDE.md).
@@ -17,6 +19,7 @@ are in [plans/build-plan-*.md](plans/). Working conventions are in [CLAUDE.md](C
 | Domain | pure C# (no I/O) — template-copy, progress, derived status, warnings, validation |
 | Frontend | React 19 + Vite + Tailwind SPA (served from a **Cloudflare Worker** at the edge, and from the API's `wwwroot` as a fallback) |
 | Languages | **English + Spanish** — react-i18next bundles for UI text, stable codes for API messages, DB rows for checklist text |
+| Auth | **Google SSO** (OIDC, server-side) + a database whitelist; sessions are revocable Postgres rows |
 | Database | **Neon Postgres** (prod + dev); **SQLite in-memory** for tests |
 | Image storage | **Cloudflare R2** (release covers, normalized to a 1000px WebP on ingest) |
 | Hosting | **Azure Container Apps** (Consumption, scale-to-zero) |
@@ -62,6 +65,8 @@ All of the following must be set, or the API refuses to boot (M35) — startup l
 | `R2__SecretAccessKey` | R2 secret access key |
 | `R2__Bucket` | R2 bucket name |
 | `R2__PublicBaseUrl` | Public read origin for the bucket (the r2.dev URL until a custom domain lands) |
+| `Authentication__Google__ClientId` | Google OAuth client id — public by design (it appears in the authorization URL) |
+| `Authentication__Google__ClientSecret` | Google OAuth client secret |
 
 Set them once in user-secrets for dev — never committed (`__` in env vars maps to `:` in user-secrets):
 
@@ -72,7 +77,45 @@ dotnet user-secrets --project src/Zmg.Api set R2:AccessKeyId "<access-key-id>"
 dotnet user-secrets --project src/Zmg.Api set R2:SecretAccessKey "<secret-access-key>"
 dotnet user-secrets --project src/Zmg.Api set R2:Bucket "<bucket>"
 dotnet user-secrets --project src/Zmg.Api set R2:PublicBaseUrl "<https://…r2.dev>"
+dotnet user-secrets --project src/Zmg.Api set Authentication:Google:ClientId "<…apps.googleusercontent.com>"
+dotnet user-secrets --project src/Zmg.Api set Authentication:Google:ClientSecret "<client-secret>"
 ```
+
+## Who can sign in
+
+Authentication and authorization are separate, and the split is the whole design.
+
+**Any Google account can authenticate.** The OAuth client is *External* and published, so there is no
+second allow-list in the Google console to keep in step. **`AllowedUser` alone decides who gets in** —
+anyone else lands on a "not authorised" screen and an `auth.login.denied` log line.
+
+Adding a partner is one row. There is no signup, no invite email and no admin screen, by decision:
+
+```sql
+INSERT INTO "AllowedUsers" ("Id", "Email", "DisplayName", "CreatedAt")
+VALUES (gen_random_uuid(), 'partner@example.com', NULL, now());
+```
+
+The address **must be lowercase and trimmed** — it is stored normalized (`EmailNormalization`) and
+compared ordinally, so `Partner@Example.com` simply never matches. `DisplayName` fills itself from
+Google's profile on first sign-in.
+
+Revoking has two forms, and they are different tools:
+
+```sql
+-- Reversible: denies access on the next request, keeps the record that they were here.
+UPDATE "AllowedUsers" SET "DisabledAt" = now() WHERE "Email" = 'partner@example.com';
+
+-- End one session without revoking the person (e.g. a lost laptop).
+DELETE FROM "AuthSessions" WHERE "Email" = 'partner@example.com';
+```
+
+Sessions are **absolute, not sliding** — 7 days from sign-in via `Auth:SessionDays`, never extended by
+use. They live in `AuthSessions` rather than inside the cookie precisely so they can be deleted.
+
+**Local dev needs a Google OAuth client** with `http://localhost:5274/api/auth/google/callback` as an
+authorized redirect URI — that is the *API's* port, not Vite's, because Google redirects to the
+server's callback. `Auth:PostLoginOrigin` then sends the browser back to `:5173`.
 
 ## Run (development)
 
@@ -179,9 +222,13 @@ type both languages in the dialog. It edits the template you're looking at (Sing
 3. **Never key a rule off a task title** — use the code, as `Release.IsDistributed` does. Titles are
    display copy in two languages that the user can reword at will; the code is the identity.
 
-The reviewed copy of record is [`plans/seed-checklist-text.md`](plans/seed-checklist-text.md) — edit
-there, then transcribe. Domain jargon stays English by rule: DSP/BMI/MLC/SoundExchange/Musixmatch,
-"smart link", "pre-save", "waterfall", "multitracks", "splits", "focus tracks".
+**The copy of record is `SeedData.cs` itself** — both languages sit on the same line, so a missing
+translation shows up in the diff. (v2.9 used a scratch review file for ZMG's pass over all 41 tasks;
+it was untracked and is gone.) Corrections to *existing* text go through the **templates screen**, not
+a migration — a release owns its own checklist, so editing a template only shapes future releases.
+
+Domain jargon stays English by rule: DSP/BMI/MLC/SoundExchange/Musixmatch, "smart link", "pre-save",
+"waterfall", "multitracks", "splits", "focus tracks".
 
 ```bash
 dotnet ef migrations add <Name> --project src/Zmg.Infra --startup-project src/Zmg.Api
@@ -243,3 +290,7 @@ the UI paints immediately and only the data waits.
   see [infra/README.md](infra/README.md) → "Migrations and rollback" for when that's safe.
 - **Infrastructure changes** go through Terraform in [infra/](infra/README.md), never the pipeline. The
   pipeline owns the image tag; Terraform owns everything else and ignores the tag by design.
+- **New required config must reach ACA *before* the image that needs it.** Startup validation fails the
+  boot on any missing key, so shipping first means the container won't start and the deploy aborts with
+  the old revision still serving — recoverable, but avoidable. This is why the two
+  `Authentication__Google__*` settings were added to `infra/azure.tf` ahead of the v2.10 merge.

@@ -18,19 +18,24 @@ for where the project stands and the rules that span plans.
 - [build-plan-2.7.md](build-plan-2.7.md) — infra hardening · remote state · cold start (M39–M42). Shipped.
 - [build-plan-2.8.md](build-plan-2.8.md) — multilingual EN/ES (M43–M48). Shipped.
 - [build-plan-2.9.md](build-plan-2.9.md) — checklist text, simplified (M49–M52). Shipped.
+- [build-plan-2.10.md](build-plan-2.10.md) — custom domain · auth · logging (M53–M59). **In progress:
+  M53–M56 shipped, M57–M59 open.**
 
 Newer plan versions go in new `build-plan-N.N.md` files; older ones stay frozen.
 
-**Current state:** feature-complete through **v2.4**, **fully deployed**, and **bilingual EN/ES** as of
-**v2.8–v2.9 (M43–M52)** — merged to `main` and **deployed**. v2.9's squash to a single `InitialCreate`
-required the prod public schema (including `__EFMigrationsHistory`) to be dropped by hand first; that
-was done and verified, so prod is clean on the squashed baseline. The SPA serves
-from a **Cloudflare Worker** at the edge with `/api/*` proxied same-origin to **Azure Container Apps**
-over **Neon Postgres**; covers live in **Cloudflare R2**; the hosted stack is codified in Terraform
-under [`infra/`](../infra/README.md), with remote state in Azure Storage. A **GitHub Actions pipeline**
-tests, builds a SHA-tagged image, applies migrations, deploys to ACA over OIDC, then ships the SPA to
-Cloudflare. Backend **domain 125 / API 214**, SPA **57 Vitest** — the pipeline gates on these.
-**Phase 2** (DSP stats, real-Postgres tests) is next and starts a new `build-plan-3.0.md`.
+**Current state:** feature-complete through **v2.4**, bilingual EN/ES (v2.8–v2.9), and **deployed on
+`main`**. The app is served from **https://app.zionmusicgroup.com** — a Cloudflare Worker at the edge
+with `/api/*` proxied same-origin to **Azure Container Apps** over **Neon Postgres**; covers live in
+**Cloudflare R2**; the hosted stack is codified in Terraform under [`infra/`](../infra/README.md), with
+remote state in Azure Storage. A **GitHub Actions pipeline** tests, builds a SHA-tagged image, applies
+migrations, deploys to ACA over OIDC, then ships the SPA to Cloudflare.
+
+⚠️ **Work in progress on `feat/auth-and-logging`** (v2.10, M53–M59): the custom domain and **Google
+SSO are built but the branch is unmerged and undeployed**. `main` is still open to anyone with the
+URL. M57–M59 (logging, ingress logs, verification) remain. Tests on the branch: backend **domain 166 /
+API 244**, SPA **86 Vitest** — the pipeline gates on these.
+
+**Phase 2** (DSP stats, real-Postgres tests) follows v2.10 and starts a new `build-plan-3.0.md`.
 
 > ⚠️ **DB is Postgres (Neon) as of v2.5/M30.** Dev + prod both use `ConnectionStrings__Zmg` — **dev** via
 > `dotnet user-secrets` in `src/Zmg.Api` (never commit it), **prod** as an ACA secret. **Dev and tests
@@ -138,6 +143,29 @@ notes) replaced every inline editor on both screens, which is what makes the two
 retires the guessing. Schema squashed to a single `InitialCreate`, clearing the M24 seed-data drift
 hazard. Tests **domain 138 → 125, API 216 → 214, web 50 → 57** — the backend drop is deleted tests
 whose subject no longer exists, not lost coverage. See [build-plan-2.9.md](build-plan-2.9.md).
+
+**v2.10 (M53–M56 of M53–M59) — custom domain · authentication. In progress on
+`feat/auth-and-logging`, unmerged.** The app got a real address and a lock, in that order because the
+second needed the first. **M53** moved `zionmusicgroup.com`'s nameservers to Cloudflare — the whole
+zone had to move, since a Workers custom domain only binds to a zone Cloudflare controls and both
+subdomain-only routes are paywalled — then bound `app.zionmusicgroup.com` to the Worker. The Netlify
+marketing site and Google Workspace mail came across untouched, because their records stay DNS-only
+(grey) and Cloudflare merely answers the lookup. **M54–M56** added Google SSO: `AllowedUser` as the
+single whitelist, `AuthSession` rows so "7 days unless invalidated" means something, and one
+`AuthGate` around the whole SPA rather than per-route guards, because flat authorization has nothing
+to guard per route.
+
+Four things were caught that would each have shipped silently. **Data Protection keys defaulted to the
+container filesystem**, which is ephemeral on ACA — with `min_replicas = 0` every scale-from-zero
+would have minted a fresh key ring and logged everyone out roughly every five idle minutes; they now
+live in Postgres. **`DefaultChallengeScheme` was OpenIdConnect**, so an unauthenticated `/api/*` call
+would have 302'd to Google instead of answering 401, sending the SPA's `fetch` chasing a cross-origin
+consent page. **`ForwardedHeadersOptions` treats an empty `AllowedHosts` as *allow every host*** — the
+opposite of the guard intended — so `X-Forwarded-Host` is now enabled only when an allow-list exists,
+failing closed instead of trusting a forged header from the publicly reachable ACA origin. And
+`Redirects.SafeLocalPath` trimmed before scanning for control characters, silently repairing a
+trailing `\r` while rejecting an embedded one; it now scans the raw input first. Tests **domain
+125 → 166, API 214 → 244, web 57 → 86**. See [build-plan-2.10.md](build-plan-2.10.md).
 
 ---
 
@@ -389,6 +417,49 @@ whose subject no longer exists, not lost coverage. See [build-plan-2.9.md](build
   - **`PendingAction` splits its text by kind** — `WarningCode` for the data kinds, `TaskTitleEn`/`Es`
     for `TaskDue` — so no render site disambiguates one overloaded field.
 
+- **Authentication is Google SSO; authorization is one table (v2.10/M54–M56).** Any Google account may
+  *authenticate* — the OAuth client is External and published, so there is no second allow-list in the
+  Google console — and `AllowedUser` alone decides who gets *in*. Adding a partner is one `INSERT`;
+  there is no signup, no invite flow and no admin screen, by decision. Authorization is **flat**: on
+  the list means full access, which is why the SPA has **one `AuthGate` around everything** rather than
+  per-route guards, and why `AuthUserDto` carries no roles. If it ever grows a field, check it isn't a
+  role in disguise.
+  - **Endpoints are protected by default.** `Program.cs` sets a fallback authorization policy, so a new
+    endpoint is authenticated unless it says `.AllowAnonymous()`. Only `/api/health`, `/api/auth/*` and
+    `MapFallbackToFile` opt out — the SPA shell has to, since it renders the login screen. Forgetting
+    `.RequireAuthorization()` on something added later is therefore a non-event, not a hole.
+  - **`/api/*` answers 401 with a code, never a 302.** The cookie handler's `OnRedirectToLogin` is
+    overridden for that reason: a redirect would send the SPA's `fetch` chasing Google's consent page
+    and failing while parsing HTML as JSON. `DefaultChallengeScheme` must stay **Cookie** — sign-in
+    names the OIDC scheme explicitly and is the only thing that does.
+  - **Sessions are Postgres rows, absolute, and re-authorized on every request.** `PostgresTicketStore`
+    keeps the ticket server-side so revoking is a `DELETE` that bites on the next request; the cookie
+    holds only an opaque key. `SlidingExpiration` is **false** — a rolling window means a stolen cookie
+    never expires while it is being used. `RetrieveAsync` re-checks `AccessControl.IsAllowed`, so
+    setting `DisabledAt` takes effect immediately rather than in up to seven days.
+  - **Data Protection keys live in Postgres, and this is not optional.** They default to the container
+    filesystem, which is ephemeral on ACA: with `min_replicas = 0` the replica dies after ~5 idle
+    minutes and the next one mints a fresh key ring, silently invalidating every session cookie.
+    `SetApplicationName("zmg-tracker")` is pinned because the default derives from the content-root
+    path, which differs between the container and a laptop.
+  - **The Worker forwards the public host, and the allow-list is what makes that safe.** Proxying to
+    `API_ORIGIN` rewrites `Host` (ACA's ingress routes on it), discarding the hostname ASP.NET needs to
+    build the OIDC `redirect_uri`. `worker.ts` sets `X-Forwarded-Host`/`-Proto` — `set`, never
+    `append`, so a client-supplied value is overwritten. **`ForwardedHeadersOptions` treats an empty
+    `AllowedHosts` as "allow every host"**, so `X-Forwarded-Host` is enabled *only* when
+    `Auth:AllowedHosts` is populated; otherwise it fails closed and sign-in breaks loudly rather than
+    trusting a forged header at the publicly reachable ACA origin.
+  - **Auth events log the email; nothing else logs who did what.** `auth.login.ok` / `.denied` /
+    `.failed` / `logout` carry the address, because a failed-login spike is otherwise unactionable.
+    Business writes record nothing about the actor. The denied redirect carries **no** email — ACA's
+    ingress logs the full path *including the query string*, which would push addresses into Log
+    Analytics on every denial.
+  - **A denial never says which of "not listed" or "disabled" it was.** One code,
+    `AccessControl.NotAllowedCode`, for both; distinguishing them is a membership oracle. The login
+    screen echoes no address either.
+  - **`MessageCodeApiTests.AllCodes()` scans a hand-maintained `Type[]`**, not the assembly. A new
+    code-minting class must be added to it or its codes are silently unguarded — which is exactly the
+    failure that test exists to catch.
 - **Prod runs Postgres (Neon); integration tests run SQLite in-memory (v2.5/M30).** Migrations are
   Postgres-specific. Keep query code **provider-agnostic** — e.g.
   title search lowercases both sides of `Like` rather than using Npgsql `ILike` — so SQLite tests stay
@@ -429,15 +500,30 @@ infra                    Terraform: azurerm + neon + cloudflare in one root modu
 - **Done — the v2.9 schema reset.** Dev was reset 2026-07-27; **prod** was reset (public schema
   including `__EFMigrationsHistory`) and redeployed onto the squashed `InitialCreate`, verified
   working. Later migrations are ordinary additive ones again.
-- **In progress — v2.10 (M53–M59):** custom domain · Google SSO + sessions · structured logging.
-  See [build-plan-2.10.md](build-plan-2.10.md), branch `feat/auth-and-logging`.
+- **In progress — v2.10 (M53–M59)** on `feat/auth-and-logging`. See
+  [build-plan-2.10.md](build-plan-2.10.md).
+  - **Shipped:** M53 custom domain · M54 auth schema · M55 Google SSO API · M56 login screen + gate.
+  - **Next: M57** — structured JSON logs (`AddJsonConsole`, no Serilog), a correlation id off
+    `x-request-id`, an `IExceptionHandler`, and `[LoggerMessage]` event ids. Then **M58** (ACA ingress
+    logs + `docs/kql-cookbook.md`) and **M59** (verification + docs).
+  - ⏳ **Owner tasks still open:** sign in once for real (the only end-to-end proof of M55+M56 —
+    nothing else exercises the Google round trip, since tests never touch the network); and **delete
+    the dormant Netlify DNS zone on/after ~2026-08-03**, not before — it is the M53 rollback anchor.
+  - ⚠️ **Before this branch deploys:** the two Google settings must exist as ACA config
+    (`Authentication__Google__ClientId` plain, `ClientSecret` a secret) — **done 2026-07-28**. Startup
+    validation fails the boot without them, so a deploy would leave the old revision serving.
+  - **M58 is guarded:** switching the ACA environment's `logs_destination` to `azure-monitor` is what
+    unlocks `ContainerAppHTTPLogs`, but if `terraform plan` reports `forces replacement`, **skip it** —
+    replacing the environment changes the ACA FQDN, which is `API_ORIGIN` in `wrangler.jsonc` and a
+    registered Google redirect URI. M57's slow/failed request logging covers the failure cases anyway.
 - **Next: Phase 2 — DSP stats** (the reason this exists over Notion/Trello): hang streaming/revenue data
   off the stable Artist / Release / **Song** / Track ids and the UPC/ISRC columns; the v2.0 Song ids are
   its foundation. Also real-Postgres tests. No build plan yet — write `build-plan-3.0.md` when it starts.
 - **Still open (not gating):** low-value test polish (exhaustive AAA pass, the last few Theory
   conversions); the suite is green without it. The seeded Spanish was reviewed by ZMG on 2026-07-27 and
-  now covers all 41 tasks — the copy of record is [`seed-checklist-text.md`](seed-checklist-text.md),
-  and further corrections go through the templates screen, not a migration.
+  now covers all 41 tasks. The copy of record is **`SeedData.cs`** (the scratch review file that pass
+  used was untracked and no longer exists); further corrections go through the templates screen, not a
+  migration.
 - **Per-track task fan-out** on albums: registrations that repeat per track are single "per track" tasks
   today. Decide after the first real album.
 - Deferred: un-archive/restore (archives are terminal by rule); absolute per-task due dates (v1.1 only

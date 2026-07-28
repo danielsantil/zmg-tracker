@@ -24,8 +24,7 @@ plan un-defers both, and adds the observability that makes the first production 
 Three bodies of work, in dependency order:
 
 1. **A real address** (M53). `app.zionmusicgroup.com` instead of a `workers.dev` subdomain. Already
-   researched in full — [`zmg-custom-domain-migration.md`](zmg-custom-domain-migration.md) is the
-   execution document and this plan does not restate it.
+   researched, executed and recorded in **M53** below.
 2. **A door with a lock** (M54–M56). Google SSO, a server-side session, a database whitelist.
 3. **Instruments** (M57–M58). Structured JSON logs the API emits, ingress logs Azure emits, one
    correlation id joining them, and a KQL cookbook so "queryable" means something you can copy-paste.
@@ -114,13 +113,134 @@ across it is a normal expand-only case.
 
 ---
 
-## M53 — `app.zionmusicgroup.com`
+## M53 — `app.zionmusicgroup.com` ✅ shipped 2026-07-27
 
-**The plan already exists.** [`zmg-custom-domain-migration.md`](zmg-custom-domain-migration.md) is
-complete, verified against the live nameservers, and I am not going to paraphrase it here. Execute it
-phase by phase; I will answer questions and run the verification commands with you as you go.
+> Absorbed from `plans/zmg-custom-domain-migration.md`, which was written as a standalone reference,
+> executed on 2026-07-27, and then deleted — this section is the record of what was decided, done and
+> proven. Only Phase 4 (below) is still outstanding.
 
-Three things this plan **adds** to that document, because auth changes its consequences:
+### Why the whole zone had to move
+
+The obvious shortcut does not work:
+
+```
+app.zionmusicgroup.com.  CNAME  zmg-tracker.zmg-app.workers.dev.   ← Error 1014: CNAME Cross-User Banned
+```
+
+Cloudflare refuses to serve a Worker for a `Host` belonging to a zone it doesn't control. Both ways
+to attach *only* a subdomain are paywalled — a subdomain zone is Enterprise, partial/CNAME setup is
+Business+ — so the only $0 route is moving `zionmusicgroup.com`'s **nameservers** to Cloudflare on
+the Free plan. Netlify keeps serving the marketing site; it just stops being the DNS provider.
+
+**Rejected:** pointing `app.` straight at ACA (which supports custom domains and free managed certs).
+It works with Netlify DNS untouched, but bypasses the Worker and brings back the ~17–22s cold-start
+blank page, undoing M42. Only reconsider if the DNS move ever becomes impossible.
+
+### The zone, as it actually was
+
+Enumerated from the Netlify DNS panel — **exactly three records**, nothing undiscovered:
+
+| Name | TTL | Type | Value |
+|---|---|---|---|
+| `zionmusicgroup.com` | 1 | MX | `1 smtp.google.com` |
+| `zionmusicgroup.com` | 3600 | **NETLIFY** | `rad-tulumba-de1747.netlify.app` |
+| `www.zionmusicgroup.com` | 3600 | **NETLIFY** | `rad-tulumba-de1747.netlify.app` |
+
+Two findings that changed the plan:
+
+- **`NETLIFY` is a proprietary ALIAS pseudo-record**, not an `A` record. The `98.84.224.111` /
+  `18.208.88.157` that `dig` returns are what it *resolves to*. Cloudflare's onboarding scan resolves
+  names, so it would have imported those two IPs as literal `A` records — addresses Netlify hands out
+  for *Netlify-managed* zones, not the one it documents and supports for **external** DNS. The scan
+  was skipped entirely and all three records entered by hand.
+- **`www` 301-redirects to the apex**, and that is a Netlify *site* setting, not DNS. It survives the
+  move because the site keeps its domain aliases, so the acceptance gate for `www` is "still 301s",
+  not "serves content".
+
+### As built
+
+| | |
+|---|---|
+| Cloudflare nameservers | `grant.ns.cloudflare.com`, `shaz.ns.cloudflare.com` |
+| Apex | `A → 75.2.60.5`, **DNS-only (grey)** — Netlify's documented external-DNS IP |
+| `www` | `CNAME → rad-tulumba-de1747.netlify.app`, **DNS-only (grey)** |
+| MX | `1 smtp.google.com` — unchanged |
+| `app.` | proxied (orange), created by Cloudflare when the Worker custom domain was attached |
+| SSL/TLS mode | Full (strict) |
+
+Verified before cutover by querying Cloudflare's nameservers directly *and* by forcing connections
+with `curl --resolve`: `75.2.60.5` already served the site with a valid Let's Encrypt cert, so the
+cutover triggered no re-issue and no validation window. After cutover: registry delegation correct,
+DS still empty, MX correct on Cloudflare/Google/Quad9, apex `200 server: Netlify`, `www` `301`.
+`app.` verified for TLS SANs, SPA shell, deep-link fallback, `/api/health`, and a real DB read.
+
+### Rules this established
+
+- **Never orange-cloud the Netlify records.** Cloudflare shows a standing amber *"Proxy DNS records"*
+  nag on the zone Overview; declining it is permanent policy. Proxying Netlify adds a hop and a second
+  certificate layer, with a redirect-loop risk. `app` is the only record that should ever be orange.
+- **Never enable Email Routing.** It is free, Cloudflare pushes it during onboarding, and it
+  **overwrites the zone's MX records** — breaking Google Workspace mail. If it ever gets enabled by
+  accident, restore `MX 1 smtp.google.com` immediately.
+- **Single label only — `app`, never `app.zmg`.** Universal SSL's SAN is `*.zionmusicgroup.com`
+  (confirmed from the live certificate), which covers one level. A nested name needs Advanced
+  Certificate Manager at **$10/month** — the easiest way to put a bill on this project.
+- **Leave DNSSEC off.** There is no DS record at the registry; enabling it mid-migration can take the
+  domain fully dark.
+- **The local resolver fabricates MX records.** The LAN router returned
+  `0 ipnz74i5v1rm8q65.dom.` on 8 of 10 `dig MX` queries; `A` and `NS` were unaffected. Real mail is
+  fine (sending servers use their own resolvers). But **pin `@1.1.1.1` on every MX check** — unpinned,
+  a post-cutover verification reports broken mail ~80% of the time, and the 20% it passes it passes by
+  luck. Worth fixing the router separately.
+
+### Terraform ownership
+
+**Terraform owns the Worker custom domain and nothing else Cloudflare-side.** `wrangler.jsonc` gets
+no `routes` block, so the CI token stays `Workers Scripts: Edit` and never gains DNS rights.
+
+```hcl
+resource "cloudflare_workers_custom_domain" "app" {   # infra/cloudflare.tf
+  account_id = var.r2_account_id
+  hostname   = "app.zionmusicgroup.com"
+  service    = "zmg-tracker"
+  zone_id    = "d9fa1a74f7901d35ada4efad42497d67"
+  zone_name  = "zionmusicgroup.com"
+}
+```
+
+Imported (`<account_id>/<domain_id>`), plan empty. Schema verified against the **pinned v5.22.0 tag**,
+not just `main`.
+
+> **The permission estimate was wrong in our favour.** `cloudflare_workers_custom_domain` accepts only
+> `Workers Scripts Read`/`Write` — **no DNS rights**, because Cloudflare creates the proxied `app`
+> record itself as a side effect of the binding. Terraform describes the binding; Cloudflare owns the
+> record. The rejected alternative (declaring the domain in `wrangler.jsonc`) would have required
+> `DNS: Edit` on the *CI* token — a GitHub Actions credential able to rewrite the DNS that routes
+> company email.
+
+**The zone and its three DNS records stay hand-managed, deliberately.** Codifying them needs
+`Zone: Write` + `DNS: Write`, reintroducing that risk to manage three static records. A replaced DNS
+record is a brief outage; **a replaced MX record is lost mail.**
+
+### ⏳ Phase 4 — still outstanding
+
+**Delete the dormant Netlify DNS zone (Domains → zone → delete), on or after ~2026-08-03.** Not
+before: it is the rollback anchor. Keep the domain *attached to the Netlify site* so it keeps
+answering on that `Host` and renewing its certificate.
+
+Rollback, until then, is setting the Namecheap nameservers back to `dns1`–`dns4.p04.nsone.net`. Be
+realistic about speed — the registry NS TTL is **48h**, so a nameserver revert is not a fast fix.
+Anything wrong *within* the zone is far quicker to correct in Cloudflare (record TTLs are minutes).
+Reserve the revert for a Cloudflare-level problem. **If mail ever breaks, check the MX record first** —
+it is the failure you would not otherwise notice.
+
+### Still deferred
+
+- **`img.zionmusicgroup.com` for R2**, retiring the `r2.dev` URL. Cover URLs are persisted **absolute**
+  in the database, so switching `R2__PublicBaseUrl` needs a data migration — its own milestone.
+- **SPF, DKIM and DMARC.** The domain has none despite running Google Workspace mail: a live
+  deliverability and spoofing exposure that predates this work and that the migration neither caused
+  nor fixed. Easier now that TXT records go in Cloudflare.
 
 ### 53a. The Worker must forward the original Host — and this is load-bearing for M55
 
@@ -153,17 +273,9 @@ that to "the two hostnames we actually serve" and the whole class of attack disa
 ### 53b. Register every origin in Google, including the rollback path
 
 `https://<aca-fqdn>/…` must be an authorized redirect URI too. Otherwise the ACA URL — which M42
-established as the rollback target and which the Dockerfile keeps serving `wwwroot` for precisely so
+established as the rollback target, and which the Dockerfile keeps serving `wwwroot` for precisely so
 it stays one — becomes a URL you cannot log into. A rollback target you can't authenticate against is
-not a rollback target. Same for `workers.dev` while §6a keeps it alive.
-
-### 53c. `img.zionmusicgroup.com` stays deferred
-
-§8 of the migration doc is still a good idea and still out of scope. Cover URLs are persisted
-absolute in the database, so switching `R2__PublicBaseUrl` needs a data migration. Not this plan.
-
-**Acceptance:** the migration doc's own Phase 3 and Phase 5 checklists, unchanged — including the
-real test email, which is the one failure you would not otherwise notice.
+not a rollback target. Same for `workers.dev`, which stays enabled as a free second path.
 
 ---
 

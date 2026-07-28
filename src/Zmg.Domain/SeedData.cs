@@ -10,8 +10,8 @@ namespace Zmg.Domain;
 /// </summary>
 /// <remarks>
 /// Both languages sit on the same line as of v2.9, so a missing translation is visible in the diff
-/// rather than a hundred lines away in a parallel dictionary. The reviewed copy of record is
-/// <c>plans/seed-checklist-text.md</c> — edit it there, then transcribe.
+/// rather than a hundred lines away in a parallel dictionary. <b>This file is the copy of record</b>;
+/// corrections to existing text go through the templates screen rather than a migration.
 /// <para>
 /// Two rules the copy follows. <b>Domain jargon stays English</b> — DSP, BMI, MLC, SoundExchange,
 /// Musixmatch, Canvas, Artist Pick, Discovery Mode are proper nouns, and "smart link", "pre-save",

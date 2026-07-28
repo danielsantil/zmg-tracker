@@ -71,7 +71,8 @@ the config is wrong — fix the config. Two replacements would be unrecoverable:
   Netlify, `MX` → Google Workspace) are hand-managed in the Cloudflare dashboard, **deliberately**.
   Codifying them would need `Zone: Write` + `DNS: Write` on the Terraform token, and a Terraform-driven
   replacement of a DNS record is a brief outage while a replaced **MX record is lost mail**. Three
-  static records, recorded verbatim in `plans/zmg-custom-domain-migration.md` §1, do not earn that.
+  static records, recorded verbatim in [`plans/build-plan-2.10.md`](../plans/build-plan-2.10.md) (M53),
+  do not earn that.
 - **The Worker *custom domain*** (`app.zionmusicgroup.com`) **is** Terraform-managed as
   `cloudflare_workers_custom_domain` (v2.10/M53). This is the one place the Cloudflare token in
   `terraform.tfvars` widens beyond R2: the resource accepts **`Workers Scripts Read` + `Write`** and
