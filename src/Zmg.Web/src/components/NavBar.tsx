@@ -48,13 +48,6 @@ function ThemeToggle({ theme, toggle }: { theme: Theme; toggle: () => void }) {
   );
 }
 
-/** Initials for the avatar — from the display name when there is one, else the address. */
-function initials(user: { displayName: string | null; email: string }): string {
-  const source = user.displayName?.trim() || user.email;
-  const parts = source.split(/[\s.@_-]+/).filter(Boolean);
-  return (parts[0]?.[0] ?? '?').concat(parts.length > 1 ? parts[1][0] : '').toUpperCase();
-}
-
 /**
  * Email + sign out, behind an initials avatar (≥sm only).
  *
@@ -86,6 +79,13 @@ function AccountMenu() {
 
   if (!user) return null;
 
+  /** Initials for the avatar — from the display name when there is one, else the address. */
+  function initials(user: { displayName: string | null; email: string }): string {
+    const source = user.displayName?.trim() || user.email;
+    const parts = source.split(/[\s.@_-]+/).filter(Boolean);
+    return (parts[0]?.[0] ?? '?').concat(parts.length > 1 ? parts[1][0] : '').toUpperCase();
+  }
+
   function openMenu() {
     const rect = btnRef.current?.getBoundingClientRect();
     if (!rect) return;
@@ -101,7 +101,7 @@ function AccountMenu() {
         aria-label={t('auth.account.menu')}
         aria-expanded={open}
         onClick={() => (open ? close() : openMenu())}
-        className="hidden h-8 w-8 place-items-center rounded-full bg-accent text-[0.68rem] font-bold text-white transition hover:bg-accent/90 sm:grid"
+        className="ml-2 hidden h-8 w-8 place-items-center rounded-full bg-accent text-sm font-bold text-white transition hover:bg-accent/90 sm:grid"
       >
         {initials(user)}
       </button>
@@ -188,9 +188,9 @@ export default function NavBar() {
 
         {/* Always-visible controls, right-aligned. Language then theme (M43); the hamburger is
             mobile-only. */}
-        <div className="ml-auto flex items-center gap-x-1">
-          <LanguageToggle language={language} setLanguage={setLanguage} />
+        <div className="ml-auto flex items-center gap-x-2">
           <ThemeToggle theme={theme} toggle={toggle} />
+          <LanguageToggle language={language} setLanguage={setLanguage} />
           <AccountMenu />
           <button
             type="button"
@@ -199,7 +199,7 @@ export default function NavBar() {
             aria-expanded={open}
             onClick={() => setOpen((o) => !o)}
           >
-            {open ? <X className="h-4 w-4" aria-hidden /> : <Menu className="h-4 w-4" aria-hidden />}
+            {open ? <X className="h-5 w-5" aria-hidden /> : <Menu className="h-5 w-5" aria-hidden />}
           </button>
         </div>
       </div>

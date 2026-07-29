@@ -1,14 +1,13 @@
 {
   "auth": {
     "login": {
-      "title": "Release Tracker",
-      "subtitle": "Inicia sesión para continuar",
+      "title": "Inicia sesión para continuar",
       "google": "Continuar con Google",
-      "fineprint": "Herramienta interna. El acceso es por invitación: pide a Daniel que añada tu dirección."
+      "fineprint": "© Zion Music Group {{year}}"
     },
     "denied": {
-      "badge": "Acceso no autorizado",
-      "body": "Esa cuenta de Google no tiene acceso a este espacio de trabajo. Si iniciaste sesión con una cuenta personal, inténtalo con la del trabajo.",
+      "badge": "Acceso denegado",
+      "body": "Esta cuenta de Google no está autorizada.",
       "retry": "Probar con otra cuenta"
     },
     "account": {

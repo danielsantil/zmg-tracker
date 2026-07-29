@@ -35,7 +35,7 @@ export default function HomePage() {
   const archive = useConfirmDelete<ReleaseListItem>({
     confirm: (r) => archiveReleaseConfirm(r.id, r.title),
     mutate: (r) => api.releases.archive(r.id),
-    invalidate: [queryKeys.releases(), queryKeys.pending],
+    invalidate: [queryKeys.releases(), queryKeys.pending, queryKeys.artists],
     errorFallback: t('releases.archiveFailed'),
     showToast,
   });

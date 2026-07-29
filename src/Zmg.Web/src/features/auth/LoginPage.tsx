@@ -47,8 +47,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen">
-      <header className="flex items-center justify-end gap-x-1 px-4 py-3">
-        <LanguageToggle language={language} setLanguage={setLanguage} />
+      <header className="flex items-center justify-end gap-x-3 px-4 py-3">
         <button
           type="button"
           onClick={toggle}
@@ -57,6 +56,7 @@ export default function LoginPage() {
         >
           <ThemeIcon className="h-4 w-4" aria-hidden />
         </button>
+        <LanguageToggle language={language} setLanguage={setLanguage} />
       </header>
 
       <main className="grid place-items-center px-4 pb-16 pt-8 sm:pt-20">
@@ -74,7 +74,6 @@ export default function LoginPage() {
           ) : (
             <>
               <h1 className="mt-5 text-base font-semibold text-strong">{t('auth.login.title')}</h1>
-              <p className="mt-1 text-sm text-muted">{t('auth.login.subtitle')}</p>
             </>
           )}
 
@@ -90,7 +89,7 @@ export default function LoginPage() {
           </button>
 
           <p className="mt-5 border-t border-edge pt-4 text-xs leading-relaxed text-subtle">
-            {t('auth.login.fineprint')}
+            {t('auth.login.fineprint', { year: new Date().getFullYear() })}
           </p>
         </div>
       </main>

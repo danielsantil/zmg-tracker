@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { Languages } from 'lucide-react';
+import { Globe } from 'lucide-react';
 import { LANGUAGE_NAMES, type Language } from '@/i18n/language';
 
 /**
@@ -33,8 +33,8 @@ export function LanguageToggle({
       aria-label={t('language.switchTo', { language: LANGUAGE_NAMES[next] })}
       className="flex h-8 items-center gap-1 rounded-lg px-1.5 text-muted transition hover:bg-edge hover:text-body"
     >
-      <Languages className="h-4 w-4" aria-hidden />
-      <span className="text-xs font-semibold uppercase">{language}</span>
+      <Globe className="h-4 w-4" aria-hidden />
+      <span className="text-sm font-semibold uppercase">{language}</span>
     </button>
   );
 }
