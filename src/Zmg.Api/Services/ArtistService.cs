@@ -16,7 +16,7 @@ public sealed class ArtistService(ZmgDbContext db) : IArtistService
 {
     public async Task<IReadOnlyList<ArtistDto>> ListAsync(CancellationToken ct = default) =>
         await db.Artists.AsNoTracking()
-            .OrderBy(a => a.Name)
+            .OrderByDescending(a => a.Releases.Count)
             .Select(Projection)
             .ToListAsync(ct);
 
