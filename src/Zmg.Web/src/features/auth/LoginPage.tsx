@@ -1,6 +1,7 @@
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useSearchParams } from 'react-router-dom';
 import { TriangleAlert } from 'lucide-react';
+import { BusyOverlay } from '@/components';
 import Logo from '@/components/Logo';
 import { LanguageToggle } from '@/components/LanguageToggle';
 import { useLanguage } from '@/i18n/useLanguage';
@@ -30,19 +31,32 @@ function GoogleMark() {
  * The language and theme toggles are present *before* sign-in on purpose — both preferences live in
  * localStorage and are applied pre-paint, so omitting them would leave a Spanish-speaking partner
  * looking at English with no way out.
+ *
+ * `denied` arrives as a prop rather than being read from the URL here. The server redirects with
+ * `?denied=1` when Google authenticated someone who isn't on the whitelist — carrying no email, since
+ * ACA's ingress logs record the full path including query string and an address there would land in
+ * Log Analytics on every denial. `AuthGate` consumes that flag and clears it (`useDeniedFlag`), so by
+ * the time this screen paints the URL is already clean and the retry cannot carry it back through the
+ * Google round trip as a `returnUrl`.
  */
-export default function LoginPage() {
+export default function LoginPage({ denied = false }: { denied?: boolean }) {
   const { t } = useTranslation();
   const { signIn } = useAuth();
   const { language, setLanguage } = useLanguage();
   const { theme, toggle } = useTheme();
-  const [params] = useSearchParams();
+  const [redirecting, setRedirecting] = useState(false);
 
-  // The server redirects here with ?denied=1 when Google authenticated someone who isn't on the
-  // whitelist. It carries no email: ACA's ingress logs record the full path including query string,
-  // so putting an address there would push it into Log Analytics on every denial — contradicting the
-  // same decision that keeps attribution off business writes. It is logged server-side instead.
-  const denied = params.get('denied') === '1';
+  // A bfcache restore — Back from Google's consent screen — replays this page exactly as it was left,
+  // React state and overlay included, with no navigation left to arrive. `pageshow` with `persisted`
+  // is the only signal for that case; a normal load starts at `false` and needs no reset.
+  useEffect(() => {
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) setRedirecting(false);
+    };
+    window.addEventListener('pageshow', onPageShow);
+    return () => window.removeEventListener('pageshow', onPageShow);
+  }, []);
+
   const ThemeIcon = theme === 'dark' ? Sun : Moon;
 
   return (
@@ -81,8 +95,12 @@ export default function LoginPage() {
               and a recoloured SSO button reads as a phishing page. */}
           <button
             type="button"
-            onClick={signIn}
-            className="mt-6 flex w-full items-center justify-center gap-x-2.5 rounded-lg border border-[#dadce0] bg-white px-4 py-2.5 text-sm font-medium text-[#1f1f1f] shadow-sm transition hover:bg-[#f8f9fa]"
+            onClick={() => {
+              setRedirecting(true);
+              signIn();
+            }}
+            disabled={redirecting}
+            className="mt-6 flex w-full items-center justify-center gap-x-2.5 rounded-lg border border-[#dadce0] bg-white px-4 py-2.5 text-sm font-medium text-[#1f1f1f] shadow-sm transition hover:bg-[#f8f9fa] disabled:cursor-wait"
           >
             <GoogleMark />
             {denied ? t('auth.denied.retry') : t('auth.login.google')}
@@ -93,6 +111,11 @@ export default function LoginPage() {
           </p>
         </div>
       </main>
+
+      {/* No `delayMs`: this one answers a click, so instant feedback is the point — unlike the gate's
+          probe, where the fast path must stay invisible. One message, so it never rotates: the wait
+          ends when the browser leaves for Google, and narrating that would be noise. */}
+      {redirecting && <BusyOverlay messages={[t('auth.login.redirecting')]} />}
     </div>
   );
 }

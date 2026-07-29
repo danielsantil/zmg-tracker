@@ -56,6 +56,39 @@ the config is wrong — fix the config. Two replacements would be unrecoverable:
   in the Cloudflare dashboard and passed in as variables. A token created by `cloudflare_api_token`
   returns 403 when used as an S3 credential — R2's access-key derivation isn't exposed through the
   provider ([cloudflare/terraform-provider-cloudflare#6626](https://github.com/cloudflare/terraform-provider-cloudflare/issues/6626)).
+- **The Google OAuth client** — the consent screen (*Google Auth Platform → Audience*, External and
+  published) and the OAuth 2.0 Web client with its redirect URIs — is created by hand in the Google
+  Cloud Console. Console steps are in [plans/build-plan-2.10.md](../plans/build-plan-2.10.md) (M55).
+
+  Not a choice: Google exposes no public API for *consumer* OAuth clients, so no provider can manage
+  them ([terraform-provider-google#6074](https://github.com/hashicorp/terraform-provider-google/issues/6074),
+  [#16452](https://github.com/hashicorp/terraform-provider-google/issues/16452),
+  [Google issue 116182848](https://issuetracker.google.com/issues/116182848)). The two resources that
+  sound right are not: `google_iam_oauth_client` is **Workforce Identity Federation** — federating an
+  external IdP *into* Google Cloud IAM, not "Sign in with Google" — and `google_iap_brand` /
+  `google_iap_client` are IAP-only and effectively internal-brand-bound, which is the audience M55
+  rejected on purpose. Re-check before re-proposing; don't re-derive it from the resource names.
+
+  **What *is* managed is the delivery**: `var.google_client_id`, the `google-client-secret` ACA secret,
+  and the two `Authentication__Google__*` env entries in `azure.tf`. Google owns the client; Terraform
+  owns handing it to the app.
+
+  > ⚠️ **The redirect URI list must mirror every hostname the app answers on, and nothing in a plan
+  > will tell you it has gone stale.** A missing entry fails at Google, before any request reaches the
+  > app, so it is invisible to every check in this repo. All four, verbatim:
+  >
+  > ```
+  > https://app.zionmusicgroup.com/api/auth/google/callback
+  > https://zmg-tracker.zmg-app.workers.dev/api/auth/google/callback
+  > https://zmg-app.mangohill-c8bd3207.eastus.azurecontainerapps.io/api/auth/google/callback
+  > http://localhost:5274/api/auth/google/callback
+  > ```
+  >
+  > The dev entry is the **API's** port, not Vite's — `:5173` is wrong and was registered once by
+  > mistake. Vite proxies `/api` with `changeOrigin`, so the API builds `redirect_uri` from its own
+  > origin even when the browser started at `:5173`. Anything that changes a hostname changes this
+  > list in the same edit: adding a domain, or replacing `azurerm_container_app_environment` (which
+  > changes the ACA FQDN — see the `forces replacement` rule above, and M58's warning).
 - **The running image tag.** `azurerm_container_app.zmg` sets
   `lifecycle { ignore_changes = [template[0].container[0].image] }`, so the CI/CD pipeline can ship a
   new tag without Terraform reverting it. Terraform owns the infrastructure; the pipeline owns the

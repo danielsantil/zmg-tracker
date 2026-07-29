@@ -25,7 +25,7 @@ import { todayIso } from '@/lib/format';
 
 /**
  * The catalog (M13): every song, searchable by title, ordered by title. Everything derives from the
- * earliest non-archived linked release date (M38): the Released column is No / Yes / Upcoming, and the
+ * earliest non-archived linked release date (M38): the Status column is Unreleased / Released / Upcoming, and the
  * only row action is Archive — offered when that date is null (orphan or archived-only, i.e. archivable).
  * Delete lives on Archived Songs; archive an orphan here and it lands there. Rows link into the detail.
  */
@@ -95,7 +95,7 @@ export default function CatalogPage() {
           headers={[
             { label: t('songs.table.name') },
             { label: t('songs.table.mainArtist') },
-            { label: t('songs.table.released') },
+            { label: t('songs.table.status') },
             { label: '', className: 'text-right' },
           ]}
         >
@@ -108,9 +108,9 @@ export default function CatalogPage() {
                 <td className="px-4 py-3 text-body">{s.mainArtistName}</td>
                 <td className="px-4 py-3">
                   {archivable ? (
-                    <span className="text-muted">{t('common.no')}</span>
+                    <span className="text-muted">{t('status.unreleased')}</span>
                   ) : s.releaseDate! <= today ? (
-                    <span className="text-okFg">{t('common.yes')}</span>
+                    <span className="text-okFg">{t('status.released')}</span>
                   ) : (
                     <span className="text-infoFg">{t('status.upcoming')}</span>
                   )}

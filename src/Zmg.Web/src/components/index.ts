@@ -1,3 +1,4 @@
+export { BusyOverlay } from './BusyOverlay';
 export { Button } from './Button';
 export { ConfirmDialog, type ConfirmOptions } from './ConfirmDialog';
 export { DataTable, dataRowClass } from './DataTable';

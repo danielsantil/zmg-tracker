@@ -151,9 +151,10 @@ public static class AuthenticationExtensions
             OnRemoteFailure = ctx =>
             {
                 // A failed exchange (user cancelled, state mismatch, clock skew) must not surface a
-                // framework exception page. Send them back to the gate.
+                // framework exception page. Send them back to the gate — through PostLoginUri, same as
+                // the success and deny paths, or in dev the gate would render on the API's origin.
                 ctx.HandleResponse();
-                ctx.Response.Redirect("/?denied=1");
+                ctx.Response.Redirect(PostLoginUri("/?denied=1", auth));
                 return Task.CompletedTask;
             },
         };
@@ -214,10 +215,7 @@ public static class AuthenticationExtensions
 
         ctx.Properties!.IsPersistent = true;
         ctx.Properties.ExpiresUtc = DateTimeOffset.UtcNow.AddDays(options.SessionDays);
-        ctx.Properties.RedirectUri = PostLoginUri(ctx.Properties.RedirectUri, options);
-
-        // auth.login.ok is logged by PostgresTicketStore.StoreAsync, a moment later: creating the
-        // session row *is* the successful login, and it is the only point that knows the session id.
+        ctx.ReturnUri = PostLoginUri(ctx.ReturnUri, options);
     }
 
     private static void Deny(TicketReceivedContext ctx, ILogger logger, string email, string reason, AuthOptions options)

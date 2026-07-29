@@ -126,6 +126,18 @@ public class ZmgDbContext(DbContextOptions<ZmgDbContext> options) : DbContext(op
         b.Entity<AllowedUser>(e =>
         {
             e.HasKey(x => x.Id);
+            // Database-side defaults, so adding a partner is one column of typing:
+            //   INSERT INTO "AllowedUsers" ("Email") VALUES ('someone@example.com');
+            // The whitelist is hand-maintained by decision — no signup, no invite flow, no admin
+            // screen — so the ergonomics of that one statement are the whole feature.
+            //
+            // Both functions are Postgres', and the migration EF generates from these two lines is
+            // applied to SQLite by the test suite. That works because SQLite parses an unknown
+            // function in a DEFAULT without evaluating it, and every insert in the suite supplies
+            // both columns, so it is never evaluated. The one thing that would break there is an
+            // insert that *omits* them — it would look for gen_random_uuid() and not find it.
+            e.Property(x => x.Id).HasDefaultValueSql("gen_random_uuid()");
+            e.Property(x => x.CreatedAt).HasDefaultValueSql("now()");
             e.Property(x => x.Email).IsRequired().HasMaxLength(320); // RFC 5321 max: 64 local + @ + 255 domain
             // Unique, not merely indexed — unlike Artist.Name, whose case-insensitive uniqueness is an
             // app-level rule. Here the value is already normalized by EmailNormalization before it is

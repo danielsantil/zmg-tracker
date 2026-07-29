@@ -3,6 +3,7 @@
     "login": {
       "title": "Sign in to continue",
       "google": "Continue with Google",
+      "redirecting": "Taking you to Google…",
       "fineprint": "© Zion Music Group {{year}}"
     },
     "denied": {
@@ -30,7 +31,11 @@
     "edit": "Edit",
     "goBack": "Go back",
     "loading": "Loading...",
+    "loadingSetting": "Setting things up…",
+    "loadingPreparing": "Preparing the app…",
     "loadingShort": "Loading…",
+    "loadingSite": "Loading the site…",
+    "loadingTouches": "Doing final touches…",
     "moveDown": "Move down",
     "moveUp": "Move up",
     "no": "No",
@@ -66,6 +71,7 @@
   "status": {
     "upcoming": "Upcoming",
     "released": "Released",
+    "unreleased": "Unreleased",
     "complete": "Complete",
     "archived": "Archived"
   },
@@ -115,7 +121,7 @@
   },
   "home": {
     "title": "Home",
-    "subtitle": "Upcoming releases and what needs your attention.",
+    "subtitle": "Upcoming releases",
     "loadFailed": "Failed to load home.",
     "empty": {
       "title": "No upcoming releases.",
@@ -137,7 +143,7 @@
   },
   "releases": {
     "title": "Releases",
-    "subtitle": "Every release, newest first.",
+    "subtitle": "Every release",
     "newRelease": "+ New release",
     "loadFailed": "Failed to load releases.",
     "archiveFailed": "Failed to archive.",
@@ -153,7 +159,7 @@
     "table": {
       "name": "Name",
       "type": "Type",
-      "releasedDate": "Released Date",
+      "releasedDate": "Release Date",
       "status": "Status"
     },
     "deleteConfirm": {
@@ -318,7 +324,6 @@
   },
   "artists": {
     "title": "Artists",
-    "subtitle": "Everyone with releases in the roster.",
     "newArtist": "+ New artist",
     "empty": "No artists yet. Add one to start creating releases.",
     "rowActions": "Artist actions",
@@ -376,7 +381,7 @@
     "table": {
       "name": "Name",
       "mainArtist": "Main Artist",
-      "released": "Released"
+      "status": "Status"
     },
     "archiveConfirm": {
       "title": "Archive \"{{title}}\"?"
@@ -414,7 +419,7 @@
   "templates": {
     "title": "Templates",
     "subtitle": "The default checklist copied onto each new release.",
-    "futureOnly": "Changes apply to future releases only — existing releases keep their own copy.",
+    "futureOnly": "Changes apply to future releases only. Existing releases keep their own list of tasks.",
     "loadFailed": "Failed to load templates.",
     "notFound": "No template found.",
     "taskCount_one": "{{count}} task in this template",

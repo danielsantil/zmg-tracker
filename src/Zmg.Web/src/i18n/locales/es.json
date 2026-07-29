@@ -3,6 +3,7 @@
     "login": {
       "title": "Inicia sesión para continuar",
       "google": "Continuar con Google",
+      "redirecting": "Redirigiendo a Google…",
       "fineprint": "© Zion Music Group {{year}}"
     },
     "denied": {
@@ -30,7 +31,11 @@
     "edit": "Editar",
     "goBack": "Volver",
     "loading": "Cargando...",
+    "loadingSetting": "Configurando todo…",
+    "loadingPreparing": "Preparando la aplicación…",
     "loadingShort": "Cargando…",
+    "loadingSite": "Cargando el sitio…",
+    "loadingTouches": "Dando los toques finales…",
     "moveDown": "Mover abajo",
     "moveUp": "Mover arriba",
     "no": "No",
@@ -65,7 +70,8 @@
   },
   "status": {
     "upcoming": "Próximo",
-    "released": "Publicado",
+    "released": "Lanzado",
+    "unreleased": "No publicado",
     "complete": "Completo",
     "archived": "Archivado"
   },
@@ -115,7 +121,7 @@
   },
   "home": {
     "title": "Inicio",
-    "subtitle": "Próximos lanzamientos y lo que necesita tu atención.",
+    "subtitle": "Próximos lanzamientos",
     "loadFailed": "No se pudo cargar el inicio.",
     "empty": {
       "title": "No hay próximos lanzamientos.",
@@ -137,7 +143,7 @@
   },
   "releases": {
     "title": "Lanzamientos",
-    "subtitle": "Todos los lanzamientos, del más reciente al más antiguo.",
+    "subtitle": "Todos los lanzamientos",
     "newRelease": "+ Nuevo lanzamiento",
     "loadFailed": "No se pudieron cargar los lanzamientos.",
     "archiveFailed": "No se pudo archivar.",
@@ -153,7 +159,7 @@
     "table": {
       "name": "Nombre",
       "type": "Tipo",
-      "releasedDate": "Fecha de publicación",
+      "releasedDate": "Fecha de lanzamiento",
       "status": "Estado"
     },
     "deleteConfirm": {
@@ -318,7 +324,6 @@
   },
   "artists": {
     "title": "Artistas",
-    "subtitle": "Todos los que tienen lanzamientos en el roster.",
     "newArtist": "+ Nuevo artista",
     "empty": "Aún no hay artistas. Agrega uno para empezar a crear lanzamientos.",
     "rowActions": "Acciones del artista",
@@ -362,7 +367,7 @@
   },
   "songs": {
     "title": "Catálogo",
-    "subtitle": "Todas las canciones, por título.",
+    "subtitle": "Todas las canciones.",
     "newSong": "+ Nueva canción",
     "loadFailed": "No se pudo cargar el catálogo.",
     "empty": "Aún no hay canciones — agrega una o crea un lanzamiento.",
@@ -376,7 +381,7 @@
     "table": {
       "name": "Nombre",
       "mainArtist": "Artista principal",
-      "released": "Publicada"
+      "status": "Estado"
     },
     "archiveConfirm": {
       "title": "¿Archivar \"{{title}}\"?"
@@ -414,7 +419,7 @@
   "templates": {
     "title": "Plantillas",
     "subtitle": "La lista por defecto que se copia en cada nuevo lanzamiento.",
-    "futureOnly": "Los cambios aplican solo a lanzamientos futuros — los existentes conservan su propia copia.",
+    "futureOnly": "Los cambios aplican solo a lanzamientos futuros. Los existentes mantienen su lista de tareas.",
     "loadFailed": "No se pudieron cargar las plantillas.",
     "notFound": "No se encontró la plantilla.",
     "taskCount_one": "{{count}} tarea en esta plantilla",

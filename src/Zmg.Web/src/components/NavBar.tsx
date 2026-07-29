@@ -15,8 +15,8 @@ import Logo from './Logo';
 const NAV_LINKS = [
   { to: '/', labelKey: 'nav.home', end: true },
   { to: '/releases', labelKey: 'nav.releases', end: false },
-  { to: '/catalog', labelKey: 'nav.catalog', end: false },
   { to: '/artists', labelKey: 'nav.artists', end: false },
+  { to: '/catalog', labelKey: 'nav.catalog', end: false },
   { to: '/templates', labelKey: 'nav.templates', end: false },
 ] as const;
 

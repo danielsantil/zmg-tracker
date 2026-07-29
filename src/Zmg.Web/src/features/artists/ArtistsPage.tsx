@@ -84,7 +84,6 @@ export default function ArtistsPage() {
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-strong">{t('artists.title')}</h1>
-          <p className="text-sm text-muted">{t('artists.subtitle')}</p>
         </div>
         <Button onClick={() => navigate('/artists/new')}>{t('artists.newArtist')}</Button>
       </div>

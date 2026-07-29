@@ -66,6 +66,12 @@ cd src/Zmg.Web && pnpm build && cd ../.. && dotnet run --project src/Zmg.Api
   migrations + seeds templates. To reset local data: reset the Neon
   branch, or `dotnet ef database drop` + `dotnet ef database update`. **Tests run SQLite in-memory**. EF migrations are Postgres-specific; keep EF tooling on
   **EF 8** to match the runtime.
+- **Never apply migrations by hand in dev — `dotnet ef migrations add`, then restart the API.** Dev
+  applies migrations on startup, so running `dotnet ef database update` is at best redundant. It also
+  does not work: the EF design-time host is not the entry assembly, so it never reads
+  `dotnet user-secrets`, finds no connection string, and fails trying to reach `127.0.0.1:5432`. Don't
+  work around that by passing `--connection` — that puts the production-grade credential on the command
+  line and in shell history. Prod is not migrated this way either; the deploy pipeline does it.
 - **Auth (v2.10): Google SSO + an `AllowedUser` whitelist.** Two `Authentication:Google:*` settings in
   **dev** user-secrets and **prod** ACA config; startup validation refuses to boot without them. Local
   sign-in needs `http://localhost:5274/api/auth/google/callback` registered as a redirect URI — the
