@@ -67,22 +67,23 @@ All of the following must be set, or the API refuses to boot — startup lists e
 | `Authentication__Google__ClientId` | Google OAuth client id — public by design (it appears in the authorization URL) |
 | `Authentication__Google__ClientSecret` | Google OAuth client secret |
 
-Set them once in user-secrets for dev — never committed (`__` in env vars maps to `:` in user-secrets):
+For **dev**, the secret keys live in a personal **Azure Key Vault**; the app reads them via your
+`az login`. The only thing in user-secrets is the vault URI — the non-secret keys (`R2:PublicBaseUrl`,
+`Authentication:Google:ClientId`) come from `appsettings.json`:
 
 ```bash
-dotnet user-secrets --project src/Zmg.Api set ConnectionStrings:Zmg "<your-postgres-connection-string>"
-dotnet user-secrets --project src/Zmg.Api set R2:AccountId "<account-id>"
-dotnet user-secrets --project src/Zmg.Api set R2:AccessKeyId "<access-key-id>"
-dotnet user-secrets --project src/Zmg.Api set R2:SecretAccessKey "<secret-access-key>"
-dotnet user-secrets --project src/Zmg.Api set R2:Bucket "<bucket>"
-dotnet user-secrets --project src/Zmg.Api set R2:PublicBaseUrl "<https://…r2.dev>"
-dotnet user-secrets --project src/Zmg.Api set Authentication:Google:ClientId "<…apps.googleusercontent.com>"
-dotnet user-secrets --project src/Zmg.Api set Authentication:Google:ClientSecret "<client-secret>"
+az login
+dotnet user-secrets --project src/Zmg.Api set KeyVault:Uri "https://<your-dev-vault>.vault.azure.net/"
 ```
+
+The vault holds `ConnectionStrings--Zmg`, `R2--AccountId`, `R2--AccessKeyId`, `R2--SecretAccessKey`,
+`R2--Bucket`, and `Authentication--Google--ClientSecret` (secret names map `Foo--Bar` → config key
+`Foo:Bar`). See [infra/README.md](infra/README.md) for how the vaults and the app's managed-identity
+access are provisioned.
 
 > **R2 buckets are per-environment.** Dev writes to its own `zmg-covers-dev` bucket (its own r2.dev
 > URL, and a dev-scoped R2 API token); prod uses `zmg-covers` served behind the
-> `https://img.zionmusicgroup.com` custom domain. Only the prod bucket and its ACA wiring live in
+> `https://img.zionmusicgroup.com` custom domain. Only the prod bucket lives in
 > Terraform — the **dev bucket** and prod's **custom domain** are hand-managed in the Cloudflare
 > dashboard, because the R2 API token deliberately holds no DNS rights (a custom domain writes a DNS
 > record).

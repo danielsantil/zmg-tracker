@@ -48,31 +48,3 @@ variable "r2_bucket" {
   description = "R2 bucket for release cover images"
   type        = string
 }
-
-variable "r2_access_key_id" {
-  description = "R2 S3 access key id generated in Cloudflare dashboard — the provider cannot generate it"
-  type        = string
-  sensitive   = true
-}
-
-variable "r2_secret_access_key" {
-  description = "R2 S3 secret access key"
-  type        = string
-  sensitive   = true
-}
-
-variable "r2_public_base_url" {
-  description = "Public read origin for prod covers — the img.zionmusicgroup.com custom domain"
-  type        = string
-}
-
-variable "google_client_id" {
-  description = "Google OAuth client id. Public by design (it appears in the authorization URL)"
-  type        = string
-}
-
-variable "google_client_secret" {
-  description = "Google OAuth client secret."
-  type        = string
-  sensitive   = true
-}

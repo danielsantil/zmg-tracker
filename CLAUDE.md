@@ -58,22 +58,30 @@ cd src/Zmg.Web && pnpm build && cd ../.. && dotnet run --project src/Zmg.Api
 ```
 
 - .NET SDK is pinned to 8.0.x via `global.json`. Node 24.18.0
-- **Cover images (v2.5/M31): Cloudflare R2.** Uploads go through `/api/uploads/cover*`; the five `R2:*`
-  settings live in **dev** `dotnet user-secrets` and (pending) as **prod** ACA secrets. Without them the
-  app still boots — only uploading fails. Tests never touch R2 or the network (fake storage + stub handler).
-- **Database (v2.5): Postgres (Neon).** Dev + prod use `ConnectionStrings__Zmg` — **dev** via
-  `dotnet user-secrets` in `src/Zmg.Api` (never commit it), **prod** as an ACA secret. Startup applies
-  migrations + seeds templates. To reset local data: reset the Neon
-  branch, or `dotnet ef database drop` + `dotnet ef database update`. **Tests run SQLite in-memory**. EF migrations are Postgres-specific; keep EF tooling on
-  **EF 8** to match the runtime.
+- **Secrets live in Azure Key Vault (dev + prod each own a vault).** The app reads them via
+  `DefaultAzureCredential` — your `az login` locally, ACA's user-assigned managed identity in prod —
+  layered on when `KeyVault:Uri` is set (**dev** in user-secrets, **prod** as an ACA env var, **tests**
+  unset so the vault is skipped and never hits the network). Terraform provisions the prod vault +
+  identity but writes **no** secret values; every secret is set out-of-band with `az keyvault secret
+  set`. Non-secret config (`R2:PublicBaseUrl`, `Authentication:Google:ClientId`) lives in
+  `appsettings.json`, not the vault.
+- **Cover images (v2.5/M31): Cloudflare R2.** Uploads go through `/api/uploads/cover*`; the secret `R2:*`
+  settings (`AccountId`, `AccessKeyId`, `SecretAccessKey`, `Bucket`) come from Key Vault, `R2:PublicBaseUrl`
+  from `appsettings.json`. Without them the app still boots — only uploading fails. Tests never touch R2
+  or the network (fake storage + stub handler).
+- **Database (v2.5): Postgres (Neon).** Dev + prod read `ConnectionStrings:Zmg` from **Azure Key Vault**
+  (see the secrets note above). Startup applies migrations + seeds templates. To reset local data: reset
+  the Neon branch, or `dotnet ef database drop` + `dotnet ef database update`. **Tests run SQLite
+  in-memory**. EF migrations are Postgres-specific; keep EF tooling on **EF 8** to match the runtime.
 - **Never apply migrations by hand in dev — `dotnet ef migrations add`, then restart the API.** Dev
   applies migrations on startup, so running `dotnet ef database update` is at best redundant. It also
-  does not work: the EF design-time host is not the entry assembly, so it never reads
-  `dotnet user-secrets`, finds no connection string, and fails trying to reach `127.0.0.1:5432`. Don't
+  does not work: the EF design-time host is not the entry assembly, so it never loads the Key Vault
+  config, finds no connection string, and fails trying to reach `127.0.0.1:5432`. Don't
   work around that by passing `--connection` — that puts the production-grade credential on the command
   line and in shell history. Prod is not migrated this way either; the deploy pipeline does it.
-- **Auth (v2.10): Google SSO + an `AllowedUser` whitelist.** Two `Authentication:Google:*` settings in
-  **dev** user-secrets and **prod** ACA config; startup validation refuses to boot without them. Local
+- **Auth (v2.10): Google SSO + an `AllowedUser` whitelist.** `Authentication:Google:ClientSecret` comes
+  from Key Vault; `Authentication:Google:ClientId` is non-secret in `appsettings.json`. Startup
+  validation refuses to boot without them. Local
   sign-in needs `http://localhost:5274/api/auth/google/callback` registered as a redirect URI — the
   *API's* port, not Vite's. **Tests never exercise the Google leg** (it would fetch the discovery
   document over the network); `ZmgApiFactory` stubs a signed-in user by default, and

@@ -1,3 +1,5 @@
+data "azurerm_client_config" "current" {}
+
 resource "azurerm_resource_group" "zmg" {
   name     = "zmg-rg"
   location = var.location
@@ -41,6 +43,11 @@ resource "azurerm_container_app" "zmg" {
   max_inactive_revisions       = 100
   tags                         = {}
 
+  identity {
+    type         = "UserAssigned"
+    identity_ids = [azurerm_user_assigned_identity.app.id]
+  }
+
   ingress {
     external_enabled           = true
     target_port                = 8080
@@ -64,26 +71,6 @@ resource "azurerm_container_app" "zmg" {
     value = var.ghcr_token
   }
 
-  secret {
-    name  = "neon-conn"
-    value = local.neon_connection_string
-  }
-
-  secret {
-    name  = "r2-access-key-id"
-    value = var.r2_access_key_id
-  }
-
-  secret {
-    name  = "r2-secret-access-key"
-    value = var.r2_secret_access_key
-  }
-
-  secret {
-    name  = "google-client-secret"
-    value = var.google_client_secret
-  }
-
   template {
     min_replicas                     = 0
     max_replicas                     = 1
@@ -98,48 +85,18 @@ resource "azurerm_container_app" "zmg" {
       memory = "1Gi"
 
       env {
-        name        = "ConnectionStrings__Zmg"
-        secret_name = "neon-conn"
+        name  = "KeyVault__Uri"
+        value = azurerm_key_vault.prod.vault_uri
       }
 
       env {
-        name  = "R2__AccountId"
-        value = var.r2_account_id
-      }
-
-      env {
-        name        = "R2__AccessKeyId"
-        secret_name = "r2-access-key-id"
-      }
-
-      env {
-        name        = "R2__SecretAccessKey"
-        secret_name = "r2-secret-access-key"
-      }
-
-      env {
-        name  = "R2__Bucket"
-        value = cloudflare_r2_bucket.covers.name
-      }
-
-      env {
-        name  = "R2__PublicBaseUrl"
-        value = var.r2_public_base_url
+        name  = "AZURE_CLIENT_ID"
+        value = azurerm_user_assigned_identity.app.client_id
       }
 
       env {
         name  = "Database__MigrateOnStartup"
         value = false
-      }
-
-      env {
-        name  = "Authentication__Google__ClientId"
-        value = var.google_client_id
-      }
-
-      env {
-        name        = "Authentication__Google__ClientSecret"
-        secret_name = "google-client-secret"
       }
     }
   }
@@ -148,4 +105,32 @@ resource "azurerm_container_app" "zmg" {
     # Deploys ship a new tag via `az containerapp update`; Terraform must not revert it.
     ignore_changes = [template[0].container[0].image]
   }
+}
+
+resource "azurerm_user_assigned_identity" "app" {
+  name                = "zmg-app-identity"
+  resource_group_name = azurerm_resource_group.zmg.name
+  location            = azurerm_resource_group.zmg.location
+}
+
+resource "azurerm_key_vault" "prod" {
+  name                       = "zmg-prod-kv"
+  resource_group_name        = azurerm_resource_group.zmg.name
+  location                   = azurerm_resource_group.zmg.location
+  tenant_id                  = data.azurerm_client_config.current.tenant_id
+  sku_name                   = "standard"
+  rbac_authorization_enabled = true
+  purge_protection_enabled   = false
+}
+
+resource "azurerm_role_assignment" "app_kv_read" {
+  scope                = azurerm_key_vault.prod.id
+  role_definition_name = "Key Vault Secrets User"
+  principal_id         = azurerm_user_assigned_identity.app.principal_id
+}
+
+resource "azurerm_role_assignment" "me_kv_read" {
+  scope                = azurerm_key_vault.prod.id
+  role_definition_name = "Key Vault Secrets Officer"
+  principal_id         = data.azurerm_client_config.current.object_id
 }

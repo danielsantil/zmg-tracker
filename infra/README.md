@@ -20,7 +20,7 @@ rather than with `~>`, because a `0.x` release makes no compatibility promise be
 | `versions.tf` | `required_providers` + version pins, and the `azurerm` remote state backend |
 | `providers.tf` | provider auth (Azure via `az login`; Neon + Cloudflare via API-key vars) |
 | `variables.tf` | all inputs |
-| `azure.tf` | resource group, Log Analytics, Container Apps environment + its diagnostic setting, the container app + its secrets/env |
+| `azure.tf` | resource group, Log Analytics, Container Apps environment + its diagnostic setting, the container app, and the prod Key Vault + the app's managed identity |
 | `neon.tf` | the Neon project and the composed connection string (`local.neon_connection_string`) |
 | `cloudflare.tf` | the R2 bucket |
 | `deploy-identity.tf` | the managed identity, federated credential, and role assignment the CI/CD pipeline uses |
@@ -52,8 +52,9 @@ the config is wrong — fix the config. Two replacements would be unrecoverable:
 
 ## Deliberately not managed by Terraform
 
-- **The R2 S3 access key and secret** (`r2_access_key_id`, `r2_secret_access_key`) are created by hand
-  in the Cloudflare dashboard and passed in as variables. A token created by `cloudflare_api_token`
+- **The R2 S3 access key and secret** are created by hand in the Cloudflare dashboard and set into the
+  Key Vaults with `az`, not passed through Terraform (see **App secrets** below). A token created by
+  `cloudflare_api_token`
   returns 403 when used as an S3 credential — R2's access-key derivation isn't exposed through the
   provider ([cloudflare/terraform-provider-cloudflare#6626](https://github.com/cloudflare/terraform-provider-cloudflare/issues/6626)).
 - **The Google OAuth client** — the consent screen (*Google Auth Platform → Audience*, External and
@@ -69,9 +70,10 @@ the config is wrong — fix the config. Two replacements would be unrecoverable:
   `google_iap_client` are IAP-only and effectively internal-brand-bound, which is the audience M55
   rejected on purpose. Re-check before re-proposing; don't re-derive it from the resource names.
 
-  **What *is* managed is the delivery**: `var.google_client_id`, the `google-client-secret` ACA secret,
-  and the two `Authentication__Google__*` env entries in `azure.tf`. Google owns the client; Terraform
-  owns handing it to the app.
+  **The app supplies the client credentials itself, not Terraform.** `Authentication:Google:ClientId` is
+  non-secret and lives in `appsettings.json`; `Authentication:Google:ClientSecret` is a Key Vault secret
+  set with `az`. Terraform provisions only the vault and the managed identity the app reads it with.
+  Google owns the client; the app reads its own config from Key Vault.
 
   > ⚠️ **The redirect URI list must mirror every hostname the app answers on, and nothing in a plan
   > will tell you it has gone stale.** A missing entry fails at Google, before any request reaches the
@@ -115,6 +117,31 @@ the config is wrong — fix the config. Two replacements would be unrecoverable:
     **`DNS: Edit`** on the *CI* token — a credential in GitHub Actions able to rewrite the DNS that
     routes company email. Keeping the wider credential in gitignored `terraform.tfvars` and out of CI
     is the whole point of the choice.
+
+## App secrets (Key Vault)
+
+The app's runtime secrets live in **Azure Key Vault**, one vault per environment, and the app reads them
+at boot via `DefaultAzureCredential` — your `az login` locally, the container app's **user-assigned
+managed identity** (`zmg-app-identity`) in prod. The config layer is gated on `KeyVault:Uri` (**dev** in
+user-secrets, **prod** as the `KeyVault__Uri` ACA env var); tests never set it, so they never reach the
+vault.
+
+- **Terraform provisions the prod vault, the managed identity, and two role assignments — but writes no
+  secret values.** `Key Vault Secrets User` lets the app read; `Key Vault Secrets Officer` lets whoever
+  runs `apply` (and their `az`) write. With `rbac_authorization_enabled`, even a subscription Owner
+  can't touch secret *values* without one of these data-plane roles — that's why the Officer assignment
+  exists, or `az keyvault secret set` returns `403`.
+- **`AZURE_CLIENT_ID` on the container app is load-bearing**: with a user-assigned identity (and no
+  system-assigned one), `DefaultAzureCredential` has no unambiguous default, so it needs the client id
+  to pick `zmg-app-identity`. Without it, KV reads `403` at boot.
+- **Every secret is set out-of-band with `az keyvault secret set`**, so the R2 keys and Google client
+  secret never enter `terraform.tfvars` or state. Names map `Foo--Bar` → config key `Foo:Bar`. The six
+  prod secrets: `ConnectionStrings--Zmg`, `R2--AccountId`, `R2--Bucket`, `R2--AccessKeyId`,
+  `R2--SecretAccessKey`, `Authentication--Google--ClientSecret`.
+- **The dev vault is hand-made with `az`, not Terraform** — local-dev scaffolding stays out of the prod
+  IaC. Same six secrets, dev values.
+- Non-secret config (`R2:PublicBaseUrl`, `Authentication:Google:ClientId`) is **not** in the vault; it
+  lives in `appsettings.json`.
 
 ## Logging
 
@@ -223,12 +250,18 @@ back that far.
 
 ## Wiring
 
-- `local.neon_connection_string` is composed from the `neon_project` attributes — Npgsql wants
-  `keyword=value` and Neon's `connection_uri` is a `postgresql://` URI it can't parse. It backs the
-  `neon-conn` secret behind `ConnectionStrings__Zmg`, so rotating the Neon role propagates on the next
-  apply instead of being copied by hand.
-- `R2__Bucket` reads `cloudflare_r2_bucket.covers.name`, so the app can't point at a bucket this config
-  doesn't manage. The other four `R2__*` values come from variables.
+The container app carries **no app secrets** — only `KeyVault__Uri` (where to read), `AZURE_CLIENT_ID`
+(which identity to authenticate as), and `Database__MigrateOnStartup=false`. Everything else is read from
+Key Vault at boot — see **App secrets** above.
+
+- `local.neon_connection_string` (in `neon.tf`) composes the Npgsql `keyword=value` string from the
+  `neon_project` attributes — Neon's `connection_uri` is a `postgresql://` URI Npgsql can't parse. No
+  resource consumes it; it's the helper you pipe into the `ConnectionStrings--Zmg` vault secret with
+  `az` when standing up or re-syncing the vault (`terraform console`, or a throwaway `sensitive`
+  output). Rotating the Neon role means re-running that `az` set, not an apply.
+- `R2--Bucket` / `R2--AccountId` are set from `cloudflare_r2_bucket.covers.name` / `var.r2_account_id`;
+  the R2 access keys and Google client secret from their real values. All land in the vault via `az`,
+  never through Terraform.
 
 ## Remote state
 
@@ -244,8 +277,9 @@ them are secret.
 
 - **The resource group is separate from `zmg-rg` on purpose** — so a `terraform destroy` can't delete
   the state file describing what it is destroying.
-- **The blob still holds live secrets in cleartext** — Neon password, R2 secret, GHCR token, Google
-  OAuth client secret.
+- **The blob holds live secrets in cleartext** — the Neon password (a `neon_project` attribute) and the
+  GHCR token (the only ACA secret). The **R2 keys and Google client secret never reach state**: they are
+  set straight into Key Vault with `az`, so Terraform never sees them.
   `sensitive = true` redacts values from CLI output; it encrypts nothing. What protects it is access
   control: blob storage is encrypted at rest (SSE, on by default), and **shared key access is disabled
   on the account**, so no account key exists to leak or to be pasted into a CI variable. The only way

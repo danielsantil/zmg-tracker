@@ -36,11 +36,19 @@ SPA **86 Vitest** — the pipeline gates on these.
 
 **Phase 2** (DSP stats, real-Postgres tests) follows v2.10 and starts a new `build-plan-3.0.md`.
 
-> ⚠️ **DB is Postgres (Neon) as of v2.5/M30.** Dev + prod both use `ConnectionStrings__Zmg` — **dev** via
-> `dotnet user-secrets` in `src/Zmg.Api` (never commit it), **prod** as an ACA secret. **Dev and tests
-> migrate at startup; prod does not** — the deploy pipeline applies migrations. Reset local data by
-> resetting the Neon branch or `dotnet ef database drop` + `database update`. Tests run **SQLite
-> in-memory**. Keep EF tooling on **EF 8** to match the runtime.
+> ⚠️ **DB is Postgres (Neon) as of v2.5/M30.** Dev + prod both read `ConnectionStrings:Zmg` from **Azure
+> Key Vault** (see the Key Vault note below). **Dev and tests migrate at startup; prod does not** — the
+> deploy pipeline applies migrations. Reset local data by resetting the Neon branch or `dotnet ef
+> database drop` + `database update`. Tests run **SQLite in-memory**. Keep EF tooling on **EF 8** to
+> match the runtime.
+
+> ⚠️ **Secrets live in Azure Key Vault (post-v2.10).** Dev + prod each own a vault; the app reads them
+> via `DefaultAzureCredential` — your `az login` locally, ACA's user-assigned managed identity in prod —
+> gated on `KeyVault:Uri` (dev: user-secrets; prod: ACA env; tests: unset → skipped, so no network).
+> Terraform provisions the prod vault + identity but holds **no** secret values: every secret is set with
+> `az keyvault secret set`, so the R2 keys and Google client secret never touch `tfvars` or state.
+> Non-secret config (`R2:PublicBaseUrl`, `Authentication:Google:ClientId`) is in `appsettings.json`. Full
+> setup: [infra/README.md](../infra/README.md) → **App secrets**.
 
 ---
 
@@ -163,6 +171,17 @@ into one shared `ThemeToggle`, extracted `WithArchiveCascadeIncludes()` and move
 `IsDevelopment()` branches in `Program.cs` behind `EnvironmentExtensions` (console logging + dev
 tooling), gave that artist sort a name tiebreak (with a guard test), and swept a stale comment and a
 needless `async`. Tests **API 281 → 282**.
+
+**Post-v2.10 — app secrets to Key Vault (infra).** Moved every runtime secret out of `dotnet
+user-secrets` (dev) and ACA inline secrets (prod) into **Azure Key Vault** — a dev vault and a prod
+vault, read at boot through `Configuration.AddAzureKeyVault` + `DefaultAzureCredential` (gated on
+`KeyVault:Uri`, so tests skip it and never hit the network). Terraform provisions the prod vault, the
+`zmg-app-identity` user-assigned managed identity, and two RBAC role assignments, but writes **no**
+secret values; all six secrets are set out-of-band with `az`, so the R2 keys and Google client secret
+left `tfvars` and Terraform state entirely. Non-secret config (`R2:PublicBaseUrl`,
+`Authentication:Google:ClientId`) moved to `appsettings.json`. One rule to hold it together: *Terraform
+builds the vault and grants read access; secrets only ever enter via `az`.* No app-behavior or test
+count change. Full setup in [infra/README.md](../infra/README.md).
 
 ---
 
@@ -551,6 +570,8 @@ docs                     kql-cookbook.md — queries for the production logs (v2
 - **Shipped — v2.10 (M53–M59):** custom domain · auth schema · Google SSO API · login screen + gate ·
   structured application logs · ingress logs + KQL cookbook · verification + docs.
   (Earlier versions are in the Journal; they are not repeated here.)
+- **Shipped — post-v2.10 infra:** app secrets migrated to **Azure Key Vault** (dev + prod vaults, app
+  reads via managed identity); R2 keys + Google client secret removed from `tfvars` and Terraform state.
 - **Next: Phase 2 — DSP stats** (the reason this exists over Notion/Trello): hang streaming/revenue
   data off the stable Artist / Release / **Song** / Track ids and the UPC/ISRC columns; the v2.0 Song
   ids are its foundation. Also real-Postgres tests (Testcontainers + a CI service container). No build
