@@ -152,7 +152,8 @@ with a request id that joins every app line to the ingress record for the same r
 [`docs/kql-cookbook.md`](../docs/kql-cookbook.md) to query it. The verification pass earned its keep —
 the container was answering every SPA asset with a redirect to a login path, so the edge-served copy
 worked and the rollback target was a blank page. Tests **domain 125 → 166, API 214 → 281, web
-57 → 86**. See [build-plan-2.10.md](build-plan-2.10.md).
+57 → 86**. Post-launch, prod covers moved to the `img.zionmusicgroup.com` R2 custom domain and dev was
+split onto its own `zmg-covers-dev` bucket. See [build-plan-2.10.md](build-plan-2.10.md).
 
 ---
 
@@ -277,9 +278,15 @@ worked and the rollback target was a blank page. Tests **domain 125 → 166, API
   **Storage Blob Data Contributor** (hence `use_azuread_auth`), and a fresh role assignment takes 2–5 min
   to propagate (a 403 straight after granting is propagation, not misconfiguration). Locking is a blob
   lease and fires on `plan` too; an interrupted run leaves it held → `terraform force-unlock <ID>`.
-  **Two things are hand-created, deliberately:** the state backend (Terraform can't create the account its
-  own state lives in) and the Cloudflare Worker (managing it would need Workers Scripts · Edit added to
-  the deliberately R2-only Cloudflare token).
+  **A few things are hand-created, deliberately:** the state backend (Terraform can't create the account
+  its own state lives in); the Cloudflare Worker and the `img.zionmusicgroup.com` **R2 custom domain**
+  (both would need permissions — Workers Scripts · Edit / DNS · Edit — added to the deliberately R2-only
+  Cloudflare token); and the **dev `zmg-covers-dev` bucket** (a dev-only resource kept out of prod state).
+- **Cover URLs are persisted absolute (`PublicBaseUrl + key`), so re-pointing `R2__PublicBaseUrl` at a
+  non-empty bucket needs a data migration** to rewrite every `Release.CoverUrl` row — the prod move to
+  `img.zionmusicgroup.com` was free only because the bucket was empty. R2 buckets are **per-environment**
+  (prod `zmg-covers` behind the custom domain; dev `zmg-covers-dev` on its own r2.dev URL + dev-scoped
+  token) so local uploads never touch prod assets.
 - **Deploy is a GitHub Actions pipeline over an immutable SHA-tagged image.** `ci.yml` tests → builds +
   pushes `ghcr.io/…:{short-sha}` → calls reusable `deploy.yml`, then `web.yml` (SPA to Cloudflare) on
   green pushes to main; `deploy.yml`'s `workflow_dispatch` re-points ACA at any existing tag (rollback,

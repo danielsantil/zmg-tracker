@@ -236,8 +236,11 @@ it is the failure you would not otherwise notice.
 
 ### Still deferred
 
-- **`img.zionmusicgroup.com` for R2**, retiring the `r2.dev` URL. Cover URLs are persisted **absolute**
-  in the database, so switching `R2__PublicBaseUrl` needs a data migration — its own milestone.
+- ~~**`img.zionmusicgroup.com` for R2**~~ **Done (post-v2.10, hand-managed).** Prod covers now serve
+  from the `img.zionmusicgroup.com` custom domain on `zmg-covers`; dev was split onto its own
+  `zmg-covers-dev` bucket + r2.dev URL. No data migration was needed — the prod bucket was empty when
+  the switch landed. Neither the dev bucket nor the custom domain is in Terraform (the R2 token has no
+  DNS rights); only `R2__PublicBaseUrl` in tfvars changed.
 - **SPF, DKIM and DMARC.** The domain has none despite running Google Workspace mail: a live
   deliverability and spoofing exposure that predates this work and that the migration neither caused
   nor fixed. Easier now that TXT records go in Cloudflare.
@@ -805,5 +808,6 @@ against real Postgres in the production-style single process, then prod.
   Revisit if $0 stops being the constraint.
 - **Passkeys / WebAuthn.** Google handles the second factor already; ASP.NET Identity's passkey
   support would mean adopting Identity, which this plan avoids entirely.
-- **`img.zionmusicgroup.com`** (§8 of the migration doc) — needs a cover-URL data migration.
+- ~~**`img.zionmusicgroup.com`**~~ **Done post-v2.10** — prod covers serve from the custom domain and
+  env buckets were split (dev `zmg-covers-dev`), so the empty prod bucket needed no data migration.
 - **Phase 2 (DSP stats), real-Postgres tests, per-track fan-out** — still `build-plan-3.0.md`.

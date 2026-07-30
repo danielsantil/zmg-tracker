@@ -63,7 +63,7 @@ All of the following must be set, or the API refuses to boot — startup lists e
 | `R2__AccessKeyId` | R2 access key id |
 | `R2__SecretAccessKey` | R2 secret access key |
 | `R2__Bucket` | R2 bucket name |
-| `R2__PublicBaseUrl` | Public read origin for the bucket (the r2.dev URL until a custom domain lands) |
+| `R2__PublicBaseUrl` | Public read origin for the bucket (prod: `https://img.zionmusicgroup.com`; dev: the bucket's own r2.dev URL) |
 | `Authentication__Google__ClientId` | Google OAuth client id — public by design (it appears in the authorization URL) |
 | `Authentication__Google__ClientSecret` | Google OAuth client secret |
 
@@ -79,6 +79,13 @@ dotnet user-secrets --project src/Zmg.Api set R2:PublicBaseUrl "<https://…r2.d
 dotnet user-secrets --project src/Zmg.Api set Authentication:Google:ClientId "<…apps.googleusercontent.com>"
 dotnet user-secrets --project src/Zmg.Api set Authentication:Google:ClientSecret "<client-secret>"
 ```
+
+> **R2 buckets are per-environment.** Dev writes to its own `zmg-covers-dev` bucket (its own r2.dev
+> URL, and a dev-scoped R2 API token); prod uses `zmg-covers` served behind the
+> `https://img.zionmusicgroup.com` custom domain. Only the prod bucket and its ACA wiring live in
+> Terraform — the **dev bucket** and prod's **custom domain** are hand-managed in the Cloudflare
+> dashboard, because the R2 API token deliberately holds no DNS rights (a custom domain writes a DNS
+> record).
 
 ## Who can sign in
 

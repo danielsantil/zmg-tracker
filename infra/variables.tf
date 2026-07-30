@@ -62,7 +62,7 @@ variable "r2_secret_access_key" {
 }
 
 variable "r2_public_base_url" {
-  description = "Public r2.dev base URL for covers"
+  description = "Public read origin for prod covers — the img.zionmusicgroup.com custom domain"
   type        = string
 }
 

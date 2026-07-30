@@ -14,7 +14,7 @@ public sealed class R2Options
     public string? SecretAccessKey { get; set; }
     public string? Bucket { get; set; }
 
-    /// <summary>Public read origin for the bucket (the r2.dev URL until a custom domain lands).</summary>
+    /// <summary>Public read origin for the bucket (prod: the img.zionmusicgroup.com custom domain; dev: the bucket's own r2.dev URL).</summary>
     public string? PublicBaseUrl { get; set; }
 
     public bool IsConfigured => MissingKeys().Count == 0;
