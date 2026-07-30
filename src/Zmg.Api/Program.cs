@@ -1,3 +1,4 @@
+using Azure.Identity;
 using Microsoft.EntityFrameworkCore;
 using Zmg.Api.Endpoints;
 using Zmg.Api.Extensions;
@@ -11,9 +12,19 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.AddZmgConsoleLogging();
 
+// Secrets live in Azure Key Vault (dev + prod each own a vault). When KeyVault:Uri is set this layers
+// the vault over appsettings/env/user-secrets, so `Foo--Bar` secrets resolve as `Foo:Bar` config keys.
+// DefaultAzureCredential authenticates as your `az login` locally and as ACA's managed identity in prod.
+// The gate keeps the network out of tests: ZmgApiFactory never sets KeyVault:Uri, so this is skipped.
+var keyVaultUri = builder.Configuration["KeyVault:Uri"];
+if (!string.IsNullOrEmpty(keyVaultUri))
+{
+    builder.Configuration.AddAzureKeyVault(new Uri(keyVaultUri), new DefaultAzureCredential());
+}
+
 // Fail fast on any missing required setting (connection string + all R2:* keys), naming every offender
-// at once, rather than letting a null surface deep inside the first request that needs it. Prod supplies
-// these as ACA secrets; dev via user-secrets; tests via dummy UseSetting values (never dereferenced).
+// at once, rather than letting a null surface deep inside the first request that needs it. Prod + dev
+// supply these from Key Vault (above); tests via dummy UseSetting values (never dereferenced).
 builder.Configuration.Validate();
 
 var connectionString = builder.Configuration.GetConnectionString("Zmg");
@@ -34,6 +45,14 @@ builder.AddDevTooling();
 var app = builder.Build();
 
 app.Logger.LogInformation("[boot] built {Ms} ms", Environment.TickCount64 - bootStart);
+
+// Only the vault URI (a hostname, never the retrieved values) — so a boot line confirms which vault
+// this instance read its secrets from. Silent when KeyVault:Uri is unset (tests, and any local run
+// that hasn't opted in), matching the gate around the config source above.
+if (!string.IsNullOrEmpty(keyVaultUri))
+{
+    app.Logger.LogInformation("[boot] secrets sourced from Key Vault {KeyVaultUri}", keyVaultUri);
+}
 
 // Migrate at startup by default: `dotnet run` gets a ready database with seeded templates, and the
 // integration tests rely on this call for their SQLite schema (see ZmgApiFactory). Prod sets
