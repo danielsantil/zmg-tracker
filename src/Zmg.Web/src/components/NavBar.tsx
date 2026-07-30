@@ -2,11 +2,12 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { LogOut, Menu, Moon, Sun, X } from 'lucide-react';
-import { useTheme, type Theme } from '../hooks/useTheme';
+import { LogOut, Menu, X } from 'lucide-react';
+import { useTheme } from '../hooks/useTheme';
 import { useLanguage } from '../i18n/useLanguage';
 import { useAuth } from '../auth/useAuth';
 import { LanguageToggle } from './LanguageToggle';
+import { ThemeToggle } from './ThemeToggle';
 import Logo from './Logo';
 
 // One source for both the desktop row and the mobile sheet, so a destination can't drift between them.
@@ -29,24 +30,6 @@ const mobileLink = ({ isActive }: { isActive: boolean }) =>
   `rounded-lg px-3 py-2.5 text-sm font-medium transition ${
     isActive ? 'bg-edge text-strong' : 'text-muted hover:bg-edge hover:text-body'
   }`;
-
-// Shows the mode you'd switch TO: a sun in dark mode (→ light), a moon in light mode (→ dark).
-// Presentational: theme/toggle come from NavBar's single useTheme so the logo and this button never
-// disagree (useTheme is per-caller local state — two independent calls would diverge on toggle).
-function ThemeToggle({ theme, toggle }: { theme: Theme; toggle: () => void }) {
-  const { t } = useTranslation();
-  const Icon = theme === 'dark' ? Sun : Moon;
-  return (
-    <button
-      type="button"
-      onClick={toggle}
-      aria-label={theme === 'dark' ? t('theme.toLight') : t('theme.toDark')}
-      className="grid h-8 w-8 place-items-center rounded-lg text-muted transition hover:bg-edge hover:text-body"
-    >
-      <Icon className="h-4 w-4" aria-hidden />
-    </button>
-  );
-}
 
 /**
  * Email + sign out, behind an initials avatar (≥sm only).

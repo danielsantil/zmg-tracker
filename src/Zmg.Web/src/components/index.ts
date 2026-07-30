@@ -16,4 +16,5 @@ export { ProgressBar } from './ProgressBar';
 export { ReorderArrows } from './ReorderArrows';
 export { StatusBadge } from './StatusBadge';
 export { Toast, type ToastVariant } from './Toast';
+export { ThemeToggle } from './ThemeToggle';
 export { TypeBadge } from './TypeBadge';

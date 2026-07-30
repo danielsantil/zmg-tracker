@@ -1,12 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { TriangleAlert } from 'lucide-react';
-import { BusyOverlay } from '@/components';
+import { BusyOverlay, LanguageToggle, ThemeToggle } from '@/components';
 import Logo from '@/components/Logo';
-import { LanguageToggle } from '@/components/LanguageToggle';
 import { useLanguage } from '@/i18n/useLanguage';
 import { useTheme } from '@/hooks/useTheme';
-import { Moon, Sun } from 'lucide-react';
 import { useAuth } from '@/auth/useAuth';
 
 /** Google's mark, drawn inline — the CSP-safe way, and it must not be recoloured (brand rules). */
@@ -57,19 +55,10 @@ export default function LoginPage({ denied = false }: { denied?: boolean }) {
     return () => window.removeEventListener('pageshow', onPageShow);
   }, []);
 
-  const ThemeIcon = theme === 'dark' ? Sun : Moon;
-
   return (
     <div className="min-h-screen">
       <header className="flex items-center justify-end gap-x-3 px-4 py-3">
-        <button
-          type="button"
-          onClick={toggle}
-          aria-label={theme === 'dark' ? t('theme.toLight') : t('theme.toDark')}
-          className="grid h-8 w-8 place-items-center rounded-lg text-muted transition hover:bg-edge hover:text-body"
-        >
-          <ThemeIcon className="h-4 w-4" aria-hidden />
-        </button>
+        <ThemeToggle theme={theme} toggle={toggle} />
         <LanguageToggle language={language} setLanguage={setLanguage} />
       </header>
 
@@ -86,9 +75,7 @@ export default function LoginPage({ denied = false }: { denied?: boolean }) {
               <p className="mt-3 text-sm text-muted">{t('auth.denied.body')}</p>
             </>
           ) : (
-            <>
-              <h1 className="mt-5 text-base font-semibold text-strong">{t('auth.login.title')}</h1>
-            </>
+            <h1 className="mt-5 text-base font-semibold text-strong">{t('auth.login.title')}</h1>
           )}
 
           {/* Google's own colours on a white surface in both themes — their branding rules require it,

@@ -78,6 +78,29 @@ public class ArtistReleaseApiTests(ZmgApiFactory factory) : IClassFixture<ZmgApi
     }
 
     [Fact]
+    public async Task Artist_list_is_ordered_by_active_release_count_then_name()
+    {
+        var client = factory.CreateClient();
+        var busy = await CreateArtist(client, "Order Busy");   // two active releases
+        var quietB = await CreateArtist(client, "Order Bravo"); // one active release, name breaks the tie
+        var quietA = await CreateArtist(client, "Order Alpha"); // one active release
+
+        foreach (var (artist, count) in new[] { (busy, 2), (quietB, 1), (quietA, 1) })
+            for (var i = 0; i < count; i++)
+                (await client.PostAsJsonAsync("/api/releases", new ReleaseInput(
+                    $"{artist.Name} {i}", ReleaseType.Single, TestDates.Upcoming, artist.Id, null, null,
+                    OneTrack($"{artist.Name} track {i}"))))
+                    .EnsureSuccessStatusCode();
+
+        var list = await client.GetFromJsonAsync<List<ArtistDto>>("/api/artists");
+        var mine = list!.Where(a => a.Id == busy.Id || a.Id == quietA.Id || a.Id == quietB.Id)
+            .Select(a => a.Id).ToList();
+
+        // Busiest first; the two one-release artists fall back to name order (Alpha before Bravo).
+        Assert.Equal(new[] { busy.Id, quietA.Id, quietB.Id }, mine);
+    }
+
+    [Fact]
     public async Task Duplicate_artist_name_is_rejected()
     {
         var client = factory.CreateClient();

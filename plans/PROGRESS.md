@@ -31,7 +31,7 @@ migrations, deploys to ACA over OIDC, then ships the SPA to Cloudflare.
 
 **The app is closed and observable.** Google SSO is live in prod over a revocable server-side session,
 and the app logs structured JSON that Log Analytics collects alongside a per-request ingress record —
-queries in [`docs/kql-cookbook.md`](../docs/kql-cookbook.md). Tests: backend **domain 166 / API 281**,
+queries in [`docs/kql-cookbook.md`](../docs/kql-cookbook.md). Tests: backend **domain 166 / API 282**,
 SPA **86 Vitest** — the pipeline gates on these.
 
 **Phase 2** (DSP stats, real-Postgres tests) follows v2.10 and starts a new `build-plan-3.0.md`.
@@ -154,6 +154,15 @@ the container was answering every SPA asset with a redirect to a login path, so 
 worked and the rollback target was a blank page. Tests **domain 125 → 166, API 214 → 281, web
 57 → 86**. Post-launch, prod covers moved to the `img.zionmusicgroup.com` R2 custom domain and dev was
 split onto its own `zmg-covers-dev` bucket. See [build-plan-2.10.md](build-plan-2.10.md).
+
+**Post-v2.10 — login fixes + cleanup.** The launch shook out a few login-path bugs: `?denied=1` is now
+read once at the gate and stripped (`useDeniedFlag`) so it can't ride back through Google as a
+`returnUrl`; the cold-start wait got a legible backdrop (`BusyOverlay`) instead of a blank screen; and
+the artist list sorts by active-release count. A follow-up cleanup pass folded the two theme buttons
+into one shared `ThemeToggle`, extracted `WithArchiveCascadeIncludes()` and moved the three inline
+`IsDevelopment()` branches in `Program.cs` behind `EnvironmentExtensions` (console logging + dev
+tooling), gave that artist sort a name tiebreak (with a guard test), and swept a stale comment and a
+needless `async`. Tests **API 281 → 282**.
 
 ---
 

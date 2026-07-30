@@ -139,7 +139,7 @@ public class AuthApiTests
     }
 
     [Fact]
-    public async Task Auth_error_codes_are_distinct_and_namespaced()
+    public void Auth_error_codes_are_distinct_and_namespaced()
     {
         // Cheap, but it pins the contract M46 cares about: these are permanent identifiers that map 1:1
         // onto i18next key paths, and MessageCodeApiTests proves both locales carry them.

@@ -10,7 +10,7 @@ const authKey = ['auth', 'me'] as const;
 /**
  * Holds "who is signed in", derived from a single `GET /api/auth/me` (v2.10/M56).
  *
- * The probe is a normal query so it shares the cache and dedups, but with `retry: false` — a 401 is
+ * The probe is a normal query so it shares the cache and dedups, but capped at one retry — a 401 is
  * an answer, not a transient failure worth retrying three times before the login screen appears.
  */
 export function AuthProvider({ children }: { children: ReactNode }) {

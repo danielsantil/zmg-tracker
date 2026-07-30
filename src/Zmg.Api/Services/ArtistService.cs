@@ -16,7 +16,11 @@ public sealed class ArtistService(ZmgDbContext db) : IArtistService
 {
     public async Task<IReadOnlyList<ArtistDto>> ListAsync(CancellationToken ct = default) =>
         await db.Artists.AsNoTracking()
-            .OrderByDescending(a => a.Releases.Count)
+            // Busiest first, by the same active-release count the row shows — ordering on total releases
+            // would float an artist whose releases are all archived above one with active work and a "0".
+            // Name breaks ties so the list is stable rather than in whatever order the store returns.
+            .OrderByDescending(a => a.Releases.Count(r => r.ArchivedAt == null))
+            .ThenBy(a => a.Name)
             .Select(Projection)
             .ToListAsync(ct);
 

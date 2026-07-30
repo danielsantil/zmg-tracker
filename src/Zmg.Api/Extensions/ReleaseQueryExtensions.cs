@@ -14,4 +14,13 @@ public static class ReleaseQueryExtensions
             .Include(r => r.MainArtist)
             .Include(r => r.Tasks)
             .Include(r => r.Tracks).ThenInclude(t => t.Song!).ThenInclude(s => s.Artists).ThenInclude(sa => sa.Artist);
+
+    /// <summary>
+    /// The graph the archive cascade walks: each track's song, and every release that song is still
+    /// linked to (<c>SongArchival.ShouldArchive</c> needs the other links to spot a shared song).
+    /// Shared by the archive itself and its read-only preview so the two can never diverge.
+    /// </summary>
+    public static IQueryable<Release> WithArchiveCascadeIncludes(this IQueryable<Release> query) =>
+        query
+            .Include(r => r.Tracks).ThenInclude(t => t.Song).ThenInclude(s => s!.ReleaseLinks).ThenInclude(t => t.Release);
 }

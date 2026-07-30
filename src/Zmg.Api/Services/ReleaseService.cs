@@ -279,7 +279,7 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
         // Identity-resolution no-tracking: the include path cycles back to Release (Track→Song→ReleaseLinks→
         // Release), which plain AsNoTracking rejects. Read-only, so no change tracking is wanted.
         var release = await db.Releases.AsNoTrackingWithIdentityResolution()
-            .Include(r => r.Tracks).ThenInclude(t => t.Song).ThenInclude(s => s!.ReleaseLinks).ThenInclude(t => t.Release)
+            .WithArchiveCascadeIncludes()
             .FirstOrDefaultAsync(r => r.Id == id, ct);
         if (release is null) return OperationResult<ArchivePreviewDto>.NotFound();
 
@@ -301,7 +301,7 @@ public sealed class ReleaseService(ZmgDbContext db) : IReleaseService
     public async Task<OperationResult> ArchiveAsync(Guid id, CancellationToken ct = default)
     {
         var release = await db.Releases
-            .Include(r => r.Tracks).ThenInclude(t => t.Song).ThenInclude(s => s!.ReleaseLinks).ThenInclude(t => t.Release)
+            .WithArchiveCascadeIncludes()
             .FirstOrDefaultAsync(r => r.Id == id, ct);
         if (release is null) return OperationResult.NotFound();
 

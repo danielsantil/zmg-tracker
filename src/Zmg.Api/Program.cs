@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Zmg.Api.Endpoints;
 using Zmg.Api.Extensions;
@@ -10,20 +9,7 @@ var bootStart = Environment.TickCount64;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// One JSON object per line to stdout, which ACA collects into ContainerAppConsoleLogs_CL and KQL can
-// parse_json — no sink, no package, no network call, so there is nothing here that can fail closed and
-// take the app down with it (v2.10/M57). Scopes are included because the request id rides in one.
-// Dev keeps the readable single-line console: JSON at a terminal is a downgrade.
-if (!builder.Environment.IsDevelopment())
-{
-    builder.Logging.AddJsonConsole(o =>
-    {
-        o.IncludeScopes = true;
-        o.UseUtcTimestamp = true;
-        o.TimestampFormat = "yyyy-MM-dd'T'HH:mm:ss.fff'Z'";
-        o.JsonWriterOptions = new JsonWriterOptions { Indented = false };
-    });
-}
+builder.AddZmgConsoleLogging();
 
 // Fail fast on any missing required setting (connection string + all R2:* keys), naming every offender
 // at once, rather than letting a null surface deep inside the first request that needs it. Prod supplies
@@ -43,17 +29,7 @@ builder.Services.AddZmgAuthentication(builder.Configuration, builder.Environment
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
-if (builder.Environment.IsDevelopment())
-{
-    builder.Services.AddEndpointsApiExplorer();
-    builder.Services.AddSwaggerGen();
-    
-    builder.Services.AddCors(options =>
-        options.AddPolicy("dev", p => p
-            .WithOrigins("http://localhost:5173")
-            .AllowAnyHeader()
-            .AllowAnyMethod()));
-}
+builder.AddDevTooling();
 
 var app = builder.Build();
 
@@ -87,12 +63,7 @@ app.UseExceptionHandler();
 // the OIDC redirect_uri would otherwise be built from the wrong one.
 app.UseZmgForwardedHeaders();
 
-if (app.Environment.IsDevelopment())
-{
-    app.UseCors("dev");
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+app.UseDevTooling();
 
 // BEFORE authentication/authorization, and this ordering is load-bearing (v2.10/M59).
 //

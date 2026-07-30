@@ -95,11 +95,11 @@ Authentication and authorization are separate, and the split is the whole design
 second allow-list in the Google console to keep in step. **`AllowedUser` alone decides who gets in** —
 anyone else lands on a "not authorised" screen and an `auth.login.denied` log line.
 
-Adding a partner is one row. There is no signup, no invite email and no admin screen, by decision:
+Adding a partner is one column. There is no signup, no invite email and no admin screen, by decision —
+`Id` and `CreatedAt` default in the database (`gen_random_uuid()` / `now()`):
 
 ```sql
-INSERT INTO "AllowedUsers" ("Id", "Email", "DisplayName", "CreatedAt")
-VALUES (gen_random_uuid(), 'partner@example.com', NULL, now());
+INSERT INTO "AllowedUsers" ("Email") VALUES ('partner@example.com');
 ```
 
 The address **must be lowercase and trimmed** — it is stored normalized (`EmailNormalization`) and
